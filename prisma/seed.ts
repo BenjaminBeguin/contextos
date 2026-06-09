@@ -1,6 +1,31 @@
 import { createHash } from "node:crypto";
-import { PrismaClient } from "@prisma/client";
+import { existsSync, readFileSync } from "node:fs";
+import pkg from "@prisma/client";
 
+// tsx does not auto-load .env; load it with override (cwd is the repo root for
+// `pnpm db:seed`) so the project's DATABASE_URL wins over any stray shell var.
+function loadEnv(path: string): void {
+  if (!existsSync(path)) return;
+  for (const line of readFileSync(path, "utf8").split("\n")) {
+    const trimmed = line.trim();
+    if (!trimmed || trimmed.startsWith("#")) continue;
+    const eq = trimmed.indexOf("=");
+    if (eq === -1) continue;
+    const key = trimmed.slice(0, eq).trim();
+    let value = trimmed.slice(eq + 1).trim();
+    if (
+      (value.startsWith('"') && value.endsWith('"')) ||
+      (value.startsWith("'") && value.endsWith("'"))
+    ) {
+      value = value.slice(1, -1);
+    }
+    process.env[key] = value;
+  }
+}
+
+loadEnv(".env");
+
+const { PrismaClient } = pkg;
 const prisma = new PrismaClient();
 
 // Fixed dev token so local verification (CLI/MCP) is reproducible.

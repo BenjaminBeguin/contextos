@@ -22,3 +22,89 @@ a {
   color: inherit;
   text-decoration: none;
 }
+
+/* ---- Futuristic landing effects ---- */
+
+/* Animated grid floor */
+.grid-bg {
+  background-image:
+    linear-gradient(to right, rgba(255, 255, 255, 0.04) 1px, transparent 1px),
+    linear-gradient(to bottom, rgba(255, 255, 255, 0.04) 1px, transparent 1px);
+  background-size: 48px 48px;
+  mask-image: radial-gradient(ellipse 80% 60% at 50% 0%, #000 40%, transparent 100%);
+  -webkit-mask-image: radial-gradient(ellipse 80% 60% at 50% 0%, #000 40%, transparent 100%);
+}
+
+/* Aurora glow blobs */
+.aurora {
+  position: absolute;
+  inset: -20% 0 auto 0;
+  height: 600px;
+  pointer-events: none;
+  background:
+    radial-gradient(40% 50% at 20% 20%, rgba(109, 94, 252, 0.35), transparent 70%),
+    radial-gradient(40% 50% at 80% 10%, rgba(34, 211, 238, 0.28), transparent 70%),
+    radial-gradient(50% 60% at 50% 30%, rgba(217, 70, 239, 0.18), transparent 70%);
+  filter: blur(40px);
+  animation: aurora-drift 16s ease-in-out infinite alternate;
+}
+
+@keyframes aurora-drift {
+  0% {
+    transform: translate3d(-3%, 0, 0) scale(1);
+    opacity: 0.9;
+  }
+  100% {
+    transform: translate3d(3%, 2%, 0) scale(1.1);
+    opacity: 1;
+  }
+}
+
+/* Animated gradient text */
+.gradient-text {
+  background: linear-gradient(110deg, #e7e7ee 10%, #a78bfa 35%, #22d3ee 60%, #e7e7ee 90%);
+  background-size: 200% auto;
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  animation: text-shimmer 6s linear infinite;
+}
+
+@keyframes text-shimmer {
+  to {
+    background-position: 200% center;
+  }
+}
+
+/* Glass card with gradient hairline border */
+.glass {
+  background: rgba(255, 255, 255, 0.025);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  backdrop-filter: blur(12px);
+  transition: border-color 0.25s ease, transform 0.25s ease, box-shadow 0.25s ease;
+}
+.glass:hover {
+  border-color: rgba(167, 139, 250, 0.45);
+  transform: translateY(-3px);
+  box-shadow: 0 20px 60px -25px rgba(109, 94, 252, 0.55);
+}
+
+/* Soft conic glow ring */
+.glow-ring {
+  box-shadow:
+    0 0 0 1px rgba(255, 255, 255, 0.06),
+    0 0 80px -20px rgba(34, 211, 238, 0.35);
+}
+
+@keyframes float-slow {
+  0%,
+  100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-8px);
+  }
+}
+.float-slow {
+  animation: float-slow 7s ease-in-out infinite;
+}

@@ -1,9 +1,11 @@
+import "./load-env.js";
 import Fastify from "fastify";
 import cookie from "@fastify/cookie";
 import cors from "@fastify/cors";
 import { ZodError } from "zod";
 import { env } from "./env.js";
 import { authRoutes } from "./routes/auth.js";
+import { waitlistRoutes } from "./routes/waitlist.js";
 import { workspaceRoutes } from "./routes/workspaces.js";
 import { repoRoutes } from "./routes/repos.js";
 import { memoryRoutes } from "./routes/memories.js";
@@ -28,6 +30,7 @@ app.setErrorHandler((error, _req, reply) => {
 app.get("/health", async () => ({ ok: true }));
 
 await app.register(authRoutes);
+await app.register(waitlistRoutes);
 await app.register(workspaceRoutes);
 await app.register(repoRoutes);
 await app.register(memoryRoutes);

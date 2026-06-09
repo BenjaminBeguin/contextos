@@ -10,6 +10,11 @@ export const loginSchema = z.object({
   name: z.string().min(1).optional(),
 });
 
+export const waitlistSchema = z.object({
+  email: z.string().email(),
+  source: z.string().max(120).optional(),
+});
+
 export const createTokenSchema = z.object({
   name: z.string().min(1).default("cli"),
 });

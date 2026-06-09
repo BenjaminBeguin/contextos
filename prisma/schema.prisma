@@ -125,6 +125,13 @@ model GeneratedDoc {
   repo Repo @relation(fields: [repoId], references: [id], onDelete: Cascade)
 }
 
+model WaitlistSignup {
+  id        String   @id @default(cuid())
+  email     String   @unique
+  source    String?
+  createdAt DateTime @default(now())
+}
+
 model ApiToken {
   id          String    @id @default(cuid())
   userId      String
