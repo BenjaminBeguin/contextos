@@ -1,0 +1,33 @@
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: contextos-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: contextos
+      POSTGRES_PASSWORD: contextos
+      POSTGRES_DB: contextos
+    ports:
+      - "5433:5432"
+    volumes:
+      - contextos_pg:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U contextos"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  redis:
+    image: redis:7-alpine
+    container_name: contextos-redis
+    restart: unless-stopped
+    ports:
+      - "6380:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+volumes:
+  contextos_pg:

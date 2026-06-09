@@ -1,0 +1,152 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id        String   @id @default(cuid())
+  email     String   @unique
+  name      String?
+  createdAt DateTime @default(now())
+
+  memberships Membership[]
+  apiTokens   ApiToken[]
+}
+
+model Workspace {
+  id        String   @id @default(cuid())
+  name      String
+  slug      String   @unique
+  joinCode  String   @unique
+  createdAt DateTime @default(now())
+
+  memberships Membership[]
+  repos       Repo[]
+  auditLogs   AuditLog[]
+}
+
+model Membership {
+  id          String @id @default(cuid())
+  userId      String
+  workspaceId String
+  role        String @default("owner")
+
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  workspace Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, workspaceId])
+}
+
+model Repo {
+  id             String   @id @default(cuid())
+  workspaceId    String
+  provider       String   @default("github")
+  name           String
+  fullName       String
+  defaultBranch  String?
+  stack          String[] @default([])
+  packageManager String?
+  notes          String?
+  createdAt      DateTime @default(now())
+
+  workspace Workspace      @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  memories  Memory[]
+  sessions  AgentSession[]
+  docs      GeneratedDoc[]
+}
+
+model Memory {
+  id         String    @id @default(cuid())
+  repoId     String
+  type       String
+  title      String
+  content    String
+  scope      String    @default("repo")
+  confidence Float     @default(0.7)
+  status     String    @default("proposed")
+  source     String?
+  createdAt  DateTime  @default(now())
+  updatedAt  DateTime  @updatedAt
+  lastUsedAt DateTime?
+
+  repo     Repo             @relation(fields: [repoId], references: [id], onDelete: Cascade)
+  evidence MemoryEvidence[]
+
+  @@index([repoId, status])
+}
+
+model MemoryEvidence {
+  id        String   @id @default(cuid())
+  memoryId  String
+  kind      String
+  content   String
+  url       String?
+  createdAt DateTime @default(now())
+
+  memory Memory @relation(fields: [memoryId], references: [id], onDelete: Cascade)
+}
+
+model AgentSession {
+  id        String   @id @default(cuid())
+  repoId    String
+  agent     String
+  task      String?
+  summary   String?
+  status    String   @default("completed")
+  createdAt DateTime @default(now())
+
+  repo   Repo           @relation(fields: [repoId], references: [id], onDelete: Cascade)
+  events SessionEvent[]
+}
+
+model SessionEvent {
+  id        String   @id @default(cuid())
+  sessionId String
+  type      String
+  payload   Json
+  createdAt DateTime @default(now())
+
+  session AgentSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+}
+
+model GeneratedDoc {
+  id        String   @id @default(cuid())
+  repoId    String
+  type      String
+  title     String
+  content   String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  repo Repo @relation(fields: [repoId], references: [id], onDelete: Cascade)
+}
+
+model ApiToken {
+  id          String    @id @default(cuid())
+  userId      String
+  name        String    @default("cli")
+  hashedToken String    @unique
+  lastUsedAt  DateTime?
+  createdAt   DateTime  @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model AuditLog {
+  id          String   @id @default(cuid())
+  workspaceId String
+  userId      String?
+  action      String
+  entityType  String
+  entityId    String
+  metadata    Json?
+  createdAt   DateTime @default(now())
+
+  workspace Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+
+  @@index([workspaceId, createdAt])
+}

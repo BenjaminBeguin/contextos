@@ -1,0 +1,27 @@
+{
+  "name": "contextos",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Operational memory for AI coding agents",
+  "scripts": {
+    "dev": "pnpm --parallel --filter ./apps/web --filter ./apps/api dev",
+    "build": "pnpm -r build",
+    "db:generate": "prisma generate",
+    "db:migrate": "prisma migrate dev",
+    "db:seed": "tsx prisma/seed.ts",
+    "cli": "pnpm --filter @contextos/cli exec contextos"
+  },
+  "prisma": {
+    "schema": "prisma/schema.prisma"
+  },
+  "devDependencies": {
+    "@modelcontextprotocol/sdk": "^1.13.0",
+    "prisma": "^6.2.1",
+    "tsx": "^4.19.2",
+    "typescript": "^5.7.3"
+  },
+  "dependencies": {
+    "@prisma/client": "^6.2.1"
+  },
+  "packageManager": "pnpm@10.30.1"
+}
