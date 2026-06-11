@@ -3,6 +3,7 @@ import {
   createMemorySchema,
   updateMemorySchema,
   memoryListQuerySchema,
+  proposeMemoriesSchema,
 } from "@cortex/shared";
 import { prisma } from "../db.js";
 import { resolveUser, assertRepoAccess, HttpError, type AuthedUser } from "../auth.js";
@@ -110,6 +111,45 @@ export async function memoryRoutes(app: FastifyInstance) {
       metadata: { type: memory.type, status: memory.status },
     });
     return reply.code(201).send(memory);
+  });
+
+  // Batch-propose memories from the agent (Claude Code via MCP) — uses the
+  // user's own Claude, no server LLM. Lands in the inbox for review.
+  app.post("/repos/:repoId/proposals", async (req, reply) => {
+    const user = await resolveUser(req);
+    if (!user) return reply.code(401).send({ error: "Unauthorized" });
+    const { repoId } = req.params as { repoId: string };
+    let repo;
+    try {
+      repo = await assertRepoAccess(user.id, repoId);
+    } catch (e) {
+      return handle(reply, e);
+    }
+    const body = proposeMemoriesSchema.parse(req.body);
+    await prisma.$transaction(
+      body.memories.map((m) =>
+        prisma.memory.create({
+          data: {
+            repoId,
+            type: m.type,
+            title: m.title,
+            content: m.content,
+            paths: m.paths ?? [],
+            scope: "repo",
+            confidence: m.confidence,
+            status: "proposed",
+            source: "claude_code",
+            evidence: m.evidence ? { create: [{ kind: "agent", content: m.evidence }] } : undefined,
+          },
+        }),
+      ),
+    );
+    await recordUsage("memory.created", {
+      workspaceId: repo.workspaceId,
+      repoId,
+      metadata: { count: body.memories.length, via: "agent" },
+    });
+    return reply.code(201).send({ proposedCount: body.memories.length });
   });
 
   app.patch("/memories/:memoryId", async (req, reply) => {

@@ -115,6 +115,19 @@ export const extractedMemorySchema = z.object({
 });
 export const extractedMemoriesSchema = z.array(extractedMemorySchema).max(12);
 
+// Memories an agent (Claude Code) proposes directly via MCP. Confidence optional.
+export const proposedMemoryInputSchema = z.object({
+  type: memoryTypeSchema,
+  title: z.string().min(1).max(140),
+  content: z.string().min(1),
+  confidence: z.number().min(0).max(1).default(0.6),
+  paths: z.array(z.string().min(1)).max(50).optional(),
+  evidence: z.string().optional(),
+});
+export const proposeMemoriesSchema = z.object({
+  memories: z.array(proposedMemoryInputSchema).min(1).max(20),
+});
+
 // MCP payloads
 export const mcpSearchMemorySchema = z.object({
   repoId: z.string().min(1),

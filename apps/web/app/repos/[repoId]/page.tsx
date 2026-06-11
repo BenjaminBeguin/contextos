@@ -94,7 +94,12 @@ function ScanCard({ repoId }: { repoId: string }) {
           <h2 className="font-semibold">Bootstrap from codebase</h2>
           <p className="mt-1 text-sm text-[var(--muted)]">
             Scan the repo&apos;s README, manifest, and structure to propose starter memories —
-            architecture, commands, conventions, risks — for review in the inbox.
+            architecture, commands, conventions, risks — for review in the inbox. Uses this
+            workspace&apos;s Anthropic key (Settings), or a heuristic fallback.
+          </p>
+          <p className="mt-2 text-xs text-[var(--muted)]">
+            No key? In Claude Code, ask it to “scan this repo for Cortex” — it reads the code and
+            proposes memories on <em>your</em> Claude (via the <code>propose_memories</code> tool).
           </p>
         </div>
         <Button onClick={() => scan.mutate()} disabled={scan.isPending}>

@@ -11,12 +11,14 @@ Recommended tools:
 - get_repo_context — call before starting work in this repo
 - search_memory — search approved memories relevant to your task
 - get_relevant_warnings — call BEFORE editing files, passing the paths you'll touch, to surface known risks/outages
+- propose_memories — record durable knowledge you discover (conventions, architecture, commands, risks); to bootstrap this repo, read its key files and propose memories
 - record_session_summary — call at the end of a meaningful task so Cortex can propose new memories
 
 Important:
 - Respect approved project memories.
 - Treat proposed memories as suggestions only.
 - Always check get_relevant_warnings before modifying sensitive files, and heed the warnings.
+- When asked to "scan" or "set up Cortex" for this repo, read the key files and call propose_memories.
 `;
 
 const SESSION_END_HOOK = `#!/usr/bin/env bash

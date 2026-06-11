@@ -122,6 +122,54 @@ export async function mcpCommand() {
     },
   );
 
+  server.registerTool(
+    "propose_memories",
+    {
+      title: "Propose Cortex memories",
+      description:
+        "Record durable, reusable knowledge you discovered (conventions, architecture, commands, risks, gotchas) as PROPOSED memories for human review. Use this to bootstrap a repo — read its key files (README, configs, manifests, schema, entry points) and propose memories — or any time you learn something a future agent should know. Add file globs in `paths` for risk/area-specific memories.",
+      inputSchema: {
+        memories: z.array(
+          z.object({
+            type: z.enum([
+              "project_rule",
+              "architecture",
+              "command",
+              "workflow",
+              "decision",
+              "failure",
+              "risk",
+              "dependency",
+              "testing",
+              "deployment",
+              "business_context",
+            ]),
+            title: z.string(),
+            content: z.string(),
+            confidence: z.number().min(0).max(1).optional(),
+            paths: z.array(z.string()).optional(),
+            evidence: z.string().optional(),
+          }),
+        ),
+      },
+    },
+    async ({ memories }) => {
+      const result = await apiFetch<{ proposedCount: number }>(
+        client,
+        `/repos/${config.repoId}/proposals`,
+        { method: "POST", body: JSON.stringify({ memories }) },
+      );
+      return {
+        content: [
+          {
+            type: "text",
+            text: `Proposed ${result.proposedCount} memory(ies) for review in Cortex.`,
+          },
+        ],
+      };
+    },
+  );
+
   const transport = new StdioServerTransport();
   await server.connect(transport);
 }
