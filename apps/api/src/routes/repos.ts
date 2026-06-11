@@ -1,5 +1,5 @@
 import type { FastifyInstance } from "fastify";
-import { createRepoSchema } from "@contextos/shared";
+import { createRepoSchema, updateRepoSchema } from "@contextos/shared";
 import { prisma } from "../db.js";
 import { resolveUser, assertWorkspaceAccess, assertRepoAccess, HttpError } from "../auth.js";
 
@@ -65,7 +65,46 @@ export async function repoRoutes(app: FastifyInstance) {
       where: { repoId },
       _count: true,
     });
-    return { ...repo, memoryCounts: counts };
+    const membership = repo
+      ? await prisma.membership.findUnique({
+          where: { userId_workspaceId: { userId: user.id, workspaceId: repo.workspaceId } },
+        })
+      : null;
+    return { ...repo, memoryCounts: counts, viewerRole: membership?.role ?? "member" };
+  });
+
+  // Update repo context (any member).
+  app.patch("/repos/:repoId", async (req, reply) => {
+    const user = await resolveUser(req);
+    if (!user) return reply.code(401).send({ error: "Unauthorized" });
+    const { repoId } = req.params as { repoId: string };
+    try {
+      await assertRepoAccess(user.id, repoId);
+    } catch (e) {
+      if (e instanceof HttpError) return reply.code(e.statusCode).send({ error: e.message });
+      throw e;
+    }
+    const body = updateRepoSchema.parse(req.body);
+    return prisma.repo.update({ where: { id: repoId }, data: body });
+  });
+
+  // Disconnect (delete) a repo and its memory/sessions/docs (owners only).
+  app.delete("/repos/:repoId", async (req, reply) => {
+    const user = await resolveUser(req);
+    if (!user) return reply.code(401).send({ error: "Unauthorized" });
+    const { repoId } = req.params as { repoId: string };
+    try {
+      const repo = await assertRepoAccess(user.id, repoId);
+      const membership = await assertWorkspaceAccess(user.id, repo.workspaceId);
+      if (membership.role !== "owner") {
+        throw new HttpError(403, "Only owners can disconnect a repo");
+      }
+    } catch (e) {
+      if (e instanceof HttpError) return reply.code(e.statusCode).send({ error: e.message });
+      throw e;
+    }
+    await prisma.repo.delete({ where: { id: repoId } });
+    return { ok: true };
   });
 
   // Stub: scan is a later-phase async job.

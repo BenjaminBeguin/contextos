@@ -1,12 +1,13 @@
 "use client";
 
-import { use } from "react";
+import { use, useState, type ReactNode } from "react";
 import Link from "next/link";
-import { useQuery } from "@tanstack/react-query";
+import { useRouter } from "next/navigation";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { api, type AgentSessionSummary } from "../../../lib/api";
 import { AppShell } from "../../../components/AppShell";
 import { RepoNav } from "../../../components/RepoNav";
-import { Card } from "../../../components/ui";
+import { Button, Card } from "../../../components/ui";
 
 interface RepoDetail {
   id: string;
@@ -17,6 +18,7 @@ interface RepoDetail {
   notes: string | null;
   workspace?: { name: string };
   memoryCounts: { status: string; _count: number }[];
+  viewerRole?: string;
 }
 
 export default function RepoPage({ params }: { params: Promise<{ repoId: string }> }) {
@@ -52,14 +54,7 @@ function RepoOverview({ repoId }: { repoId: string }) {
         <Stat label="Archived" value={count("archived")} />
       </div>
 
-      <Card className="mt-6 p-6">
-        <h2 className="font-semibold">Repo context</h2>
-        <dl className="mt-4 space-y-2 text-sm">
-          <Row label="Stack" value={repo.stack.join(", ") || "—"} />
-          <Row label="Package manager" value={repo.packageManager ?? "—"} />
-          <Row label="Notes" value={repo.notes ?? "—"} />
-        </dl>
-      </Card>
+      <RepoContextCard repo={repo} repoId={repoId} />
 
       <SessionsPanel repoId={repoId} />
 
@@ -71,7 +66,149 @@ function RepoOverview({ repoId }: { repoId: string }) {
           Connect Claude Code →
         </Link>
       </div>
+
+      {repo.viewerRole === "owner" ? (
+        <DangerZone repoId={repoId} fullName={repo.fullName} />
+      ) : null}
     </div>
+  );
+}
+
+function RepoContextCard({ repo, repoId }: { repo: RepoDetail; repoId: string }) {
+  const qc = useQueryClient();
+  const [editing, setEditing] = useState(false);
+  const [stack, setStack] = useState(repo.stack.join(", "));
+  const [packageManager, setPackageManager] = useState(repo.packageManager ?? "");
+  const [notes, setNotes] = useState(repo.notes ?? "");
+
+  const save = useMutation({
+    mutationFn: () =>
+      api(`/repos/${repoId}`, {
+        method: "PATCH",
+        body: JSON.stringify({
+          stack: stack
+            .split(",")
+            .map((s) => s.trim())
+            .filter(Boolean),
+          packageManager: packageManager.trim(),
+          notes: notes.trim(),
+        }),
+      }),
+    onSuccess: () => {
+      setEditing(false);
+      qc.invalidateQueries({ queryKey: ["repo", repoId] });
+    },
+  });
+
+  return (
+    <Card className="mt-6 p-6">
+      <div className="flex items-center justify-between">
+        <h2 className="font-semibold">Repo context</h2>
+        {!editing ? (
+          <button onClick={() => setEditing(true)} className="text-xs text-[var(--muted)] hover:text-white">
+            Edit
+          </button>
+        ) : null}
+      </div>
+      <p className="mt-1 text-xs text-[var(--muted)]">
+        Used by <code>get_repo_context</code> and the generated docs.
+      </p>
+
+      {editing ? (
+        <div className="mt-4 space-y-3 text-sm">
+          <Field label="Stack (comma-separated)">
+            <input
+              value={stack}
+              onChange={(e) => setStack(e.target.value)}
+              placeholder="Node.js, PostgreSQL, Redis"
+              className="w-full rounded-lg border border-[var(--border)] bg-[var(--surface-2)] px-3 py-2 outline-none focus:border-[var(--accent)]"
+            />
+          </Field>
+          <Field label="Package manager">
+            <input
+              value={packageManager}
+              onChange={(e) => setPackageManager(e.target.value)}
+              placeholder="pnpm"
+              className="w-full rounded-lg border border-[var(--border)] bg-[var(--surface-2)] px-3 py-2 outline-none focus:border-[var(--accent)]"
+            />
+          </Field>
+          <Field label="Notes">
+            <textarea
+              value={notes}
+              onChange={(e) => setNotes(e.target.value)}
+              rows={3}
+              placeholder="What this repo does, conventions, anything agents should know."
+              className="w-full rounded-lg border border-[var(--border)] bg-[var(--surface-2)] px-3 py-2 outline-none focus:border-[var(--accent)]"
+            />
+          </Field>
+          <div className="flex gap-2">
+            <Button onClick={() => save.mutate()} disabled={save.isPending}>
+              {save.isPending ? "Saving…" : "Save"}
+            </Button>
+            <Button
+              variant="ghost"
+              onClick={() => {
+                setEditing(false);
+                setStack(repo.stack.join(", "));
+                setPackageManager(repo.packageManager ?? "");
+                setNotes(repo.notes ?? "");
+              }}
+            >
+              Cancel
+            </Button>
+          </div>
+        </div>
+      ) : (
+        <dl className="mt-4 space-y-2 text-sm">
+          <Row label="Stack" value={repo.stack.join(", ") || "—"} />
+          <Row label="Package manager" value={repo.packageManager ?? "—"} />
+          <Row label="Notes" value={repo.notes ?? "—"} />
+        </dl>
+      )}
+    </Card>
+  );
+}
+
+function DangerZone({ repoId, fullName }: { repoId: string; fullName: string }) {
+  const router = useRouter();
+  const remove = useMutation({
+    mutationFn: () => api(`/repos/${repoId}`, { method: "DELETE" }),
+    onSuccess: () => router.push("/dashboard"),
+  });
+
+  return (
+    <Card className="mt-8 border-red-500/30 p-6">
+      <h2 className="font-semibold text-red-300">Danger zone</h2>
+      <div className="mt-3 flex items-center justify-between gap-4">
+        <p className="text-sm text-[var(--muted)]">
+          Disconnect <strong>{fullName}</strong> and permanently delete its memories, sessions, and
+          docs. This cannot be undone.
+        </p>
+        <Button
+          variant="danger"
+          disabled={remove.isPending}
+          onClick={() => {
+            if (window.confirm(`Disconnect ${fullName}? This deletes all its memory and cannot be undone.`)) {
+              remove.mutate();
+            }
+          }}
+        >
+          {remove.isPending ? "Disconnecting…" : "Disconnect repo"}
+        </Button>
+      </div>
+      {remove.isError ? (
+        <p className="mt-2 text-sm text-red-400">{(remove.error as Error).message}</p>
+      ) : null}
+    </Card>
+  );
+}
+
+function Field({ label, children }: { label: string; children: ReactNode }) {
+  return (
+    <label className="block">
+      <span className="text-xs text-[var(--muted)]">{label}</span>
+      <div className="mt-1">{children}</div>
+    </label>
   );
 }
 

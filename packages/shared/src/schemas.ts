@@ -47,6 +47,14 @@ export const createRepoSchema = z.object({
   defaultBranch: z.string().optional(),
 });
 
+export const updateRepoSchema = z.object({
+  name: z.string().min(1).optional(),
+  stack: z.array(z.string().min(1)).max(40).optional(),
+  packageManager: z.string().max(40).optional(),
+  notes: z.string().max(5000).optional(),
+  defaultBranch: z.string().max(120).optional(),
+});
+
 export const memoryEvidenceSchema = z.object({
   kind: z.string().min(1),
   content: z.string().min(1),
