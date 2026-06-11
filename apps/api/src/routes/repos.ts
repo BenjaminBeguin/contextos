@@ -3,7 +3,12 @@ import { createRepoSchema, updateRepoSchema } from "@cortex/shared";
 import { prisma } from "../db.js";
 import { resolveUser, assertWorkspaceAccess, assertRepoAccess, HttpError } from "../auth.js";
 import { decryptToken } from "../crypto.js";
-import { scanRepo, selectKeyFiles, summarizeStructure } from "../services/scan.js";
+import {
+  scanRepo,
+  selectKeyFiles,
+  selectSourceFiles,
+  summarizeStructure,
+} from "../services/scan.js";
 import { getWorkspaceKey } from "../services/llm.js";
 import { recordUsage } from "../services/analytics.js";
 
@@ -191,11 +196,13 @@ export async function repoRoutes(app: FastifyInstance) {
       if (rootRes.ok) filePaths = ((await rootRes.json()) as { name: string }[]).map((f) => f.name);
     }
 
-    // Fetch the contents of the highest-signal files.
+    // Deep scan: read the high-signal config/docs PLUS a sample of source files.
     const keyPaths = selectKeyFiles(filePaths);
+    const sourcePaths = selectSourceFiles(filePaths).filter((p) => !keyPaths.includes(p));
+    const allPaths = [...keyPaths, ...sourcePaths].slice(0, 40);
     const files = (
       await Promise.all(
-        keyPaths.map(async (p) => {
+        allPaths.map(async (p) => {
           const encoded = encodeURIComponent(p).replace(/%2F/g, "/");
           const r = await fetch(`${base}/contents/${encoded}`, { headers });
           if (!r.ok) return null;

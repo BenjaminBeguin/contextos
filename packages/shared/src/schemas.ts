@@ -113,7 +113,7 @@ export const extractedMemorySchema = z.object({
   paths: z.array(z.string().min(1)).max(50).optional(),
   evidence: z.string().optional(),
 });
-export const extractedMemoriesSchema = z.array(extractedMemorySchema).max(12);
+export const extractedMemoriesSchema = z.array(extractedMemorySchema).max(20);
 
 // Memories an agent (Claude Code) proposes directly via MCP. Confidence optional.
 export const proposedMemoryInputSchema = z.object({

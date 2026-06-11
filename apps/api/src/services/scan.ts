@@ -37,6 +37,31 @@ const FILE_PATTERNS: { re: RegExp; limit: number }[] = [
   { re: /(^|\/)src\/(index|main|app|server)\.[a-z]+$/i, limit: 2 },
 ];
 
+const SOURCE_EXT =
+  /\.(ts|tsx|js|jsx|mjs|cjs|py|go|rs|java|kt|rb|php|cs|swift|c|cc|cpp|h|hpp|vue|svelte|ex|exs|scala|clj)$/i;
+const IMPORTANT_SRC =
+  /(^|\/)(index|main|app|server|routes?|router|models?|schema|services?|controllers?|handlers?|api|store|db|database|config|client|provider|worker|queue|auth|core)\.[a-z]+$/i;
+const SKIP_SRC =
+  /(\.test\.|\.spec\.|\.stories\.|\.d\.ts$|(^|\/)(dist|build|node_modules|\.next|out|coverage|vendor|generated|__mocks__|migrations)\/)/i;
+
+/** Sample representative source files across directories (important + shallow first). */
+export function selectSourceFiles(paths: string[], perDir = 4, max = 28): string[] {
+  const cands = paths.filter((p) => SOURCE_EXT.test(p) && !SKIP_SRC.test(p));
+  const score = (p: string) => (IMPORTANT_SRC.test(p) ? 100 : 0) - p.split("/").length;
+  cands.sort((a, b) => score(b) - score(a) || a.localeCompare(b));
+  const perDirCount = new Map<string, number>();
+  const picked: string[] = [];
+  for (const p of cands) {
+    if (picked.length >= max) break;
+    const dir = p.split("/").slice(0, -1).join("/") || "(root)";
+    const n = perDirCount.get(dir) ?? 0;
+    if (n >= perDir) continue;
+    perDirCount.set(dir, n + 1);
+    picked.push(p);
+  }
+  return picked;
+}
+
 /** Pick the most informative files from a repo's file list (shallowest first). */
 export function selectKeyFiles(paths: string[], max = 16): string[] {
   const byDepth = [...paths].sort(
@@ -78,17 +103,25 @@ export function summarizeStructure(paths: string[]): string {
   return `${paths.length} files. Top-level: ${[...topDirs].slice(0, 30).join(", ") || "(flat)"}. File types: ${types.join(", ")}.`;
 }
 
-const SYSTEM = `You analyze a software repository and extract durable operational memories a new
-AI coding agent should know BEFORE working in it.
+const SYSTEM = `You are onboarding onto a software repository. Read the provided structure and file
+contents carefully and extract a THOROUGH set of durable operational memories a new AI coding
+agent must know to be productive — as if writing the onboarding doc for a senior engineer.
 
-Good memories are reusable, specific, and high-signal: architecture & module layout, key
-commands (build/test/lint/deploy), project conventions/rules, important dependencies and
-services, data model facts, testing/deployment practices, and obvious risks or gotchas.
+Cover, where the material supports it:
+- Overall architecture and how the major modules/areas fit together (one memory per significant area/module).
+- The data model / key entities (from schema/models).
+- The API/interface surface and important flows.
+- Key commands: build, run, test, lint, migrate, deploy.
+- Conventions and project rules (naming, structure, patterns, error handling, auth).
+- Important dependencies and external services.
+- Testing and deployment practices.
+- Risks, gotchas, and "do not touch" areas.
 
 Rules:
-- Use ONLY the provided material (structure, file contents, stack). Do NOT invent.
-- Prefer 5-10 memories. Each must be specific and self-contained. Skip generic boilerplate.
-- When a memory applies to specific files/areas, add their path globs in "paths" (e.g. "src/billing/**").
+- Use ONLY the provided material (structure, file contents, stack). Do NOT invent or assume.
+- Be SPECIFIC and concrete — reference real modules, files, and names. No generic boilerplate.
+- Produce as many high-signal memories as the codebase warrants (up to 20). Favor depth.
+- When a memory applies to specific files/areas, add their path globs in "paths" (e.g. "apps/api/src/routes/**").
 - Set confidence 0..1 by certainty and reusability.
 
 Memory types: project_rule, architecture, command, workflow, decision, failure, risk,
@@ -186,7 +219,7 @@ function heuristic(input: ScanInput): ExtractedMemory[] {
 export async function scanRepo(input: ScanInput, apiKey?: string): Promise<ExtractedMemory[]> {
   if (apiKey && input.files.length > 0) {
     try {
-      const raw = await complete(apiKey, SYSTEM, render(input), 2500);
+      const raw = await complete(apiKey, SYSTEM, render(input), 4096);
       const parsed = extractedMemoriesSchema.safeParse(parseJsonArray(raw));
       if (parsed.success && parsed.data.length > 0) return parsed.data;
     } catch {
