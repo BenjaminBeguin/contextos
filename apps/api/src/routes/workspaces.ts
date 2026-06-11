@@ -1,5 +1,6 @@
 import { randomBytes } from "node:crypto";
 import type { FastifyInstance } from "fastify";
+import type { Prisma } from "@prisma/client";
 import {
   createWorkspaceSchema,
   joinWorkspaceSchema,
@@ -14,6 +15,46 @@ function generateJoinCode(): string {
 }
 
 export async function workspaceRoutes(app: FastifyInstance) {
+  // Search memories across every repo in the workspace.
+  app.get("/workspaces/:workspaceId/memories", async (req, reply) => {
+    const user = await resolveUser(req);
+    if (!user) return reply.code(401).send({ error: "Unauthorized" });
+    const { workspaceId } = req.params as { workspaceId: string };
+    try {
+      await assertWorkspaceAccess(user.id, workspaceId);
+    } catch (e) {
+      if (e instanceof HttpError) return reply.code(e.statusCode).send({ error: e.message });
+      throw e;
+    }
+    const { search, status, type } = req.query as {
+      search?: string;
+      status?: string;
+      type?: string;
+    };
+    const repos = await prisma.repo.findMany({
+      where: { workspaceId },
+      select: { id: true, fullName: true },
+    });
+    const repoName = new Map(repos.map((r) => [r.id, r.fullName]));
+
+    const where: Prisma.MemoryWhereInput = { repoId: { in: repos.map((r) => r.id) } };
+    if (status) where.status = status;
+    if (type) where.type = type;
+    const q = (search ?? "").trim();
+    if (q) {
+      where.OR = [
+        { title: { contains: q, mode: "insensitive" } },
+        { content: { contains: q, mode: "insensitive" } },
+      ];
+    }
+    const memories = await prisma.memory.findMany({
+      where,
+      orderBy: [{ confidence: "desc" }, { updatedAt: "desc" }],
+      take: 100,
+    });
+    return memories.map((m) => ({ ...m, repoFullName: repoName.get(m.repoId) ?? "" }));
+  });
+
   app.get("/workspaces", async (req, reply) => {
     const user = await resolveUser(req);
     if (!user) return reply.code(401).send({ error: "Unauthorized" });

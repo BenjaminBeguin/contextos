@@ -32,6 +32,9 @@ export function AppShell({ children }: { children: React.ReactNode }) {
               <Link href="/dashboard" className="hover:text-white">
                 Dashboard
               </Link>
+              <Link href="/search" className="hover:text-white">
+                Search
+              </Link>
               <Link href="/graph" className="hover:text-white">
                 Graph
               </Link>
