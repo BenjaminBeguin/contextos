@@ -44,7 +44,9 @@ program
 program
   .command("scan")
   .description("Scan the connected repo and propose starter memories")
-  .action(() => run(() => scanCommand()));
+  .option("--agent", "Deep scan with local Claude Code (no API key, uses your subscription)")
+  .option("--server", "Scan on the server from GitHub (uses the workspace Anthropic key)")
+  .action((opts) => run(() => scanCommand(opts)));
 
 for (const stub of ["sync"]) {
   program

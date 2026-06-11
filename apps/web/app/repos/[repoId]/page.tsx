@@ -98,8 +98,8 @@ function ScanCard({ repoId }: { repoId: string }) {
             workspace&apos;s Anthropic key (Settings), or a heuristic fallback.
           </p>
           <p className="mt-2 text-xs text-[var(--muted)]">
-            No key? In Claude Code, ask it to “scan this repo for Cortex” — it reads the code and
-            proposes memories on <em>your</em> Claude (via the <code>propose_memories</code> tool).
+            No key? Run <code>cortex scan</code> in your repo — it drives your local Claude Code to
+            read the codebase and propose memories on <em>your</em> Claude subscription (no API key).
           </p>
         </div>
         <Button onClick={() => scan.mutate()} disabled={scan.isPending}>
