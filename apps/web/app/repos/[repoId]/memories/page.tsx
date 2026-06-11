@@ -3,7 +3,7 @@
 import { use, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { MEMORY_STATUSES, MEMORY_TYPES } from "@cortex/shared";
-import { api, type Memory } from "../../../../lib/api";
+import { api, isStaleMemory, type Memory } from "../../../../lib/api";
 import { AppShell } from "../../../../components/AppShell";
 import { RepoNav } from "../../../../components/RepoNav";
 import { MemoryCard } from "../../../../components/MemoryCard";
@@ -22,6 +22,7 @@ function Library({ repoId }: { repoId: string }) {
   const [status, setStatus] = useState<string>("");
   const [type, setType] = useState<string>("");
   const [search, setSearch] = useState("");
+  const [staleOnly, setStaleOnly] = useState(false);
 
   const query = new URLSearchParams();
   if (status) query.set("status", status);
@@ -32,6 +33,9 @@ function Library({ repoId }: { repoId: string }) {
     queryKey: ["memories", repoId, status, type, search],
     queryFn: () => api<Memory[]>(`/repos/${repoId}/memories?${query.toString()}`),
   });
+
+  const staleCount = (memories ?? []).filter(isStaleMemory).length;
+  const shown = staleOnly ? (memories ?? []).filter(isStaleMemory) : memories;
 
   return (
     <div>
@@ -45,14 +49,22 @@ function Library({ repoId }: { repoId: string }) {
         />
         <Select value={status} onChange={setStatus} placeholder="All statuses" options={[...MEMORY_STATUSES]} />
         <Select value={type} onChange={setType} placeholder="All types" options={[...MEMORY_TYPES]} />
+        <label className="flex items-center gap-1.5 rounded-lg border border-[var(--border)] bg-[var(--surface-2)] px-3 py-2 text-sm">
+          <input
+            type="checkbox"
+            checked={staleOnly}
+            onChange={(e) => setStaleOnly(e.target.checked)}
+          />
+          Stale only {staleCount > 0 ? <span className="text-yellow-300">({staleCount})</span> : null}
+        </label>
       </div>
 
       <div className="mt-6 space-y-4">
         {isLoading ? <p className="text-[var(--muted)]">Loading…</p> : null}
-        {memories?.length === 0 ? (
+        {shown?.length === 0 ? (
           <p className="text-[var(--muted)]">No memories match these filters.</p>
         ) : null}
-        {memories?.map((m) => <MemoryCard key={m.id} memory={m} />)}
+        {shown?.map((m) => <MemoryCard key={m.id} memory={m} />)}
       </div>
     </div>
   );

@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { MEMORY_TYPES } from "@cortex/shared";
-import { api, type Memory } from "../lib/api";
+import { api, isStaleMemory, STALE_DAYS, type Memory } from "../lib/api";
 import { Badge, StatusBadge, Button, Card } from "./ui";
 
 export function MemoryCard({ memory }: { memory: Memory }) {
@@ -111,6 +111,14 @@ export function MemoryCard({ memory }: { memory: Memory }) {
           <div className="mb-2 flex items-center gap-2">
             <Badge label={memory.type} />
             <StatusBadge status={memory.status} />
+            {isStaleMemory(memory) ? (
+              <span
+                className="inline-flex items-center rounded-full border border-yellow-500/30 bg-yellow-500/15 px-2 py-0.5 text-xs text-yellow-300"
+                title={`Not used or edited in ${STALE_DAYS}+ days — re-review or archive`}
+              >
+                stale
+              </span>
+            ) : null}
             <span className="text-xs text-[var(--muted)]">
               conf {Math.round(memory.confidence * 100)}%
             </span>

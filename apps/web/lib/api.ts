@@ -156,5 +156,19 @@ export interface Memory {
   source: string | null;
   createdAt: string;
   updatedAt: string;
+  lastUsedAt?: string | null;
   evidence?: { id: string; kind: string; content: string; url: string | null }[];
+}
+
+export interface WorkspaceMemory extends Memory {
+  repoFullName: string;
+}
+
+export const STALE_DAYS = 30;
+
+/** An approved memory not retrieved or edited in STALE_DAYS is "stale" and worth re-reviewing. */
+export function isStaleMemory(m: Memory): boolean {
+  if (m.status !== "approved") return false;
+  const ref = m.lastUsedAt ?? m.updatedAt;
+  return Date.now() - new Date(ref).getTime() > STALE_DAYS * 86_400_000;
 }
