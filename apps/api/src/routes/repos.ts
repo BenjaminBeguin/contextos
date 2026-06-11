@@ -9,6 +9,29 @@ interface GitHubRepoInfo {
   description: string | null;
 }
 
+// Filename → package manager, in priority order (lockfiles before manifests).
+const PM_FILES: [string, string][] = [
+  ["pnpm-lock.yaml", "pnpm"],
+  ["yarn.lock", "yarn"],
+  ["bun.lockb", "bun"],
+  ["package-lock.json", "npm"],
+  ["poetry.lock", "poetry"],
+  ["Pipfile.lock", "pipenv"],
+  ["requirements.txt", "pip"],
+  ["Cargo.toml", "cargo"],
+  ["go.mod", "go modules"],
+  ["Gemfile", "bundler"],
+  ["composer.json", "composer"],
+  ["pom.xml", "maven"],
+  ["build.gradle", "gradle"],
+  ["package.json", "npm"],
+];
+
+function detectPackageManager(names: Set<string>): string | undefined {
+  for (const [file, pm] of PM_FILES) if (names.has(file)) return pm;
+  return undefined;
+}
+
 export async function repoRoutes(app: FastifyInstance) {
   // List all repos across the user's orgs.
   app.get("/repos", async (req, reply) => {
@@ -154,9 +177,10 @@ export async function repoRoutes(app: FastifyInstance) {
       "user-agent": "cortex",
     };
     const base = `https://api.github.com/repos/${repo.fullName}`;
-    const [infoRes, langRes] = await Promise.all([
+    const [infoRes, langRes, contentsRes] = await Promise.all([
       fetch(base, { headers }),
       fetch(`${base}/languages`, { headers }),
+      fetch(`${base}/contents`, { headers }),
     ]);
     if (infoRes.status === 401) return reply.code(409).send({ error: "github_not_connected" });
     if (infoRes.status === 404) {
@@ -171,15 +195,26 @@ export async function repoRoutes(app: FastifyInstance) {
       .slice(0, 8)
       .map(([lang]) => lang);
 
+    let packageManager: string | undefined;
+    if (contentsRes.ok) {
+      const files = (await contentsRes.json()) as { name: string }[];
+      packageManager = detectPackageManager(new Set(files.map((f) => f.name)));
+    }
+
     const updated = await prisma.repo.update({
       where: { id: repoId },
       data: {
         defaultBranch: info.default_branch,
         ...(stack.length > 0 ? { stack } : {}),
+        ...(packageManager ? { packageManager } : {}),
         // Only fill notes from the GitHub description if the user hasn't set their own.
         ...(!repo.notes && info.description ? { notes: info.description } : {}),
       },
     });
-    return { ok: true, repo: updated, synced: { stack, defaultBranch: info.default_branch } };
+    return {
+      ok: true,
+      repo: updated,
+      synced: { stack, defaultBranch: info.default_branch, packageManager: packageManager ?? null },
+    };
   });
 }
