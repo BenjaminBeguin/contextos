@@ -2,6 +2,12 @@ import type { FastifyInstance } from "fastify";
 import { createRepoSchema, updateRepoSchema } from "@cortex/shared";
 import { prisma } from "../db.js";
 import { resolveUser, assertWorkspaceAccess, assertRepoAccess, HttpError } from "../auth.js";
+import { decryptToken } from "../crypto.js";
+
+interface GitHubRepoInfo {
+  default_branch: string;
+  description: string | null;
+}
 
 export async function repoRoutes(app: FastifyInstance) {
   // List all repos across the user's orgs.
@@ -119,5 +125,61 @@ export async function repoRoutes(app: FastifyInstance) {
       throw e;
     }
     return reply.code(501).send({ error: "Repo scanning is not implemented in this MVP pass." });
+  });
+
+  // Resync repo context (stack, default branch, description) from GitHub.
+  app.post("/repos/:repoId/resync", async (req, reply) => {
+    const user = await resolveUser(req);
+    if (!user) return reply.code(401).send({ error: "Unauthorized" });
+    const { repoId } = req.params as { repoId: string };
+    let repo;
+    try {
+      repo = await assertRepoAccess(user.id, repoId);
+    } catch (e) {
+      if (e instanceof HttpError) return reply.code(e.statusCode).send({ error: e.message });
+      throw e;
+    }
+
+    if (repo.provider !== "github" || !repo.fullName.includes("/")) {
+      return reply.code(400).send({ error: "Only GitHub repos (owner/name) can be resynced." });
+    }
+
+    const account = await prisma.user.findUnique({ where: { id: user.id } });
+    const token = account?.githubAccessToken ? decryptToken(account.githubAccessToken) : null;
+    if (!token) return reply.code(409).send({ error: "github_not_connected" });
+
+    const headers = {
+      authorization: `Bearer ${token}`,
+      accept: "application/vnd.github+json",
+      "user-agent": "cortex",
+    };
+    const base = `https://api.github.com/repos/${repo.fullName}`;
+    const [infoRes, langRes] = await Promise.all([
+      fetch(base, { headers }),
+      fetch(`${base}/languages`, { headers }),
+    ]);
+    if (infoRes.status === 401) return reply.code(409).send({ error: "github_not_connected" });
+    if (infoRes.status === 404) {
+      return reply.code(404).send({ error: "Repo not found on GitHub (check access)." });
+    }
+    if (!infoRes.ok) return reply.code(502).send({ error: "Failed to reach GitHub." });
+
+    const info = (await infoRes.json()) as GitHubRepoInfo;
+    const languages = langRes.ok ? ((await langRes.json()) as Record<string, number>) : {};
+    const stack = Object.entries(languages)
+      .sort((a, b) => b[1] - a[1])
+      .slice(0, 8)
+      .map(([lang]) => lang);
+
+    const updated = await prisma.repo.update({
+      where: { id: repoId },
+      data: {
+        defaultBranch: info.default_branch,
+        ...(stack.length > 0 ? { stack } : {}),
+        // Only fill notes from the GitHub description if the user hasn't set their own.
+        ...(!repo.notes && info.description ? { notes: info.description } : {}),
+      },
+    });
+    return { ok: true, repo: updated, synced: { stack, defaultBranch: info.default_branch } };
   });
 }

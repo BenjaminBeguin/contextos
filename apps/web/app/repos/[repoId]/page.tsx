@@ -100,19 +100,48 @@ function RepoContextCard({ repo, repoId }: { repo: RepoDetail; repoId: string })
     },
   });
 
+  const resync = useMutation({
+    mutationFn: () => api(`/repos/${repoId}/resync`, { method: "POST" }),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["repo", repoId] }),
+  });
+  const notConnected =
+    resync.isError && (resync.error as Error).message === "github_not_connected";
+
   return (
     <Card className="mt-6 p-6">
       <div className="flex items-center justify-between">
         <h2 className="font-semibold">Repo context</h2>
         {!editing ? (
-          <button onClick={() => setEditing(true)} className="text-xs text-[var(--muted)] hover:text-white">
-            Edit
-          </button>
+          <div className="flex items-center gap-3 text-xs">
+            <button
+              onClick={() => resync.mutate()}
+              disabled={resync.isPending}
+              className="text-[var(--muted)] hover:text-white disabled:opacity-50"
+            >
+              {resync.isPending ? "Resyncing…" : "↻ Resync from GitHub"}
+            </button>
+            <button onClick={() => setEditing(true)} className="text-[var(--muted)] hover:text-white">
+              Edit
+            </button>
+          </div>
         ) : null}
       </div>
       <p className="mt-1 text-xs text-[var(--muted)]">
         Used by <code>get_repo_context</code> and the generated docs.
       </p>
+      {notConnected ? (
+        <p className="mt-2 text-xs text-yellow-300">
+          Connect GitHub in{" "}
+          <Link href="/settings" className="underline">
+            settings
+          </Link>{" "}
+          to resync.
+        </p>
+      ) : resync.isError ? (
+        <p className="mt-2 text-xs text-red-400">{(resync.error as Error).message}</p>
+      ) : resync.isSuccess ? (
+        <p className="mt-2 text-xs text-emerald-300">Synced stack &amp; branch from GitHub.</p>
+      ) : null}
 
       {editing ? (
         <div className="mt-4 space-y-3 text-sm">
