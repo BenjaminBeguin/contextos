@@ -110,9 +110,10 @@ export const extractedMemorySchema = z.object({
   title: z.string().min(1).max(140),
   content: z.string().min(1),
   confidence: z.number().min(0).max(1),
+  paths: z.array(z.string().min(1)).max(50).optional(),
   evidence: z.string().optional(),
 });
-export const extractedMemoriesSchema = z.array(extractedMemorySchema).max(6);
+export const extractedMemoriesSchema = z.array(extractedMemorySchema).max(12);
 
 // MCP payloads
 export const mcpSearchMemorySchema = z.object({

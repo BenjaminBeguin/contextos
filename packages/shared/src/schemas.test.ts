@@ -59,10 +59,10 @@ describe("waitlistSchema", () => {
 });
 
 describe("extractedMemoriesSchema", () => {
-  it("accepts a valid extractor array and caps the count", () => {
+  it("accepts a valid extractor array and caps the count at 12", () => {
     const one = [{ type: "decision", title: "t", content: "c", confidence: 0.5 }];
     expect(extractedMemoriesSchema.parse(one)).toHaveLength(1);
-    const seven = Array.from({ length: 7 }, () => one[0]);
-    expect(() => extractedMemoriesSchema.parse(seven)).toThrow();
+    const tooMany = Array.from({ length: 13 }, () => one[0]);
+    expect(() => extractedMemoriesSchema.parse(tooMany)).toThrow();
   });
 });

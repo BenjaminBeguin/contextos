@@ -3,7 +3,7 @@ import { createRepoSchema, updateRepoSchema } from "@cortex/shared";
 import { prisma } from "../db.js";
 import { resolveUser, assertWorkspaceAccess, assertRepoAccess, HttpError } from "../auth.js";
 import { decryptToken } from "../crypto.js";
-import { scanRepo } from "../services/scan.js";
+import { scanRepo, selectKeyFiles, summarizeStructure } from "../services/scan.js";
 import { recordUsage } from "../services/analytics.js";
 
 /** Decode a GitHub contents/readme API payload (base64) to UTF-8 text. */
@@ -175,26 +175,41 @@ export async function repoRoutes(app: FastifyInstance) {
       "user-agent": "cortex",
     };
     const base = `https://api.github.com/repos/${repo.fullName}`;
-    const [readmeRes, pkgRes, contentsRes] = await Promise.all([
-      fetch(`${base}/readme`, { headers }),
-      fetch(`${base}/contents/package.json`, { headers }),
-      fetch(`${base}/contents`, { headers }),
-    ]);
-    if (readmeRes.status === 401) return reply.code(409).send({ error: "github_not_connected" });
 
-    const readme = readmeRes.ok ? decodeGhContent(await readmeRes.json()) : null;
-    const packageJson = pkgRes.ok ? decodeGhContent(await pkgRes.json()) : null;
-    const structure = contentsRes.ok
-      ? ((await contentsRes.json()) as { name: string }[]).map((f) => f.name).slice(0, 60)
-      : [];
+    // Pull the full file tree in one call; fall back to the root listing if needed.
+    const branch = repo.defaultBranch || "main";
+    const treeRes = await fetch(`${base}/git/trees/${branch}?recursive=1`, { headers });
+    if (treeRes.status === 401) return reply.code(409).send({ error: "github_not_connected" });
+
+    let filePaths: string[] = [];
+    if (treeRes.ok) {
+      const tree = (await treeRes.json()) as { tree?: { path: string; type: string }[] };
+      filePaths = (tree.tree ?? []).filter((t) => t.type === "blob").map((t) => t.path);
+    } else {
+      const rootRes = await fetch(`${base}/contents`, { headers });
+      if (rootRes.ok) filePaths = ((await rootRes.json()) as { name: string }[]).map((f) => f.name);
+    }
+
+    // Fetch the contents of the highest-signal files.
+    const keyPaths = selectKeyFiles(filePaths);
+    const files = (
+      await Promise.all(
+        keyPaths.map(async (p) => {
+          const encoded = encodeURIComponent(p).replace(/%2F/g, "/");
+          const r = await fetch(`${base}/contents/${encoded}`, { headers });
+          if (!r.ok) return null;
+          const content = decodeGhContent(await r.json());
+          return content ? { path: p, content } : null;
+        }),
+      )
+    ).filter((f): f is { path: string; content: string } => f !== null);
 
     const drafts = await scanRepo({
       fullName: repo.fullName,
       stack: repo.stack,
       packageManager: repo.packageManager,
-      readme,
-      packageJson,
-      structure,
+      structure: summarizeStructure(filePaths),
+      files,
     });
 
     if (drafts.length > 0) {
@@ -206,6 +221,7 @@ export async function repoRoutes(app: FastifyInstance) {
               type: d.type,
               title: d.title,
               content: d.content,
+              paths: d.paths ?? [],
               scope: "repo",
               confidence: d.confidence,
               status: "proposed",
@@ -220,10 +236,10 @@ export async function repoRoutes(app: FastifyInstance) {
     await recordUsage("repo.scanned", {
       workspaceId: repo.workspaceId,
       repoId,
-      metadata: { proposed: drafts.length },
+      metadata: { proposed: drafts.length, filesRead: files.length, totalFiles: filePaths.length },
     });
 
-    return { ok: true, proposedCount: drafts.length };
+    return { ok: true, proposedCount: drafts.length, filesRead: files.length };
   });
 
   // Resync repo context (stack, default branch, description) from GitHub.
