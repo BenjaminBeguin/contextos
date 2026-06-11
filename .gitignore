@@ -6,3 +6,6 @@ dist/
 .DS_Store
 .contextos/
 prisma/migrations/.lock
+
+# build info
+*.tsbuildinfo
