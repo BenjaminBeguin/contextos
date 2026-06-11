@@ -3,7 +3,7 @@ import {
   createMemorySchema,
   updateMemorySchema,
   memoryListQuerySchema,
-} from "@contextos/shared";
+} from "@cortex/shared";
 import { prisma } from "../db.js";
 import { resolveUser, assertRepoAccess, HttpError, type AuthedUser } from "../auth.js";
 import { searchMemories, writeAuditLog } from "../services/memory.js";
@@ -87,6 +87,7 @@ export async function memoryRoutes(app: FastifyInstance) {
         type: body.type,
         title: body.title,
         content: body.content,
+        paths: body.paths ?? [],
         scope: body.scope,
         confidence: body.confidence,
         status: body.status,

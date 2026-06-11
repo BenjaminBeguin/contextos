@@ -1,83 +1,98 @@
 "use client";
 
-import { use, useState, type ReactNode } from "react";
+import { useState, type ReactNode } from "react";
 import Link from "next/link";
-import { useMutation } from "@tanstack/react-query";
-import { api } from "../../../../lib/api";
-import { AppShell } from "../../../../components/AppShell";
-import { RepoNav } from "../../../../components/RepoNav";
-import { CopyButton } from "../../../../components/CopyButton";
-import { Button, Card, Code } from "../../../../components/ui";
+import { useQuery, useMutation } from "@tanstack/react-query";
+import { api, type RepoSummary } from "../../lib/api";
+import { AppShell } from "../../components/AppShell";
+import { CopyButton } from "../../components/CopyButton";
+import { Button, Card, Code } from "../../components/ui";
 
 const PKG = "@mxbenjaminbeguin/cortex";
-
 const MCP_JSON = JSON.stringify(
   { mcpServers: { cortex: { type: "stdio", command: "cortex", args: ["mcp"] } } },
   null,
   2,
 );
 
-export default function SetupPage({ params }: { params: Promise<{ repoId: string }> }) {
-  const { repoId } = use(params);
+export default function SetupPage() {
   return (
     <AppShell>
-      <RepoNav repoId={repoId} />
-      <Setup repoId={repoId} />
+      <Setup />
     </AppShell>
   );
 }
 
-function Setup({ repoId }: { repoId: string }) {
+function Setup() {
+  const { data: repos } = useQuery({ queryKey: ["repos"], queryFn: () => api<RepoSummary[]>("/repos") });
+  const [repoId, setRepoId] = useState<string>("");
+  const selected = repoId || repos?.[0]?.id || "";
+  const initCmd = selected ? `cortex init --repo ${selected}` : "cortex init";
+
   return (
     <div className="max-w-3xl">
-      <h1 className="text-2xl font-semibold">Set up this project</h1>
+      <h1 className="text-2xl font-semibold">Setup</h1>
       <p className="mt-1 text-sm text-[var(--muted)]">
-        Install the CLI, authenticate, and connect this repo. Claude Code will then retrieve your
-        team&apos;s approved memory through the Cortex MCP server — automatically, before it acts.
+        Install the Cortex CLI and connect Claude Code so it retrieves your team&apos;s approved
+        memory automatically — before it acts.
       </p>
 
       <Step n={1} title="Install the CLI">
         <CommandBlock command={`npm install -g ${PKG}`} />
         <p className="mt-2 text-xs text-[var(--muted)]">
-          The package is <code>{PKG}</code>; the installed command is <code>cortex</code>.
+          Published as <code>{PKG}</code>; the installed command is <code>cortex</code>. Requires
+          Node 20+.
         </p>
       </Step>
 
       <Step n={2} title="Authenticate">
         <CommandBlock command="cortex login" />
         <p className="mt-2 text-sm text-[var(--muted)]">
-          Stores an API token in <code>~/.cortex/credentials.json</code>. Prefer to set it
-          manually? Generate one here:
+          Stores an API token in <code>~/.cortex/credentials.json</code>. Or generate one to set
+          manually:
         </p>
         <TokenGenerator />
       </Step>
 
-      <Step n={3} title="Connect this repo">
-        <CommandBlock command={`cortex init --repo ${repoId}`} />
-        <p className="mt-3 text-sm text-[var(--muted)]">Run from the repo root. This generates:</p>
-        <ul className="mt-2 space-y-1 text-sm text-[var(--muted)]">
-          <li>
-            <code>.cortex/config.json</code> — links this directory to the repo
-          </li>
-          <li>
-            <code>CLAUDE.md</code> — guidance the agent reads
-          </li>
-          <li>
-            <code>.mcp.json</code> — registers the Cortex MCP server
-          </li>
-          <li>
-            <code>.claude/hooks/*</code> — session + before-edit hooks
-          </li>
-        </ul>
+      <Step n={3} title="Connect a repository">
+        {repos && repos.length > 0 ? (
+          <>
+            <label className="mb-2 block text-xs text-[var(--muted)]">Pick a repo</label>
+            <select
+              value={selected}
+              onChange={(e) => setRepoId(e.target.value)}
+              className="mb-3 rounded-lg border border-[var(--border)] bg-[var(--surface-2)] px-3 py-2 text-sm"
+            >
+              {repos.map((r) => (
+                <option key={r.id} value={r.id}>
+                  {r.fullName}
+                </option>
+              ))}
+            </select>
+            <CommandBlock command={initCmd} />
+            <p className="mt-3 text-sm text-[var(--muted)]">
+              Run from the repo root. Generates <code>.cortex/config.json</code>,{" "}
+              <code>CLAUDE.md</code>, <code>.mcp.json</code>, and <code>.claude/hooks/*</code>.
+            </p>
+          </>
+        ) : (
+          <Card className="p-5 text-sm text-[var(--muted)]">
+            No repos yet.{" "}
+            <Link href="/dashboard" className="text-[var(--accent)]">
+              Add one on the dashboard
+            </Link>{" "}
+            first, then come back for the exact connect command.
+          </Card>
+        )}
       </Step>
 
       <Step n={4} title="Use it in Claude Code">
         <p className="text-sm text-[var(--muted)]">
-          Open Claude Code in this repo. It discovers the <code>cortex</code> MCP server and can
+          Open Claude Code in the repo. It discovers the <code>cortex</code> MCP server and can
           call:
         </p>
         <div className="mt-3 space-y-2">
-          <Tool name="get_repo_context()" desc="stack, recommended commands, and risk warnings" />
+          <Tool name="get_repo_context()" desc="stack, recommended commands, risk warnings" />
           <Tool name="search_memory(query)" desc="approved memories relevant to the task" />
           <Tool
             name="record_session_summary(...)"
@@ -85,15 +100,8 @@ function Setup({ repoId }: { repoId: string }) {
           />
         </div>
         <p className="mt-4 text-sm text-[var(--muted)]">
-          Only <strong>approved</strong> memories are served to agents. Review proposals in the{" "}
-          <Link href={`/repos/${repoId}/inbox`} className="text-[var(--accent)]">
-            inbox
-          </Link>
-          , and fill in this repo&apos;s context on the{" "}
-          <Link href={`/repos/${repoId}`} className="text-[var(--accent)]">
-            overview
-          </Link>{" "}
-          for richer results.
+          Only <strong>approved</strong> memories reach agents. Review proposals in each repo&apos;s
+          inbox.
         </p>
       </Step>
 
@@ -103,8 +111,8 @@ function Setup({ repoId }: { repoId: string }) {
           <CopyButton value={MCP_JSON} />
         </div>
         <p className="mt-1 text-xs text-[var(--muted)]">
-          Written by <code>cortex init</code>. If Claude Code can&apos;t launch the server, ensure{" "}
-          <code>cortex</code> is on your PATH.
+          Written by <code>cortex init</code>. If Claude Code can&apos;t launch the server, make
+          sure <code>cortex</code> is on your PATH.
         </p>
         <div className="mt-3">
           <Code>{MCP_JSON}</Code>

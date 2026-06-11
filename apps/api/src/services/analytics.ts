@@ -4,6 +4,7 @@ import { prisma } from "../db.js";
 export type UsageType =
   | "mcp.search_memory"
   | "mcp.get_repo_context"
+  | "mcp.get_relevant_warnings"
   | "memory.approved"
   | "memory.created"
   | "session.recorded";

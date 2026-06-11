@@ -26,7 +26,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
           <div className="flex items-center gap-6">
             <Link href="/dashboard" className="flex items-center gap-2 font-semibold">
               <span className="inline-block h-4 w-4 rounded-sm bg-[var(--accent)]" />
-              ContextOS
+              Cortex
             </Link>
             <nav className="flex items-center gap-4 text-sm text-[var(--muted)]">
               <Link href="/dashboard" className="hover:text-white">
@@ -40,6 +40,9 @@ export function AppShell({ children }: { children: React.ReactNode }) {
               </Link>
               <Link href="/usage" className="hover:text-white">
                 Usage
+              </Link>
+              <Link href="/setup" className="hover:text-white">
+                Setup
               </Link>
               <Link href="/settings" className="hover:text-white">
                 Settings

@@ -38,9 +38,9 @@ function hashToken(token: string): string {
 async function main() {
   // --- Org A (dev user) ---------------------------------------------------
   const devUser = await prisma.user.upsert({
-    where: { email: "dev@contextos.dev" },
+    where: { email: "dev@cortex.dev" },
     update: {},
-    create: { email: "dev@contextos.dev", name: "Dev User" },
+    create: { email: "dev@cortex.dev", name: "Dev User" },
   });
 
   const acme = await prisma.workspace.upsert({
@@ -106,6 +106,7 @@ async function main() {
       title: "Stripe webhook idempotency",
       content:
         "Previous duplicate invoice outage was caused by missing webhook idempotency. Always check idempotency keys before editing webhook handlers. Do not edit invoices_v1 tables.",
+      paths: ["**/webhooks*", "src/billing/**", "*invoice*"],
       scope: "repo",
       confidence: 0.92,
       status: "approved",
@@ -171,7 +172,7 @@ async function main() {
   });
 
   console.log("Seed complete.");
-  console.log(`Dev user:        dev@contextos.dev`);
+  console.log(`Dev user:        dev@cortex.dev`);
   console.log(`Dev token:       ${DEV_TOKEN}`);
   console.log(`Acme workspace:  ${acme.id} (join code ${acme.joinCode})`);
   console.log(`Acme repo:       ${billingRepo.id} (acme/billing-api)`);

@@ -68,6 +68,7 @@ model Memory {
   type       String
   title      String
   content    String
+  paths      String[]  @default([])
   scope      String    @default("repo")
   confidence Float     @default(0.7)
   status     String    @default("proposed")

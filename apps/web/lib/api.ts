@@ -146,6 +146,7 @@ export interface Memory {
   type: string;
   title: string;
   content: string;
+  paths?: string[];
   scope: string;
   confidence: number;
   status: string;

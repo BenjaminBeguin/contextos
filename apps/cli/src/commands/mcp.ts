@@ -17,17 +17,17 @@ interface RepoContextResult {
 export async function mcpCommand() {
   const creds = loadCredentials();
   const config = loadProjectConfig();
-  if (!creds) throw new Error("Not logged in. Run `contextos login` first.");
-  if (!config) throw new Error("Repo not initialized. Run `contextos init` first.");
+  if (!creds) throw new Error("Not logged in. Run `cortex login` first.");
+  if (!config) throw new Error("Repo not initialized. Run `cortex init` first.");
 
   const client = { baseUrl: config.apiBaseUrl ?? creds.apiBaseUrl, token: creds.token };
 
-  const server = new McpServer({ name: "contextos", version: "0.1.0" });
+  const server = new McpServer({ name: "cortex", version: "0.1.0" });
 
   server.registerTool(
     "search_memory",
     {
-      title: "Search ContextOS memory",
+      title: "Search Cortex memory",
       description:
         "Search approved operational memories for the connected repo (conventions, risks, commands, decisions).",
       inputSchema: { query: z.string().describe("What to search for"), limit: z.number().optional() },
@@ -50,7 +50,7 @@ export async function mcpCommand() {
   server.registerTool(
     "get_repo_context",
     {
-      title: "Get ContextOS repo context",
+      title: "Get Cortex repo context",
       description:
         "Retrieve the stack, package manager, known risks/warnings, and recommended commands for the connected repo.",
       inputSchema: {},
@@ -65,11 +65,38 @@ export async function mcpCommand() {
   );
 
   server.registerTool(
+    "get_relevant_warnings",
+    {
+      title: "Get Cortex risk warnings for files",
+      description:
+        "Before editing files, get risk/failure warnings that apply to them (past outages, gotchas). Call with the file paths you're about to modify.",
+      inputSchema: {
+        files: z.array(z.string()).describe("Repo-relative paths you're about to edit"),
+      },
+    },
+    async ({ files }) => {
+      const result = await apiFetch<{
+        warnings: { type: string; title: string; content: string; paths: string[] }[];
+      }>(client, "/mcp/get_relevant_warnings", {
+        method: "POST",
+        body: JSON.stringify({ repoId: config.repoId, files }),
+      });
+      const text =
+        result.warnings.length === 0
+          ? "No known risks for these files."
+          : result.warnings
+              .map((w) => `⚠ [${w.type}] ${w.title}\n  ${w.content}`)
+              .join("\n");
+      return { content: [{ type: "text", text }] };
+    },
+  );
+
+  server.registerTool(
     "record_session_summary",
     {
-      title: "Record a ContextOS session summary",
+      title: "Record a Cortex session summary",
       description:
-        "Submit a summary of the work you just did so ContextOS can propose new memories for review. Call this at the end of a meaningful task.",
+        "Submit a summary of the work you just did so Cortex can propose new memories for review. Call this at the end of a meaningful task.",
       inputSchema: {
         task: z.string().optional().describe("What the task was"),
         summary: z.string().optional().describe("What happened: decisions, findings, outcomes"),
@@ -87,7 +114,7 @@ export async function mcpCommand() {
         content: [
           {
             type: "text",
-            text: `Session recorded. ${result.proposedCount} memory proposal(s) created for review in ContextOS.`,
+            text: `Session recorded. ${result.proposedCount} memory proposal(s) created for review in Cortex.`,
           },
         ],
       };

@@ -1,9 +1,14 @@
 import type { FastifyInstance } from "fastify";
-import { mcpSearchMemorySchema, mcpRepoContextSchema } from "@contextos/shared";
+import {
+  mcpSearchMemorySchema,
+  mcpRepoContextSchema,
+  mcpRelevantWarningsSchema,
+} from "@cortex/shared";
 import { prisma } from "../db.js";
 import { resolveUser, assertRepoAccess, HttpError } from "../auth.js";
 import { searchMemories } from "../services/memory.js";
 import { recordUsage } from "../services/analytics.js";
+import { relevantToFiles } from "../services/relevance.js";
 
 function handle(reply: import("fastify").FastifyReply, e: unknown) {
   if (e instanceof HttpError) return reply.code(e.statusCode).send({ error: e.message });
@@ -75,6 +80,38 @@ export async function mcpRoutes(app: FastifyInstance) {
       },
       warnings: warnings.map((w) => w.content),
       recommendedCommands: commands.map((c) => c.content),
+    };
+  });
+
+  // Just-in-time warnings for the files the agent is about to edit.
+  app.post("/mcp/get_relevant_warnings", async (req, reply) => {
+    const user = await resolveUser(req);
+    if (!user) return reply.code(401).send({ error: "Unauthorized" });
+    const body = mcpRelevantWarningsSchema.parse(req.body);
+    let repo;
+    try {
+      repo = await assertRepoAccess(user.id, body.repoId);
+    } catch (e) {
+      return handle(reply, e);
+    }
+    const risks = await prisma.memory.findMany({
+      where: { repoId: body.repoId, status: "approved", type: { in: ["risk", "failure"] } },
+      orderBy: { confidence: "desc" },
+      select: { type: true, title: true, content: true, paths: true },
+    });
+    const matched = relevantToFiles(risks, body.files);
+    await recordUsage("mcp.get_relevant_warnings", {
+      workspaceId: repo.workspaceId,
+      repoId: repo.id,
+      metadata: { files: body.files.length, matched: matched.length },
+    });
+    return {
+      warnings: matched.map((m) => ({
+        type: m.type,
+        title: m.title,
+        content: m.content,
+        paths: m.paths,
+      })),
     };
   });
 }

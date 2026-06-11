@@ -65,6 +65,7 @@ export const createMemorySchema = z.object({
   type: memoryTypeSchema,
   title: z.string().min(1),
   content: z.string().min(1),
+  paths: z.array(z.string().min(1)).max(50).optional(),
   scope: memoryScopeSchema.default("repo"),
   confidence: z.number().min(0).max(1).default(0.7),
   status: memoryStatusSchema.default("proposed"),
@@ -76,6 +77,7 @@ export const updateMemorySchema = z.object({
   type: memoryTypeSchema.optional(),
   title: z.string().min(1).optional(),
   content: z.string().min(1).optional(),
+  paths: z.array(z.string().min(1)).max(50).optional(),
   scope: memoryScopeSchema.optional(),
   confidence: z.number().min(0).max(1).optional(),
   status: memoryStatusSchema.optional(),
@@ -121,6 +123,11 @@ export const mcpSearchMemorySchema = z.object({
 
 export const mcpRepoContextSchema = z.object({
   repoId: z.string().min(1),
+});
+
+export const mcpRelevantWarningsSchema = z.object({
+  repoId: z.string().min(1),
+  files: z.array(z.string().min(1)).min(1).max(100),
 });
 
 export type RecordSessionInput = z.infer<typeof recordSessionSchema>;

@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { MEMORY_TYPES } from "@contextos/shared";
+import { MEMORY_TYPES } from "@cortex/shared";
 import { api, type Memory } from "../lib/api";
 import { Badge, StatusBadge, Button, Card } from "./ui";
 
@@ -12,6 +12,7 @@ export function MemoryCard({ memory }: { memory: Memory }) {
   const [title, setTitle] = useState(memory.title);
   const [content, setContent] = useState(memory.content);
   const [type, setType] = useState(memory.type);
+  const [paths, setPaths] = useState((memory.paths ?? []).join(", "));
 
   const invalidate = () => qc.invalidateQueries({ queryKey: ["memories", memory.repoId] });
 
@@ -25,7 +26,15 @@ export function MemoryCard({ memory }: { memory: Memory }) {
     mutationFn: () =>
       api(`/memories/${memory.id}`, {
         method: "PATCH",
-        body: JSON.stringify({ title, content, type }),
+        body: JSON.stringify({
+          title,
+          content,
+          type,
+          paths: paths
+            .split(",")
+            .map((p) => p.trim())
+            .filter(Boolean),
+        }),
       }),
     onSuccess: () => {
       setEditing(false);
@@ -61,6 +70,18 @@ export function MemoryCard({ memory }: { memory: Memory }) {
             rows={4}
             className="w-full rounded-lg border border-[var(--border)] bg-[var(--surface-2)] px-3 py-2 text-sm outline-none focus:border-[var(--accent)]"
           />
+          <label className="block">
+            <span className="text-xs text-[var(--muted)]">
+              File paths / globs (comma-separated) — for just-in-time warnings, e.g.{" "}
+              <code>billing/**, *webhook*</code>
+            </span>
+            <input
+              value={paths}
+              onChange={(e) => setPaths(e.target.value)}
+              placeholder="src/billing/**, **/webhooks.ts"
+              className="mt-1 w-full rounded-lg border border-[var(--border)] bg-[var(--surface-2)] px-3 py-2 text-sm outline-none focus:border-[var(--accent)]"
+            />
+          </label>
           <div className="flex gap-2">
             <Button onClick={() => save.mutate()} disabled={!title || !content || save.isPending}>
               {save.isPending ? "Saving…" : "Save"}
@@ -72,6 +93,7 @@ export function MemoryCard({ memory }: { memory: Memory }) {
                 setTitle(memory.title);
                 setContent(memory.content);
                 setType(memory.type);
+                setPaths((memory.paths ?? []).join(", "));
               }}
             >
               Cancel
@@ -95,6 +117,18 @@ export function MemoryCard({ memory }: { memory: Memory }) {
           </div>
           <h3 className="font-semibold">{memory.title}</h3>
           <p className="mt-1 text-sm text-[var(--muted)]">{memory.content}</p>
+          {memory.paths?.length ? (
+            <div className="mt-2 flex flex-wrap gap-1">
+              {memory.paths.map((p) => (
+                <span
+                  key={p}
+                  className="rounded border border-[var(--border)] bg-black/30 px-1.5 py-0.5 font-mono text-[10px] text-cyan-200"
+                >
+                  {p}
+                </span>
+              ))}
+            </div>
+          ) : null}
           {memory.evidence?.length ? (
             <div className="mt-3 border-l-2 border-[var(--border)] pl-3">
               {memory.evidence.map((e) => (
