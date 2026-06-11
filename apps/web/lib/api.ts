@@ -30,7 +30,53 @@ export interface Me {
   id: string;
   email: string;
   name: string | null;
+  avatarUrl?: string | null;
+  github?: boolean;
+  githubConnected?: boolean;
   workspaces: Workspace[];
+}
+
+export interface WorkspaceDetail {
+  id: string;
+  name: string;
+  slug: string;
+  joinCode: string;
+  repos: { id: string; fullName: string; _count?: { memories: number } }[];
+  memberships: {
+    role: string;
+    user: { id: string; email: string; name: string | null; avatarUrl: string | null };
+  }[];
+}
+
+export interface ApiTokenInfo {
+  id: string;
+  name: string;
+  lastUsedAt: string | null;
+  createdAt: string;
+}
+
+export interface GraphNode {
+  id: string;
+  type: "workspace" | "repo" | "memory" | "session";
+  label: string;
+  group?: string;
+  href?: string;
+}
+export interface GraphData {
+  nodes: GraphNode[];
+  edges: { source: string; target: string }[];
+}
+
+export interface ChatSource {
+  id: string;
+  title: string;
+  type: string;
+  repoId: string;
+  repo: string;
+}
+export interface ChatResponse {
+  answer: string;
+  sources: ChatSource[];
 }
 
 export interface RepoSummary {
@@ -42,6 +88,56 @@ export interface RepoSummary {
   packageManager: string | null;
   workspace?: { name: string; slug: string };
   _count?: { memories: number };
+}
+
+export interface AgentSessionSummary {
+  id: string;
+  agent: string;
+  task: string | null;
+  summary: string | null;
+  status: string;
+  createdAt: string;
+  _count?: { events: number };
+}
+
+export interface WorkspaceMetrics {
+  reposCount: number;
+  memoryCounts: Record<string, number>;
+  approvedMemories: number;
+  pendingMemories: number;
+  retrievals30: number;
+  retrievals7: number;
+  retrievalSeries: { date: string; count: number }[];
+  topRepos: { id: string; fullName: string; memories: number }[];
+}
+
+export interface GithubRepo {
+  fullName: string;
+  name: string;
+  private: boolean;
+  defaultBranch: string;
+  language: string | null;
+  updatedAt: string;
+}
+
+export interface GeneratedDoc {
+  id: string;
+  repoId: string;
+  type: string;
+  title: string;
+  content: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface AgentSession {
+  id: string;
+  agent: string;
+  task: string | null;
+  summary: string | null;
+  status: string;
+  createdAt: string;
+  _count?: { events: number };
 }
 
 export interface Memory {

@@ -28,9 +28,34 @@ export function AppShell({ children }: { children: React.ReactNode }) {
               <span className="inline-block h-4 w-4 rounded-sm bg-[var(--accent)]" />
               ContextOS
             </Link>
+            <nav className="flex items-center gap-4 text-sm text-[var(--muted)]">
+              <Link href="/dashboard" className="hover:text-white">
+                Dashboard
+              </Link>
+              <Link href="/graph" className="hover:text-white">
+                Graph
+              </Link>
+              <Link href="/chat" className="hover:text-white">
+                Chat
+              </Link>
+              <Link href="/usage" className="hover:text-white">
+                Usage
+              </Link>
+              <Link href="/settings" className="hover:text-white">
+                Settings
+              </Link>
+            </nav>
           </div>
           <div className="flex items-center gap-3 text-sm text-[var(--muted)]">
-            {me ? <span>{me.email}</span> : null}
+            {me ? (
+              <span className="flex items-center gap-2">
+                {me.avatarUrl ? (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img src={me.avatarUrl} alt="" className="h-6 w-6 rounded-full" />
+                ) : null}
+                {me.email}
+              </span>
+            ) : null}
             <Button variant="ghost" onClick={logout}>
               Log out
             </Button>

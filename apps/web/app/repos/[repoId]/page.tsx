@@ -3,7 +3,7 @@
 import { use } from "react";
 import Link from "next/link";
 import { useQuery } from "@tanstack/react-query";
-import { api } from "../../../lib/api";
+import { api, type AgentSessionSummary } from "../../../lib/api";
 import { AppShell } from "../../../components/AppShell";
 import { RepoNav } from "../../../components/RepoNav";
 import { Card } from "../../../components/ui";
@@ -61,6 +61,8 @@ function RepoOverview({ repoId }: { repoId: string }) {
         </dl>
       </Card>
 
+      <SessionsPanel repoId={repoId} />
+
       <div className="mt-6 flex gap-3 text-sm">
         <Link href={`/repos/${repoId}/memories`} className="text-[var(--accent)]">
           Browse memory library →
@@ -70,6 +72,40 @@ function RepoOverview({ repoId }: { repoId: string }) {
         </Link>
       </div>
     </div>
+  );
+}
+
+function SessionsPanel({ repoId }: { repoId: string }) {
+  const { data: sessions } = useQuery({
+    queryKey: ["sessions", repoId],
+    queryFn: () => api<AgentSessionSummary[]>(`/repos/${repoId}/sessions`),
+  });
+  return (
+    <Card className="mt-6 p-6">
+      <h2 className="font-semibold">Recent agent sessions</h2>
+      {!sessions || sessions.length === 0 ? (
+        <p className="mt-3 text-sm text-[var(--muted)]">
+          No sessions yet. Claude Code records them via{" "}
+          <code>record_session_summary</code>; proposals land in your inbox.
+        </p>
+      ) : (
+        <ul className="mt-4 space-y-3">
+          {sessions.map((s) => (
+            <li key={s.id} className="flex items-start justify-between gap-4 border-b border-[var(--border)] pb-3 last:border-0">
+              <div>
+                <p className="text-sm">{s.task ?? "Untitled session"}</p>
+                {s.summary ? (
+                  <p className="mt-0.5 line-clamp-2 text-xs text-[var(--muted)]">{s.summary}</p>
+                ) : null}
+              </div>
+              <span className="whitespace-nowrap text-xs text-[var(--muted)]">
+                {new Date(s.createdAt).toLocaleDateString()} · {s.agent}
+              </span>
+            </li>
+          ))}
+        </ul>
+      )}
+    </Card>
   );
 }
 

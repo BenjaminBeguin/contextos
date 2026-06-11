@@ -25,7 +25,7 @@ function Setup({ repoId }: { repoId: string }) {
       </p>
 
       <Step n={1} title="Install the CLI">
-        <Code>{`npm install -g contextos`}</Code>
+        <Code>{`npm install -g @mxbenjaminbeguin/cortex`}</Code>
       </Step>
 
       <Step n={2} title="Authenticate">
