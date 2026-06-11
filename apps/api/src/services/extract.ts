@@ -1,5 +1,5 @@
 import { extractedMemoriesSchema, type ExtractedMemory, type RecordSessionInput } from "@cortex/shared";
-import { llmEnabled, complete } from "./llm.js";
+import { complete } from "./llm.js";
 
 const SYSTEM = `You extract durable operational memories from an AI coding agent's work session.
 
@@ -70,10 +70,13 @@ function heuristic(input: RecordSessionInput): ExtractedMemory[] {
   return out.slice(0, 4);
 }
 
-export async function extractMemories(input: RecordSessionInput): Promise<ExtractedMemory[]> {
-  if (llmEnabled) {
+export async function extractMemories(
+  input: RecordSessionInput,
+  apiKey?: string,
+): Promise<ExtractedMemory[]> {
+  if (apiKey) {
     try {
-      const raw = await complete(SYSTEM, renderSession(input));
+      const raw = await complete(apiKey, SYSTEM, renderSession(input));
       const parsed = extractedMemoriesSchema.safeParse(parseJsonArray(raw));
       if (parsed.success) return parsed.data;
     } catch {

@@ -1,12 +1,7 @@
-import { describe, it, expect, vi } from "vitest";
+import { describe, it, expect } from "vitest";
+import { extractMemories } from "./extract.js";
 
-// Force the heuristic path (no LLM) so the test is deterministic and offline.
-vi.mock("./llm.js", () => ({
-  llmEnabled: false,
-  complete: async () => "[]",
-}));
-
-const { extractMemories } = await import("./extract.js");
+// Called without an API key → deterministic heuristic path (offline).
 
 describe("extractMemories (heuristic fallback)", () => {
   it("returns an empty array for an empty session", async () => {

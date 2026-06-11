@@ -44,6 +44,7 @@ export interface WorkspaceDetail {
   name: string;
   slug: string;
   joinCode: string;
+  hasAnthropicKey?: boolean;
   repos: { id: string; fullName: string; _count?: { memories: number } }[];
   memberships: {
     role: string;

@@ -2,6 +2,7 @@ import type { FastifyInstance } from "fastify";
 import { prisma } from "../db.js";
 import { resolveUser, assertRepoAccess, HttpError } from "../auth.js";
 import { generateDocs } from "../services/docs.js";
+import { getWorkspaceKey } from "../services/llm.js";
 
 function handle(reply: import("fastify").FastifyReply, e: unknown) {
   if (e instanceof HttpError) return reply.code(e.statusCode).send({ error: e.message });
@@ -34,13 +35,17 @@ export async function docRoutes(app: FastifyInstance) {
     } catch (e) {
       return handle(reply, e);
     }
-    const docs = await generateDocs({
-      id: repo.id,
-      fullName: repo.fullName,
-      stack: repo.stack,
-      packageManager: repo.packageManager,
-      notes: repo.notes,
-    });
+    const apiKey = await getWorkspaceKey(repo.workspaceId);
+    const docs = await generateDocs(
+      {
+        id: repo.id,
+        fullName: repo.fullName,
+        stack: repo.stack,
+        packageManager: repo.packageManager,
+        notes: repo.notes,
+      },
+      apiKey,
+    );
     return reply.code(201).send({ generated: docs });
   });
 

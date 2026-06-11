@@ -21,11 +21,12 @@ model User {
 }
 
 model Workspace {
-  id        String   @id @default(cuid())
-  name      String
-  slug      String   @unique
-  joinCode  String   @unique
-  createdAt DateTime @default(now())
+  id           String   @id @default(cuid())
+  name         String
+  slug         String   @unique
+  joinCode     String   @unique
+  anthropicKey String? // encrypted; BYOK for this workspace's AI features
+  createdAt    DateTime @default(now())
 
   memberships Membership[]
   repos       Repo[]

@@ -1,5 +1,5 @@
 import { extractedMemoriesSchema, type ExtractedMemory } from "@cortex/shared";
-import { llmEnabled, complete } from "./llm.js";
+import { complete } from "./llm.js";
 
 export interface ScanFile {
   path: string;
@@ -183,10 +183,10 @@ function heuristic(input: ScanInput): ExtractedMemory[] {
   return out.slice(0, 12);
 }
 
-export async function scanRepo(input: ScanInput): Promise<ExtractedMemory[]> {
-  if (llmEnabled && input.files.length > 0) {
+export async function scanRepo(input: ScanInput, apiKey?: string): Promise<ExtractedMemory[]> {
+  if (apiKey && input.files.length > 0) {
     try {
-      const raw = await complete(SYSTEM, render(input), 2500);
+      const raw = await complete(apiKey, SYSTEM, render(input), 2500);
       const parsed = extractedMemoriesSchema.safeParse(parseJsonArray(raw));
       if (parsed.success && parsed.data.length > 0) return parsed.data;
     } catch {

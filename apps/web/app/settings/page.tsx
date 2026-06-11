@@ -123,6 +123,8 @@ function WorkspaceSettings({ workspaceId, isOwner }: { workspaceId: string; isOw
         </div>
       </Card>
 
+      <AiKeyCard workspaceId={workspaceId} hasKey={!!ws.hasAnthropicKey} isOwner={isOwner} />
+
       <Card className="mt-6 p-6">
         <h2 className="font-semibold">Members</h2>
         <ul className="mt-4 space-y-2">
@@ -163,6 +165,84 @@ function WorkspaceSettings({ workspaceId, isOwner }: { workspaceId: string; isOw
         )}
       </Card>
     </>
+  );
+}
+
+function AiKeyCard({
+  workspaceId,
+  hasKey,
+  isOwner,
+}: {
+  workspaceId: string;
+  hasKey: boolean;
+  isOwner: boolean;
+}) {
+  const qc = useQueryClient();
+  const [key, setKey] = useState("");
+  const invalidate = () => qc.invalidateQueries({ queryKey: ["workspace", workspaceId] });
+
+  const save = useMutation({
+    mutationFn: () =>
+      api(`/workspaces/${workspaceId}/anthropic-key`, {
+        method: "PUT",
+        body: JSON.stringify({ key }),
+      }),
+    onSuccess: () => {
+      setKey("");
+      invalidate();
+    },
+  });
+  const remove = useMutation({
+    mutationFn: () => api(`/workspaces/${workspaceId}/anthropic-key`, { method: "DELETE" }),
+    onSuccess: invalidate,
+  });
+
+  return (
+    <Card className="mt-6 p-6">
+      <h2 className="font-semibold">AI provider (Anthropic key)</h2>
+      <p className="mt-1 text-sm text-[var(--muted)]">
+        Add your own Anthropic API key to power AI features — codebase scan, session extraction,
+        living docs, and chat — on your own billing. Without a key, those run a deterministic
+        fallback (no AI cost).
+      </p>
+      <p className="mt-3 text-sm">
+        {hasKey ? (
+          <span className="text-emerald-300">✓ Key configured for this workspace</span>
+        ) : (
+          <span className="text-[var(--muted)]">No key set</span>
+        )}
+      </p>
+
+      {isOwner ? (
+        <div className="mt-4 space-y-2">
+          <div className="flex flex-wrap items-center gap-2">
+            <input
+              type="password"
+              value={key}
+              onChange={(e) => setKey(e.target.value)}
+              placeholder="sk-ant-…"
+              className="min-w-64 flex-1 rounded-lg border border-[var(--border)] bg-[var(--surface-2)] px-3 py-2 text-sm outline-none focus:border-[var(--accent)]"
+            />
+            <Button onClick={() => save.mutate()} disabled={!key || save.isPending}>
+              {save.isPending ? "Saving…" : hasKey ? "Replace" : "Save key"}
+            </Button>
+            {hasKey ? (
+              <Button variant="danger" onClick={() => remove.mutate()} disabled={remove.isPending}>
+                Remove
+              </Button>
+            ) : null}
+          </div>
+          {save.isError ? (
+            <p className="text-sm text-red-400">{(save.error as Error).message}</p>
+          ) : null}
+          <p className="text-xs text-[var(--muted)]">
+            Stored encrypted; never shown again. Get a key at console.anthropic.com.
+          </p>
+        </div>
+      ) : (
+        <p className="mt-3 text-xs text-[var(--muted)]">Only owners can manage the API key.</p>
+      )}
+    </Card>
   );
 }
 

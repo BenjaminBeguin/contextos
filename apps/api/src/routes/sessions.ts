@@ -4,6 +4,7 @@ import { recordSessionSchema } from "@cortex/shared";
 import { prisma } from "../db.js";
 import { resolveUser, assertRepoAccess, HttpError } from "../auth.js";
 import { extractMemories } from "../services/extract.js";
+import { getWorkspaceKey } from "../services/llm.js";
 import { recordUsage } from "../services/analytics.js";
 
 function handle(reply: import("fastify").FastifyReply, e: unknown) {
@@ -48,8 +49,9 @@ export async function sessionRoutes(app: FastifyInstance) {
       },
     });
 
-    // Extract proposed memories (LLM if configured, heuristic otherwise).
-    const extracted = await extractMemories(body);
+    // Extract proposed memories (workspace LLM key if set, heuristic otherwise).
+    const apiKey = await getWorkspaceKey(repo.workspaceId);
+    const extracted = await extractMemories(body, apiKey);
     const proposed = await Promise.all(
       extracted.map((m) =>
         prisma.memory.create({

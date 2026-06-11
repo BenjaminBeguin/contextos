@@ -4,6 +4,7 @@ import { prisma } from "../db.js";
 import { resolveUser, assertWorkspaceAccess, assertRepoAccess, HttpError } from "../auth.js";
 import { decryptToken } from "../crypto.js";
 import { scanRepo, selectKeyFiles, summarizeStructure } from "../services/scan.js";
+import { getWorkspaceKey } from "../services/llm.js";
 import { recordUsage } from "../services/analytics.js";
 
 /** Decode a GitHub contents/readme API payload (base64) to UTF-8 text. */
@@ -204,13 +205,17 @@ export async function repoRoutes(app: FastifyInstance) {
       )
     ).filter((f): f is { path: string; content: string } => f !== null);
 
-    const drafts = await scanRepo({
-      fullName: repo.fullName,
-      stack: repo.stack,
-      packageManager: repo.packageManager,
-      structure: summarizeStructure(filePaths),
-      files,
-    });
+    const apiKey = await getWorkspaceKey(repo.workspaceId);
+    const drafts = await scanRepo(
+      {
+        fullName: repo.fullName,
+        stack: repo.stack,
+        packageManager: repo.packageManager,
+        structure: summarizeStructure(filePaths),
+        files,
+      },
+      apiKey,
+    );
 
     if (drafts.length > 0) {
       await prisma.$transaction(

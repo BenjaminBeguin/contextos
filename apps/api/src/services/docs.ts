@@ -1,6 +1,6 @@
 import { DOC_TITLES, DOC_TYPES, type DocType } from "@cortex/shared";
 import { prisma } from "../db.js";
-import { llmEnabled, complete } from "./llm.js";
+import { complete } from "./llm.js";
 
 interface MemoryLite {
   type: string;
@@ -78,14 +78,18 @@ const ONBOARDING_SYSTEM = `You write a concise onboarding guide (GitHub-flavored
 new to a repository, based ONLY on the provided structured memories. Be practical and specific.
 Use short sections: overview, conventions, how to run/test, and what to watch out for. Do not invent facts.`;
 
-async function buildOnboarding(repo: RepoForDocs, memories: MemoryLite[]): Promise<string> {
-  if (!llmEnabled) return buildOnboardingHeuristic(repo, memories);
+async function buildOnboarding(
+  repo: RepoForDocs,
+  memories: MemoryLite[],
+  apiKey?: string,
+): Promise<string> {
+  if (!apiKey) return buildOnboardingHeuristic(repo, memories);
   try {
     const payload = JSON.stringify({
       repo: { fullName: repo.fullName, stack: repo.stack, packageManager: repo.packageManager },
       memories: memories.map((m) => ({ type: m.type, title: m.title, content: m.content })),
     });
-    const md = await complete(ONBOARDING_SYSTEM, payload, 1500);
+    const md = await complete(apiKey, ONBOARDING_SYSTEM, payload, 1500);
     return md.trim() || buildOnboardingHeuristic(repo, memories);
   } catch {
     return buildOnboardingHeuristic(repo, memories);
@@ -101,7 +105,10 @@ interface RepoForDocs {
 }
 
 /** (Re)generate the standard doc set for a repo from its approved memories. */
-export async function generateDocs(repo: RepoForDocs): Promise<{ type: DocType; title: string }[]> {
+export async function generateDocs(
+  repo: RepoForDocs,
+  apiKey?: string,
+): Promise<{ type: DocType; title: string }[]> {
   const memories = await prisma.memory.findMany({
     where: { repoId: repo.id, status: "approved" },
     orderBy: { confidence: "desc" },
@@ -112,7 +119,7 @@ export async function generateDocs(repo: RepoForDocs): Promise<{ type: DocType; 
     overview: buildOverview(repo, memories),
     commands: buildCommands(memories),
     risks: buildRisks(memories),
-    onboarding: await buildOnboarding(repo, memories),
+    onboarding: await buildOnboarding(repo, memories, apiKey),
   };
 
   await prisma.$transaction(

@@ -8,6 +8,7 @@ import {
 } from "@cortex/shared";
 import { prisma } from "../db.js";
 import { resolveUser, assertWorkspaceAccess, HttpError } from "../auth.js";
+import { encryptToken } from "../crypto.js";
 
 function generateJoinCode(): string {
   // Human-friendly, unambiguous join code, e.g. "WS-7F3K9Q".
@@ -122,7 +123,10 @@ export async function workspaceRoutes(app: FastifyInstance) {
         },
       },
     });
-    return workspace;
+    if (!workspace) return reply.code(404).send({ error: "Workspace not found" });
+    // Never return the (encrypted) key — just whether one is set.
+    const { anthropicKey, ...rest } = workspace;
+    return { ...rest, hasAnthropicKey: Boolean(anthropicKey) };
   });
 
   // Rename a workspace (owners only).
@@ -138,7 +142,52 @@ export async function workspaceRoutes(app: FastifyInstance) {
       throw e;
     }
     const body = updateWorkspaceSchema.parse(req.body);
-    return prisma.workspace.update({ where: { id: workspaceId }, data: { name: body.name } });
+    const ws = await prisma.workspace.update({
+      where: { id: workspaceId },
+      data: { name: body.name },
+      select: { id: true, name: true, slug: true, joinCode: true },
+    });
+    return ws;
+  });
+
+  // Set or clear this workspace's Anthropic API key (BYOK, owners only).
+  app.put("/workspaces/:workspaceId/anthropic-key", async (req, reply) => {
+    const user = await resolveUser(req);
+    if (!user) return reply.code(401).send({ error: "Unauthorized" });
+    const { workspaceId } = req.params as { workspaceId: string };
+    try {
+      const membership = await assertWorkspaceAccess(user.id, workspaceId);
+      if (membership.role !== "owner") throw new HttpError(403, "Only owners can set the API key");
+    } catch (e) {
+      if (e instanceof HttpError) return reply.code(e.statusCode).send({ error: e.message });
+      throw e;
+    }
+    const { key } = (req.body ?? {}) as { key?: string };
+    const trimmed = key?.trim();
+    if (!trimmed) return reply.code(400).send({ error: "Missing key" });
+    if (!trimmed.startsWith("sk-ant-")) {
+      return reply.code(400).send({ error: "That doesn't look like an Anthropic API key (sk-ant-…)" });
+    }
+    await prisma.workspace.update({
+      where: { id: workspaceId },
+      data: { anthropicKey: encryptToken(trimmed) },
+    });
+    return { ok: true, hasAnthropicKey: true };
+  });
+
+  app.delete("/workspaces/:workspaceId/anthropic-key", async (req, reply) => {
+    const user = await resolveUser(req);
+    if (!user) return reply.code(401).send({ error: "Unauthorized" });
+    const { workspaceId } = req.params as { workspaceId: string };
+    try {
+      const membership = await assertWorkspaceAccess(user.id, workspaceId);
+      if (membership.role !== "owner") throw new HttpError(403, "Only owners can remove the API key");
+    } catch (e) {
+      if (e instanceof HttpError) return reply.code(e.statusCode).send({ error: e.message });
+      throw e;
+    }
+    await prisma.workspace.update({ where: { id: workspaceId }, data: { anthropicKey: null } });
+    return { ok: true, hasAnthropicKey: false };
   });
 
   // Rotate the join code (owners only) — invalidates the old one.

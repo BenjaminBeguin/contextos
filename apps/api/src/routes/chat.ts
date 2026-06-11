@@ -2,7 +2,7 @@ import type { FastifyInstance } from "fastify";
 import { chatSchema } from "@cortex/shared";
 import { prisma } from "../db.js";
 import { resolveUser, assertWorkspaceAccess, HttpError } from "../auth.js";
-import { llmEnabled, complete } from "../services/llm.js";
+import { complete, getWorkspaceKey } from "../services/llm.js";
 import { rateLimit } from "../rate-limit.js";
 
 const SYSTEM = `You are Cortex, answering questions about a software team's repositories.
@@ -72,17 +72,23 @@ export async function chatRoutes(app: FastifyInstance) {
       .map((m) => `- [${m.type}] ${m.title} (${repoName.get(m.repoId)}): ${m.content}`)
       .join("\n");
 
-    if (!llmEnabled) {
+    const apiKey = await getWorkspaceKey(workspaceId);
+    if (!apiKey) {
       return {
         answer:
-          "AI answers are off (no ANTHROPIC_API_KEY set). Here are the most relevant memories I found:\n\n" +
+          "AI answers are off — add an Anthropic API key in workspace settings. Most relevant memories:\n\n" +
           context,
         sources,
       };
     }
 
     try {
-      const answer = await complete(SYSTEM, `Question: ${message}\n\nMemories:\n${context}`, 1024);
+      const answer = await complete(
+        apiKey,
+        SYSTEM,
+        `Question: ${message}\n\nMemories:\n${context}`,
+        1024,
+      );
       return { answer: answer.trim(), sources };
     } catch {
       return {
