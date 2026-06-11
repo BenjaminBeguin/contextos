@@ -7,7 +7,8 @@ export type UsageType =
   | "mcp.get_relevant_warnings"
   | "memory.approved"
   | "memory.created"
-  | "session.recorded";
+  | "session.recorded"
+  | "repo.scanned";
 
 /**
  * Fire-and-forget usage telemetry. Never throws — analytics must not be able to

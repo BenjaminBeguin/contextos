@@ -54,6 +54,8 @@ function RepoOverview({ repoId }: { repoId: string }) {
         <Stat label="Archived" value={count("archived")} />
       </div>
 
+      <ScanCard repoId={repoId} />
+
       <RepoContextCard repo={repo} repoId={repoId} />
 
       <SessionsPanel repoId={repoId} />
@@ -71,6 +73,54 @@ function RepoOverview({ repoId }: { repoId: string }) {
         <DangerZone repoId={repoId} fullName={repo.fullName} />
       ) : null}
     </div>
+  );
+}
+
+function ScanCard({ repoId }: { repoId: string }) {
+  const qc = useQueryClient();
+  const scan = useMutation({
+    mutationFn: () => api<{ proposedCount: number }>(`/repos/${repoId}/scan`, { method: "POST" }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["repo", repoId] });
+      qc.invalidateQueries({ queryKey: ["memories", repoId] });
+    },
+  });
+  const notConnected = scan.isError && (scan.error as Error).message === "github_not_connected";
+
+  return (
+    <Card className="mt-6 p-6">
+      <div className="flex flex-wrap items-center justify-between gap-4">
+        <div>
+          <h2 className="font-semibold">Bootstrap from codebase</h2>
+          <p className="mt-1 text-sm text-[var(--muted)]">
+            Scan the repo&apos;s README, manifest, and structure to propose starter memories —
+            architecture, commands, conventions, risks — for review in the inbox.
+          </p>
+        </div>
+        <Button onClick={() => scan.mutate()} disabled={scan.isPending}>
+          {scan.isPending ? "Scanning…" : "Scan codebase"}
+        </Button>
+      </div>
+      {scan.isSuccess ? (
+        <p className="mt-3 text-sm text-emerald-300">
+          Created {scan.data.proposedCount} proposed{" "}
+          {scan.data.proposedCount === 1 ? "memory" : "memories"}.{" "}
+          <Link href={`/repos/${repoId}/inbox`} className="underline">
+            Review in inbox →
+          </Link>
+        </p>
+      ) : notConnected ? (
+        <p className="mt-3 text-sm text-yellow-300">
+          Connect GitHub in{" "}
+          <Link href="/settings" className="underline">
+            settings
+          </Link>{" "}
+          to scan.
+        </p>
+      ) : scan.isError ? (
+        <p className="mt-3 text-sm text-red-400">{(scan.error as Error).message}</p>
+      ) : null}
+    </Card>
   );
 }
 

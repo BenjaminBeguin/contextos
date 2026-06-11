@@ -3,6 +3,19 @@ import { createRepoSchema, updateRepoSchema } from "@cortex/shared";
 import { prisma } from "../db.js";
 import { resolveUser, assertWorkspaceAccess, assertRepoAccess, HttpError } from "../auth.js";
 import { decryptToken } from "../crypto.js";
+import { scanRepo } from "../services/scan.js";
+import { recordUsage } from "../services/analytics.js";
+
+/** Decode a GitHub contents/readme API payload (base64) to UTF-8 text. */
+function decodeGhContent(json: unknown): string | null {
+  const c = json as { content?: string; encoding?: string };
+  if (!c?.content) return null;
+  try {
+    return Buffer.from(c.content, "base64").toString("utf8");
+  } catch {
+    return null;
+  }
+}
 
 interface GitHubRepoInfo {
   default_branch: string;
@@ -136,18 +149,81 @@ export async function repoRoutes(app: FastifyInstance) {
     return { ok: true };
   });
 
-  // Stub: scan is a later-phase async job.
+  // Scan the codebase (README, manifest, structure) and propose starter memories.
   app.post("/repos/:repoId/scan", async (req, reply) => {
     const user = await resolveUser(req);
     if (!user) return reply.code(401).send({ error: "Unauthorized" });
     const { repoId } = req.params as { repoId: string };
+    let repo;
     try {
-      await assertRepoAccess(user.id, repoId);
+      repo = await assertRepoAccess(user.id, repoId);
     } catch (e) {
       if (e instanceof HttpError) return reply.code(e.statusCode).send({ error: e.message });
       throw e;
     }
-    return reply.code(501).send({ error: "Repo scanning is not implemented in this MVP pass." });
+    if (repo.provider !== "github" || !repo.fullName.includes("/")) {
+      return reply.code(400).send({ error: "Only GitHub repos (owner/name) can be scanned." });
+    }
+
+    const account = await prisma.user.findUnique({ where: { id: user.id } });
+    const token = account?.githubAccessToken ? decryptToken(account.githubAccessToken) : null;
+    if (!token) return reply.code(409).send({ error: "github_not_connected" });
+
+    const headers = {
+      authorization: `Bearer ${token}`,
+      accept: "application/vnd.github+json",
+      "user-agent": "cortex",
+    };
+    const base = `https://api.github.com/repos/${repo.fullName}`;
+    const [readmeRes, pkgRes, contentsRes] = await Promise.all([
+      fetch(`${base}/readme`, { headers }),
+      fetch(`${base}/contents/package.json`, { headers }),
+      fetch(`${base}/contents`, { headers }),
+    ]);
+    if (readmeRes.status === 401) return reply.code(409).send({ error: "github_not_connected" });
+
+    const readme = readmeRes.ok ? decodeGhContent(await readmeRes.json()) : null;
+    const packageJson = pkgRes.ok ? decodeGhContent(await pkgRes.json()) : null;
+    const structure = contentsRes.ok
+      ? ((await contentsRes.json()) as { name: string }[]).map((f) => f.name).slice(0, 60)
+      : [];
+
+    const drafts = await scanRepo({
+      fullName: repo.fullName,
+      stack: repo.stack,
+      packageManager: repo.packageManager,
+      readme,
+      packageJson,
+      structure,
+    });
+
+    if (drafts.length > 0) {
+      await prisma.$transaction(
+        drafts.map((d) =>
+          prisma.memory.create({
+            data: {
+              repoId,
+              type: d.type,
+              title: d.title,
+              content: d.content,
+              scope: "repo",
+              confidence: d.confidence,
+              status: "proposed",
+              source: "repo_scan",
+              evidence: d.evidence ? { create: [{ kind: "scan", content: d.evidence }] } : undefined,
+            },
+          }),
+        ),
+      );
+    }
+
+    await recordUsage("repo.scanned", {
+      workspaceId: repo.workspaceId,
+      repoId,
+      metadata: { proposed: drafts.length },
+    });
+
+    return { ok: true, proposedCount: drafts.length };
   });
 
   // Resync repo context (stack, default branch, description) from GitHub.
