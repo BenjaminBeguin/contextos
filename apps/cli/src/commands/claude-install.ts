@@ -16,8 +16,9 @@ const CLAUDE_MD = `# ContextOS Project Memory
 Before making changes, use the ContextOS MCP tools to retrieve relevant repo memory.
 
 Recommended tools:
-- get_repo_context
-- search_memory
+- get_repo_context — call before starting work in this repo
+- search_memory — search approved memories relevant to your task
+- record_session_summary — call at the end of a meaningful task so ContextOS can propose new memories
 
 Important:
 - Respect approved project memories.

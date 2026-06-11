@@ -64,6 +64,36 @@ export async function mcpCommand() {
     },
   );
 
+  server.registerTool(
+    "record_session_summary",
+    {
+      title: "Record a ContextOS session summary",
+      description:
+        "Submit a summary of the work you just did so ContextOS can propose new memories for review. Call this at the end of a meaningful task.",
+      inputSchema: {
+        task: z.string().optional().describe("What the task was"),
+        summary: z.string().optional().describe("What happened: decisions, findings, outcomes"),
+        filesChanged: z.array(z.string()).optional(),
+        commandsRun: z.array(z.string()).optional(),
+        errors: z.array(z.string()).optional(),
+      },
+    },
+    async (args) => {
+      const result = await apiFetch<{ proposedCount: number }>(client, `/repos/${config.repoId}/sessions`, {
+        method: "POST",
+        body: JSON.stringify(args),
+      });
+      return {
+        content: [
+          {
+            type: "text",
+            text: `Session recorded. ${result.proposedCount} memory proposal(s) created for review in ContextOS.`,
+          },
+        ],
+      };
+    },
+  );
+
   const transport = new StdioServerTransport();
   await server.connect(transport);
 }

@@ -16,7 +16,8 @@ export async function initCommand(opts: { repo?: string }) {
     throw new Error("Not logged in. Run `contextos login` first.");
   }
 
-  const repos = await apiFetch<RepoSummary[]>(creds, "/repos");
+  const client = { baseUrl: creds.apiBaseUrl, token: creds.token };
+  const repos = await apiFetch<RepoSummary[]>(client, "/repos");
   if (repos.length === 0) {
     throw new Error("No repos found for your account. Create one in the web app first.");
   }
