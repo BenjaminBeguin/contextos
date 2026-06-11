@@ -2,13 +2,16 @@ export const API_BASE_URL =
   process.env.NEXT_PUBLIC_API_BASE_URL ?? "http://localhost:3008";
 
 export async function api<T>(path: string, init: RequestInit = {}): Promise<T> {
+  // Only send a JSON content-type when there's a body — Fastify rejects an empty
+  // body that carries `Content-Type: application/json`.
+  const headers: Record<string, string> = { ...(init.headers as Record<string, string>) };
+  if (init.body != null && headers["content-type"] === undefined) {
+    headers["content-type"] = "application/json";
+  }
   const res = await fetch(`${API_BASE_URL}${path}`, {
     ...init,
     credentials: "include",
-    headers: {
-      "content-type": "application/json",
-      ...(init.headers ?? {}),
-    },
+    headers,
   });
   const text = await res.text();
   const body = text ? JSON.parse(text) : null;
