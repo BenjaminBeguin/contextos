@@ -1,17 +1,9 @@
-import { writeFileSync, existsSync, mkdirSync, chmodSync } from "node:fs";
+import { writeFileSync, readFileSync, existsSync, mkdirSync, chmodSync } from "node:fs";
 import { join } from "node:path";
 
-const MCP_JSON = {
-  mcpServers: {
-    cortex: {
-      type: "stdio",
-      command: "cortex",
-      args: ["mcp"],
-    },
-  },
-};
+const MCP_SERVER = { type: "stdio", command: "cortex", args: ["mcp"] };
 
-const CLAUDE_MD = `# Cortex Project Memory
+const CLAUDE_MD_SECTION = `# Cortex Project Memory
 
 Before making changes, use the Cortex MCP tools to retrieve relevant repo memory.
 
@@ -40,28 +32,70 @@ const BEFORE_EDIT_HOOK = `#!/usr/bin/env bash
 exit 0
 `;
 
-export function writeClaudeAssets(cwd = process.cwd()): void {
-  writeFileSync(join(cwd, ".mcp.json"), JSON.stringify(MCP_JSON, null, 2));
-
-  if (!existsSync(join(cwd, "CLAUDE.md"))) {
-    writeFileSync(join(cwd, "CLAUDE.md"), CLAUDE_MD);
+/** Add the cortex MCP server to .mcp.json, preserving any existing servers. */
+function mergeMcpJson(path: string): string {
+  if (!existsSync(path)) {
+    writeFileSync(path, JSON.stringify({ mcpServers: { cortex: MCP_SERVER } }, null, 2) + "\n");
+    return "created .mcp.json";
   }
+  try {
+    const json = JSON.parse(readFileSync(path, "utf8")) as {
+      mcpServers?: Record<string, unknown>;
+    };
+    json.mcpServers = json.mcpServers ?? {};
+    if (json.mcpServers.cortex) return ".mcp.json already has the cortex server — left as is";
+    json.mcpServers.cortex = MCP_SERVER;
+    writeFileSync(path, JSON.stringify(json, null, 2) + "\n");
+    return "added cortex server to existing .mcp.json";
+  } catch {
+    return "could not parse existing .mcp.json — add the cortex server manually";
+  }
+}
+
+/** Append the Cortex section to CLAUDE.md if it isn't already there. Never overwrites. */
+function mergeClaudeMd(path: string): string {
+  if (!existsSync(path)) {
+    writeFileSync(path, CLAUDE_MD_SECTION);
+    return "created CLAUDE.md";
+  }
+  const existing = readFileSync(path, "utf8");
+  if (existing.includes("Cortex Project Memory") || existing.includes("Cortex MCP tools")) {
+    return "CLAUDE.md already mentions Cortex — left as is";
+  }
+  writeFileSync(path, existing.trimEnd() + "\n\n" + CLAUDE_MD_SECTION);
+  return "appended Cortex section to existing CLAUDE.md";
+}
+
+function writeHookIfMissing(path: string, content: string): boolean {
+  if (existsSync(path)) return false;
+  writeFileSync(path, content);
+  chmodSync(path, 0o755);
+  return true;
+}
+
+/** Generate/merge Claude Code assets without overwriting existing files. Returns a report. */
+export function writeClaudeAssets(cwd = process.cwd()): string[] {
+  const actions: string[] = [];
+  actions.push(mergeMcpJson(join(cwd, ".mcp.json")));
+  actions.push(mergeClaudeMd(join(cwd, "CLAUDE.md")));
 
   const hooksDir = join(cwd, ".claude", "hooks");
   if (!existsSync(hooksDir)) mkdirSync(hooksDir, { recursive: true });
-  const sessionEnd = join(hooksDir, "cortex-session-end.sh");
-  const beforeEdit = join(hooksDir, "cortex-before-edit.sh");
-  writeFileSync(sessionEnd, SESSION_END_HOOK);
-  writeFileSync(beforeEdit, BEFORE_EDIT_HOOK);
-  chmodSync(sessionEnd, 0o755);
-  chmodSync(beforeEdit, 0o755);
+  actions.push(
+    writeHookIfMissing(join(hooksDir, "cortex-session-end.sh"), SESSION_END_HOOK)
+      ? "created .claude/hooks/cortex-session-end.sh"
+      : "kept existing cortex-session-end.sh",
+  );
+  actions.push(
+    writeHookIfMissing(join(hooksDir, "cortex-before-edit.sh"), BEFORE_EDIT_HOOK)
+      ? "created .claude/hooks/cortex-before-edit.sh"
+      : "kept existing cortex-before-edit.sh",
+  );
+  return actions;
 }
 
 export async function claudeInstallCommand() {
-  writeClaudeAssets();
-  console.log("Installed Claude Code integration:");
-  console.log("  .mcp.json");
-  console.log("  CLAUDE.md");
-  console.log("  .claude/hooks/cortex-session-end.sh");
-  console.log("  .claude/hooks/cortex-before-edit.sh");
+  const actions = writeClaudeAssets();
+  console.log("Claude Code integration:");
+  for (const a of actions) console.log("  - " + a);
 }

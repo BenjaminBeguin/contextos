@@ -4,13 +4,14 @@ import { loginCommand } from "./commands/login.js";
 import { initCommand } from "./commands/init.js";
 import { claudeInstallCommand } from "./commands/claude-install.js";
 import { mcpCommand } from "./commands/mcp.js";
+import { VERSION } from "./version.js";
 
 const program = new Command();
 
 program
   .name("cortex")
   .description("Operational memory for AI coding agents")
-  .version("0.1.0");
+  .version(VERSION);
 
 program
   .command("login")
@@ -23,6 +24,7 @@ program
   .command("init")
   .description("Connect this repo to Cortex and generate Claude Code assets")
   .option("-r, --repo <repoId>", "Repo ID to connect")
+  .option("-y, --yes", "Skip the directory confirmation prompt")
   .action((opts) => run(() => initCommand(opts)));
 
 program

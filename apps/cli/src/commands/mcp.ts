@@ -3,6 +3,7 @@ import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js"
 import { z } from "zod";
 import { loadCredentials, loadProjectConfig } from "../config.js";
 import { apiFetch } from "../api.js";
+import { VERSION } from "../version.js";
 
 interface SearchResult {
   memories: { type: string; title: string; content: string; confidence: number }[];
@@ -22,7 +23,7 @@ export async function mcpCommand() {
 
   const client = { baseUrl: config.apiBaseUrl ?? creds.apiBaseUrl, token: creds.token };
 
-  const server = new McpServer({ name: "cortex", version: "0.1.0" });
+  const server = new McpServer({ name: "cortex", version: VERSION });
 
   server.registerTool(
     "search_memory",

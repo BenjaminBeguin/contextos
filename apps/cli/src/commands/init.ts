@@ -1,4 +1,6 @@
 import { createInterface } from "node:readline/promises";
+import { existsSync } from "node:fs";
+import { join } from "node:path";
 import { loadCredentials, saveProjectConfig } from "../config.js";
 import { apiFetch } from "../api.js";
 import { writeClaudeAssets } from "./claude-install.js";
@@ -10,7 +12,7 @@ interface RepoSummary {
   workspace?: { name: string };
 }
 
-export async function initCommand(opts: { repo?: string }) {
+export async function initCommand(opts: { repo?: string; yes?: boolean }) {
   const creds = loadCredentials();
   if (!creds) {
     throw new Error("Not logged in. Run `cortex login` first.");
@@ -41,13 +43,32 @@ export async function initCommand(opts: { repo?: string }) {
   const repo = repos.find((r) => r.id === repoId);
   if (!repo) throw new Error(`Repo ${repoId} not found in your account.`);
 
+  const cwd = process.cwd();
+
+  // Confirm the directory before writing anything — `init` should run at your repo root.
+  if (!opts.yes) {
+    console.log("\nSet up Cortex in this directory?");
+    console.log(`  directory: ${cwd}`);
+    console.log(`  repo:      ${repo.fullName}`);
+    if (!existsSync(join(cwd, ".git"))) {
+      console.log("  note:      no .git here — make sure this is your repo root, not a subfolder.");
+    }
+    const rl = createInterface({ input: process.stdin, output: process.stdout });
+    const ok = (await rl.question("Continue? (y/N) ")).trim().toLowerCase();
+    rl.close();
+    if (ok !== "y" && ok !== "yes") {
+      console.log("Aborted — no files written.");
+      return;
+    }
+  }
+
   saveProjectConfig({
     apiBaseUrl: creds.apiBaseUrl,
     repoId,
     repoFullName: repo.fullName,
   });
-  console.log(`Connected repo ${repo.fullName}. Wrote .cortex/config.json`);
+  console.log(`\nConnected ${repo.fullName} → .cortex/config.json`);
 
-  writeClaudeAssets();
-  console.log("Generated CLAUDE.md, .mcp.json, and Claude Code hooks.");
+  const actions = writeClaudeAssets(cwd);
+  for (const a of actions) console.log("  - " + a);
 }
