@@ -1,0 +1,88 @@
+import type { FastifyInstance } from "fastify";
+import { prisma } from "../db.js";
+import { resolveUser, assertWorkspaceAccess, HttpError } from "../auth.js";
+
+function dayKey(d: Date): string {
+  return d.toISOString().slice(0, 10);
+}
+
+export async function metricsRoutes(app: FastifyInstance) {
+  // Public aggregate stats for the marketing site (no PII).
+  app.get("/stats", async () => {
+    const [waitlistCount, memoriesTracked, workspaces] = await Promise.all([
+      prisma.waitlistSignup.count(),
+      prisma.memory.count(),
+      prisma.workspace.count(),
+    ]);
+    return { waitlistCount, memoriesTracked, workspaces };
+  });
+
+  // Per-workspace usage metrics for the product dashboard.
+  app.get("/workspaces/:workspaceId/metrics", async (req, reply) => {
+    const user = await resolveUser(req);
+    if (!user) return reply.code(401).send({ error: "Unauthorized" });
+    const { workspaceId } = req.params as { workspaceId: string };
+    try {
+      await assertWorkspaceAccess(user.id, workspaceId);
+    } catch (e) {
+      if (e instanceof HttpError) return reply.code(e.statusCode).send({ error: e.message });
+      throw e;
+    }
+
+    const repos = await prisma.repo.findMany({
+      where: { workspaceId },
+      select: { id: true, fullName: true, _count: { select: { memories: true } } },
+    });
+    const repoIds = repos.map((r) => r.id);
+
+    const since30 = new Date(Date.now() - 30 * 86400_000);
+    const since7 = new Date(Date.now() - 7 * 86400_000);
+    const since14 = new Date(Date.now() - 14 * 86400_000);
+
+    const [statusGroups, retrievals30, retrievals7, seriesEvents] = await Promise.all([
+      prisma.memory.groupBy({
+        by: ["status"],
+        where: { repoId: { in: repoIds } },
+        _count: true,
+      }),
+      prisma.usageEvent.count({
+        where: { workspaceId, type: "mcp.search_memory", createdAt: { gte: since30 } },
+      }),
+      prisma.usageEvent.count({
+        where: { workspaceId, type: "mcp.search_memory", createdAt: { gte: since7 } },
+      }),
+      prisma.usageEvent.findMany({
+        where: { workspaceId, type: "mcp.search_memory", createdAt: { gte: since14 } },
+        select: { createdAt: true },
+      }),
+    ]);
+
+    const memoryCounts: Record<string, number> = {};
+    for (const g of statusGroups) memoryCounts[g.status] = g._count;
+
+    // Bucket retrievals into the last 14 days.
+    const buckets: Record<string, number> = {};
+    for (let i = 13; i >= 0; i--) {
+      buckets[dayKey(new Date(Date.now() - i * 86400_000))] = 0;
+    }
+    for (const e of seriesEvents) {
+      const k = dayKey(e.createdAt);
+      if (k in buckets) buckets[k]! += 1;
+    }
+    const series = Object.entries(buckets).map(([date, count]) => ({ date, count }));
+
+    return {
+      reposCount: repos.length,
+      memoryCounts,
+      approvedMemories: memoryCounts["approved"] ?? 0,
+      pendingMemories: memoryCounts["proposed"] ?? 0,
+      retrievals30,
+      retrievals7,
+      retrievalSeries: series,
+      topRepos: repos
+        .map((r) => ({ id: r.id, fullName: r.fullName, memories: r._count.memories }))
+        .sort((a, b) => b.memories - a.memories)
+        .slice(0, 5),
+    };
+  });
+}

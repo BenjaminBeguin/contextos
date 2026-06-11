@@ -27,6 +27,16 @@ export type MemoryStatus = (typeof MEMORY_STATUSES)[number];
 export const MEMORY_SCOPES = ["repo", "org", "global"] as const;
 export type MemoryScope = (typeof MEMORY_SCOPES)[number];
 
+export const DOC_TYPES = ["overview", "commands", "risks", "onboarding"] as const;
+export type DocType = (typeof DOC_TYPES)[number];
+
+export const DOC_TITLES: Record<DocType, string> = {
+  overview: "Repo Overview",
+  commands: "Commands",
+  risks: "Known Risks",
+  onboarding: "Onboarding Guide",
+};
+
 export interface RepoContext {
   stack: string[];
   packageManager: string | null;

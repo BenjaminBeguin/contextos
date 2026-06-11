@@ -9,9 +9,12 @@ datasource db {
 
 model User {
   id        String   @id @default(cuid())
-  email     String   @unique
-  name      String?
-  createdAt DateTime @default(now())
+  email             String   @unique
+  name              String?
+  githubId          String?  @unique
+  avatarUrl         String?
+  githubAccessToken String?
+  createdAt         DateTime @default(now())
 
   memberships Membership[]
   apiTokens   ApiToken[]
@@ -123,6 +126,18 @@ model GeneratedDoc {
   updatedAt DateTime @updatedAt
 
   repo Repo @relation(fields: [repoId], references: [id], onDelete: Cascade)
+}
+
+model UsageEvent {
+  id          String   @id @default(cuid())
+  type        String
+  workspaceId String?
+  repoId      String?
+  metadata    Json?
+  createdAt   DateTime @default(now())
+
+  @@index([type, createdAt])
+  @@index([workspaceId, createdAt])
 }
 
 model WaitlistSignup {

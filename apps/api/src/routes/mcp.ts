@@ -3,6 +3,7 @@ import { mcpSearchMemorySchema, mcpRepoContextSchema } from "@contextos/shared";
 import { prisma } from "../db.js";
 import { resolveUser, assertRepoAccess, HttpError } from "../auth.js";
 import { searchMemories } from "../services/memory.js";
+import { recordUsage } from "../services/analytics.js";
 
 function handle(reply: import("fastify").FastifyReply, e: unknown) {
   if (e instanceof HttpError) return reply.code(e.statusCode).send({ error: e.message });
@@ -15,8 +16,9 @@ export async function mcpRoutes(app: FastifyInstance) {
     const user = await resolveUser(req);
     if (!user) return reply.code(401).send({ error: "Unauthorized" });
     const body = mcpSearchMemorySchema.parse(req.body);
+    let repo;
     try {
-      await assertRepoAccess(user.id, body.repoId);
+      repo = await assertRepoAccess(user.id, body.repoId);
     } catch (e) {
       return handle(reply, e);
     }
@@ -25,6 +27,11 @@ export async function mcpRoutes(app: FastifyInstance) {
       query: body.query,
       limit: body.limit,
       approvedOnly: true,
+    });
+    await recordUsage("mcp.search_memory", {
+      workspaceId: repo.workspaceId,
+      repoId: repo.id,
+      metadata: { query: body.query, results: memories.length },
     });
     return {
       memories: memories.map((m) => ({
@@ -55,6 +62,10 @@ export async function mcpRoutes(app: FastifyInstance) {
       where: { repoId: body.repoId, status: "approved", type: "command" },
       orderBy: { confidence: "desc" },
       take: 5,
+    });
+    await recordUsage("mcp.get_repo_context", {
+      workspaceId: repo.workspaceId,
+      repoId: repo.id,
     });
     return {
       repoContext: {

@@ -1,6 +1,10 @@
 import { randomBytes } from "node:crypto";
 import type { FastifyInstance } from "fastify";
-import { createWorkspaceSchema, joinWorkspaceSchema } from "@contextos/shared";
+import {
+  createWorkspaceSchema,
+  joinWorkspaceSchema,
+  updateWorkspaceSchema,
+} from "@contextos/shared";
 import { prisma } from "../db.js";
 import { resolveUser, assertWorkspaceAccess, HttpError } from "../auth.js";
 
@@ -70,8 +74,48 @@ export async function workspaceRoutes(app: FastifyInstance) {
     }
     const workspace = await prisma.workspace.findUnique({
       where: { id: workspaceId },
-      include: { repos: true, memberships: { include: { user: true } } },
+      include: {
+        repos: { include: { _count: { select: { memories: true } } } },
+        memberships: {
+          include: { user: { select: { id: true, email: true, name: true, avatarUrl: true } } },
+        },
+      },
     });
     return workspace;
+  });
+
+  // Rename a workspace (owners only).
+  app.patch("/workspaces/:workspaceId", async (req, reply) => {
+    const user = await resolveUser(req);
+    if (!user) return reply.code(401).send({ error: "Unauthorized" });
+    const { workspaceId } = req.params as { workspaceId: string };
+    try {
+      const membership = await assertWorkspaceAccess(user.id, workspaceId);
+      if (membership.role !== "owner") throw new HttpError(403, "Only owners can edit the workspace");
+    } catch (e) {
+      if (e instanceof HttpError) return reply.code(e.statusCode).send({ error: e.message });
+      throw e;
+    }
+    const body = updateWorkspaceSchema.parse(req.body);
+    return prisma.workspace.update({ where: { id: workspaceId }, data: { name: body.name } });
+  });
+
+  // Rotate the join code (owners only) — invalidates the old one.
+  app.post("/workspaces/:workspaceId/rotate-join-code", async (req, reply) => {
+    const user = await resolveUser(req);
+    if (!user) return reply.code(401).send({ error: "Unauthorized" });
+    const { workspaceId } = req.params as { workspaceId: string };
+    try {
+      const membership = await assertWorkspaceAccess(user.id, workspaceId);
+      if (membership.role !== "owner") throw new HttpError(403, "Only owners can rotate the code");
+    } catch (e) {
+      if (e instanceof HttpError) return reply.code(e.statusCode).send({ error: e.message });
+      throw e;
+    }
+    const updated = await prisma.workspace.update({
+      where: { id: workspaceId },
+      data: { joinCode: generateJoinCode() },
+    });
+    return { joinCode: updated.joinCode };
   });
 }

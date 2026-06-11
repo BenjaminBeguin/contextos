@@ -31,6 +31,14 @@ export const joinWorkspaceSchema = z.object({
   joinCode: z.string().min(1),
 });
 
+export const updateWorkspaceSchema = z.object({
+  name: z.string().min(1).max(80),
+});
+
+export const chatSchema = z.object({
+  message: z.string().min(1).max(2000),
+});
+
 export const createRepoSchema = z.object({
   workspaceId: z.string().min(1),
   provider: z.string().default("github"),
@@ -71,6 +79,31 @@ export const memoryListQuerySchema = z.object({
   search: z.string().optional(),
 });
 
+export const sessionEventSchema = z.object({
+  type: z.string().min(1),
+  payload: z.record(z.unknown()).default({}),
+});
+
+export const recordSessionSchema = z.object({
+  agent: z.string().default("claude-code"),
+  task: z.string().optional(),
+  summary: z.string().optional(),
+  filesChanged: z.array(z.string()).optional(),
+  commandsRun: z.array(z.string()).optional(),
+  errors: z.array(z.string()).optional(),
+  events: z.array(sessionEventSchema).optional(),
+});
+
+// Shape the extractor (LLM or heuristic) must produce.
+export const extractedMemorySchema = z.object({
+  type: memoryTypeSchema,
+  title: z.string().min(1).max(140),
+  content: z.string().min(1),
+  confidence: z.number().min(0).max(1),
+  evidence: z.string().optional(),
+});
+export const extractedMemoriesSchema = z.array(extractedMemorySchema).max(6);
+
 // MCP payloads
 export const mcpSearchMemorySchema = z.object({
   repoId: z.string().min(1),
@@ -81,6 +114,9 @@ export const mcpSearchMemorySchema = z.object({
 export const mcpRepoContextSchema = z.object({
   repoId: z.string().min(1),
 });
+
+export type RecordSessionInput = z.infer<typeof recordSessionSchema>;
+export type ExtractedMemory = z.infer<typeof extractedMemorySchema>;
 
 export type LoginInput = z.infer<typeof loginSchema>;
 export type CreateWorkspaceInput = z.infer<typeof createWorkspaceSchema>;

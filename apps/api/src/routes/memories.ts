@@ -7,6 +7,7 @@ import {
 import { prisma } from "../db.js";
 import { resolveUser, assertRepoAccess, HttpError, type AuthedUser } from "../auth.js";
 import { searchMemories, writeAuditLog } from "../services/memory.js";
+import { recordUsage } from "../services/analytics.js";
 
 async function getMemoryWithAccess(userId: string, memoryId: string) {
   const memory = await prisma.memory.findUnique({
@@ -39,6 +40,12 @@ async function setStatus(
     entityId: memoryId,
     metadata: { from: memory.status, to: status },
   });
+  if (status === "approved") {
+    await recordUsage("memory.approved", {
+      workspaceId: memory.repo.workspaceId,
+      repoId: memory.repoId,
+    });
+  }
   return updated;
 }
 
@@ -95,6 +102,11 @@ export async function memoryRoutes(app: FastifyInstance) {
       entityType: "memory",
       entityId: memory.id,
       metadata: { status: memory.status },
+    });
+    await recordUsage("memory.created", {
+      workspaceId: repo.workspaceId,
+      repoId: repo.id,
+      metadata: { type: memory.type, status: memory.status },
     });
     return reply.code(201).send(memory);
   });

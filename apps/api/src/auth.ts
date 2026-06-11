@@ -31,6 +31,7 @@ export interface AuthedUser {
   id: string;
   email: string;
   name: string | null;
+  avatarUrl?: string | null;
 }
 
 /** Resolve the current user from a bearer API token or a session cookie. */
