@@ -9,9 +9,13 @@ export async function apiFetch<T>(
   init: RequestInit = {},
 ): Promise<T> {
   const headers: Record<string, string> = {
-    "content-type": "application/json",
     ...(init.headers as Record<string, string> | undefined),
   };
+  // Only send a JSON content-type when there's a body (Fastify rejects an empty
+  // body that carries Content-Type: application/json).
+  if (init.body != null && headers["content-type"] === undefined) {
+    headers["content-type"] = "application/json";
+  }
   if (opts.token) headers.authorization = `Bearer ${opts.token}`;
 
   const res = await fetch(`${opts.baseUrl}${path}`, { ...init, headers });

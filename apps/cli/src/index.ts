@@ -4,6 +4,7 @@ import { loginCommand } from "./commands/login.js";
 import { initCommand } from "./commands/init.js";
 import { claudeInstallCommand } from "./commands/claude-install.js";
 import { mcpCommand } from "./commands/mcp.js";
+import { scanCommand } from "./commands/scan.js";
 import { VERSION } from "./version.js";
 
 const program = new Command();
@@ -25,6 +26,7 @@ program
   .description("Connect this repo to Cortex and generate Claude Code assets")
   .option("-r, --repo <repoId>", "Repo ID to connect")
   .option("-y, --yes", "Skip the directory confirmation prompt")
+  .option("--scan", "Run an initial codebase scan after connecting")
   .action((opts) => run(() => initCommand(opts)));
 
 program
@@ -39,7 +41,12 @@ program
   .description("Run the Cortex MCP stdio server (used by Claude Code)")
   .action(() => run(() => mcpCommand()));
 
-for (const stub of ["scan", "sync"]) {
+program
+  .command("scan")
+  .description("Scan the connected repo and propose starter memories")
+  .action(() => run(() => scanCommand()));
+
+for (const stub of ["sync"]) {
   program
     .command(stub)
     .description(`(coming soon) ${stub}`)

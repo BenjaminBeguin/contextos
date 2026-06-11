@@ -4,6 +4,7 @@ import { join } from "node:path";
 import { loadCredentials, saveProjectConfig } from "../config.js";
 import { apiFetch } from "../api.js";
 import { writeClaudeAssets } from "./claude-install.js";
+import { scanCommand } from "./scan.js";
 
 interface RepoSummary {
   id: string;
@@ -12,7 +13,7 @@ interface RepoSummary {
   workspace?: { name: string };
 }
 
-export async function initCommand(opts: { repo?: string; yes?: boolean }) {
+export async function initCommand(opts: { repo?: string; yes?: boolean; scan?: boolean }) {
   const creds = loadCredentials();
   if (!creds) {
     throw new Error("Not logged in. Run `cortex login` first.");
@@ -71,4 +72,26 @@ export async function initCommand(opts: { repo?: string; yes?: boolean }) {
 
   const actions = writeClaudeAssets(cwd);
   for (const a of actions) console.log("  - " + a);
+
+  // Offer an initial scan to bootstrap memories on first setup.
+  let doScan = opts.scan === true;
+  if (!doScan && !opts.yes) {
+    const rl = createInterface({ input: process.stdin, output: process.stdout });
+    const ans = (
+      await rl.question("\nRun an initial scan now to propose starter memories? (Y/n) ")
+    )
+      .trim()
+      .toLowerCase();
+    rl.close();
+    doScan = ans === "" || ans === "y" || ans === "yes";
+  }
+  if (doScan) {
+    try {
+      console.log("");
+      await scanCommand();
+    } catch (e) {
+      console.log(`Scan skipped: ${e instanceof Error ? e.message : String(e)}`);
+      console.log("Run it later with `cortex scan`.");
+    }
+  }
 }
