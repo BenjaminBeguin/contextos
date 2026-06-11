@@ -1,11 +1,11 @@
 import type { FastifyInstance } from "fastify";
-import { chatSchema } from "@contextos/shared";
+import { chatSchema } from "@cortex/shared";
 import { prisma } from "../db.js";
 import { resolveUser, assertWorkspaceAccess, HttpError } from "../auth.js";
 import { llmEnabled, complete } from "../services/llm.js";
 import { rateLimit } from "../rate-limit.js";
 
-const SYSTEM = `You are ContextOS, answering questions about a software team's repositories.
+const SYSTEM = `You are Cortex, answering questions about a software team's repositories.
 Use ONLY the provided memory snippets. Be concise and practical. Reference the memories you
 used by their title in **bold**. If the snippets don't contain the answer, say so plainly —
 do not invent facts.`;

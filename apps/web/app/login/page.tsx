@@ -14,7 +14,7 @@ interface AuthConfig {
 export default function LoginPage() {
   const router = useRouter();
   const [config, setConfig] = useState<AuthConfig | null>(null);
-  const [email, setEmail] = useState("dev@contextos.dev");
+  const [email, setEmail] = useState("dev@cortex.dev");
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
 
@@ -47,7 +47,7 @@ export default function LoginPage() {
       <Card className="w-full max-w-sm p-8">
         <Link href="/" className="mb-6 flex items-center gap-2 font-semibold">
           <span className="inline-block h-4 w-4 rounded-sm bg-[var(--accent)]" />
-          ContextOS
+          Cortex
         </Link>
         <h1 className="text-xl font-semibold">Sign in</h1>
         <p className="mt-1 text-sm text-[var(--muted)]">

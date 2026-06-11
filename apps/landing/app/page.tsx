@@ -36,7 +36,7 @@ const features = [
 ];
 
 const steps = [
-  "Install ContextOS in your repo",
+  "Install Cortex in your repo",
   "Connect Claude Code through MCP and hooks",
   "Let agents work normally",
   "Review proposed memories",
@@ -101,7 +101,7 @@ function Nav() {
       <div className="mx-auto flex max-w-6xl items-center justify-between px-6 py-4">
         <a href="/" className="flex items-center gap-2 font-semibold tracking-tight">
           <span className="inline-block h-4 w-4 rotate-45 rounded-sm bg-gradient-to-br from-violet-400 to-cyan-400" />
-          ContextOS
+          Cortex
         </a>
         <nav className="flex items-center gap-5 text-sm text-[var(--muted)]">
           <a href="#features" className="hidden hover:text-white sm:inline">
@@ -152,7 +152,7 @@ export default function LandingPage() {
             Give Claude Code your team&apos;s memory.
           </h1>
           <p className="mx-auto mt-6 max-w-2xl text-lg text-[var(--muted)]">
-            ContextOS turns your repo, agent sessions, docs, and past mistakes into living
+            Cortex turns your repo, agent sessions, docs, and past mistakes into living
             operational context — injected into Claude Code before it acts.
           </p>
 
@@ -166,9 +166,9 @@ export default function LandingPage() {
           </div>
 
           <div className="mx-auto -mt-4 max-w-2xl">
-            <Terminal title="contextos · session">
+            <Terminal title="cortex · session">
               {`> claude code session
-  ↳ ContextOS learns
+  ↳ Cortex learns
   ↳ memory approved
   ↳ future agents get smarter ✦`}
             </Terminal>
@@ -192,7 +192,7 @@ export default function LandingPage() {
             <p className="text-xs uppercase tracking-widest text-cyan-300">The solution</p>
             <h2 className="mt-3 text-2xl font-semibold">A living memory layer for your team.</h2>
             <p className="mt-3 text-[var(--muted)]">
-              ContextOS captures useful knowledge from real engineering work, turns it into
+              Cortex captures useful knowledge from real engineering work, turns it into
               structured memory, and feeds the right context back into Claude Code at the moment it
               matters.
             </p>
@@ -242,7 +242,7 @@ export default function LandingPage() {
               Connected to Claude Code in under a minute.
             </h2>
             <p className="mt-3 text-[var(--muted)]">
-              Install the CLI, sign in, and link your repo. ContextOS registers an MCP
+              Install the CLI, sign in, and link your repo. Cortex registers an MCP
               server so Claude Code can retrieve your team&apos;s memory automatically.
             </p>
             <ul className="mt-5 space-y-2 text-sm text-[var(--muted)]">
@@ -270,10 +270,10 @@ export default function LandingPage() {
 npm install -g @mxbenjaminbeguin/cortex
 
 # 2 · authenticate
-contextos login
+cortex login
 
 # 3 · connect this repo
-contextos init
+cortex init
 
 ✓ wrote .mcp.json, CLAUDE.md, hooks
 ✓ Claude Code now has your repo's memory`}
@@ -373,7 +373,7 @@ contextos init
                 ))}
               </ul>
               <a
-                href={t.cta === "Talk to us" ? "mailto:founders@contextos.dev" : "#waitlist"}
+                href={t.cta === "Talk to us" ? "mailto:founders@cortex.dev" : "#waitlist"}
                 className={`mt-6 block rounded-xl px-4 py-2.5 text-center text-sm font-semibold transition ${
                   t.highlight
                     ? "bg-gradient-to-r from-violet-500 to-cyan-400 text-black hover:opacity-90"
@@ -404,7 +404,7 @@ contextos init
       </section>
 
       <footer className="border-t border-white/5 py-8 text-center text-sm text-[var(--muted)]">
-        ContextOS — Operational memory for AI coding agents.
+        Cortex — Operational memory for AI coding agents.
       </footer>
     </div>
   );

@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# End-to-end verification of the ContextOS foundation slice.
+# End-to-end verification of the Cortex foundation slice.
 set -euo pipefail
 cd "$(dirname "$0")/.."
 
@@ -24,11 +24,11 @@ echo "Acme repo:   $ACME_REPO"
 echo "Globex repo: $GLOBEX_REPO"
 
 echo "==> 3. Build CLI"
-pnpm --filter @contextos/shared build || true
-pnpm --filter @contextos/cli build
+pnpm --filter @cortex/shared build || true
+pnpm --filter @cortex/cli build
 
 echo "==> 4. Start API"
-( pnpm --filter @contextos/api dev >/tmp/contextos-api.log 2>&1 & echo $! > /tmp/contextos-api.pid )
+( pnpm --filter @cortex/api dev >/tmp/cortex-api.log 2>&1 & echo $! > /tmp/cortex-api.pid )
 echo "Waiting for API…"
 until curl -sf "$API_URL/health" >/dev/null 2>&1; do sleep 1; done
 echo "API healthy."
@@ -47,14 +47,14 @@ echo "HTTP $CODE"; cat /tmp/globex.json; echo
 if [ "$CODE" != "403" ]; then echo "FAIL: expected 403 for cross-org access"; exit 1; fi
 echo "PASS: cross-org access denied."
 
-echo "==> 7. MCP stdio smoke (writes local .contextos config first)"
-mkdir -p "$HOME/.contextos"
-echo "{\"apiBaseUrl\":\"$API_URL\",\"token\":\"$TOKEN\"}" > "$HOME/.contextos/credentials.json"
-mkdir -p .contextos
-echo "{\"apiBaseUrl\":\"$API_URL\",\"repoId\":\"$ACME_REPO\",\"repoFullName\":\"acme/billing-api\"}" > .contextos/config.json
+echo "==> 7. MCP stdio smoke (writes local .cortex config first)"
+mkdir -p "$HOME/.cortex"
+echo "{\"apiBaseUrl\":\"$API_URL\",\"token\":\"$TOKEN\"}" > "$HOME/.cortex/credentials.json"
+mkdir -p .cortex
+echo "{\"apiBaseUrl\":\"$API_URL\",\"repoId\":\"$ACME_REPO\",\"repoFullName\":\"acme/billing-api\"}" > .cortex/config.json
 node scripts/mcp-smoke.mjs
 
 echo "==> Stopping API"
-kill "$(cat /tmp/contextos-api.pid)" 2>/dev/null || true
+kill "$(cat /tmp/cortex-api.pid)" 2>/dev/null || true
 
 echo "ALL CHECKS PASSED"

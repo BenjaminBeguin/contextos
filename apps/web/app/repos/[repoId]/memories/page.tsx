@@ -2,7 +2,7 @@
 
 import { use, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { MEMORY_STATUSES, MEMORY_TYPES } from "@contextos/shared";
+import { MEMORY_STATUSES, MEMORY_TYPES } from "@cortex/shared";
 import { api, type Memory } from "../../../../lib/api";
 import { AppShell } from "../../../../components/AppShell";
 import { RepoNav } from "../../../../components/RepoNav";

@@ -51,7 +51,7 @@ await app.register(chatRoutes);
 
 app
   .listen({ port: env.port, host: "0.0.0.0" })
-  .then(() => app.log.info(`ContextOS API on :${env.port}`))
+  .then(() => app.log.info(`Cortex API on :${env.port}`))
   .catch((err) => {
     app.log.error(err);
     process.exit(1);

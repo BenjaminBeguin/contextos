@@ -42,7 +42,7 @@ function Usage() {
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-semibold">Usage</h1>
-          <p className="text-sm text-[var(--muted)]">How your team is using ContextOS.</p>
+          <p className="text-sm text-[var(--muted)]">How your team is using Cortex.</p>
         </div>
         <select
           value={activeWs}

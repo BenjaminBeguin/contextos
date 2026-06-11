@@ -3,7 +3,7 @@ import { env } from "./env.js";
 
 // Derive a 32-byte key. Prefer a dedicated ENCRYPTION_KEY; fall back to the JWT
 // secret. Rotating either invalidates stored tokens (users simply reconnect).
-const key = scryptSync(process.env.ENCRYPTION_KEY ?? env.jwtSecret, "contextos-integration", 32);
+const key = scryptSync(process.env.ENCRYPTION_KEY ?? env.jwtSecret, "cortex-integration", 32);
 
 /** AES-256-GCM encrypt → "iv:tag:ciphertext" (base64 parts). */
 export function encryptToken(plain: string): string {

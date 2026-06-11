@@ -1,5 +1,5 @@
 import type { FastifyInstance } from "fastify";
-import { createRepoSchema, updateRepoSchema } from "@contextos/shared";
+import { createRepoSchema, updateRepoSchema } from "@cortex/shared";
 import { prisma } from "../db.js";
 import { resolveUser, assertWorkspaceAccess, assertRepoAccess, HttpError } from "../auth.js";
 

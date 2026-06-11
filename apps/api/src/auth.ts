@@ -4,7 +4,7 @@ import type { FastifyRequest } from "fastify";
 import { prisma } from "./db.js";
 import { env } from "./env.js";
 
-export const SESSION_COOKIE = "contextos_session";
+export const SESSION_COOKIE = "cortex_session";
 
 export function hashToken(token: string): string {
   return createHash("sha256").update(token).digest("hex");

@@ -199,7 +199,7 @@ function Workspaces({ me }: { me: Me }) {
 function GettingStarted({ onAddRepo }: { onAddRepo: () => void }) {
   return (
     <Card className="mt-6 p-8">
-      <h2 className="text-lg font-semibold">Get ContextOS working in your repo</h2>
+      <h2 className="text-lg font-semibold">Get Cortex working in your repo</h2>
       <p className="mt-1 text-sm text-[var(--muted)]">
         Three steps and Claude Code starts retrieving your team&apos;s memory.
       </p>
@@ -216,13 +216,13 @@ function GettingStarted({ onAddRepo }: { onAddRepo: () => void }) {
 
         <Step n={2} title="Install the CLI and connect">
           <p className="text-sm text-[var(--muted)]">
-            From your repo, install ContextOS and link it. This generates{" "}
+            From your repo, install Cortex and link it. This generates{" "}
             <code>.mcp.json</code>, <code>CLAUDE.md</code>, and Claude Code hooks.
           </p>
           <div className="mt-3">
             <Code>{`npm install -g @mxbenjaminbeguin/cortex
-contextos login
-contextos init`}</Code>
+cortex login
+cortex init`}</Code>
           </div>
           <p className="mt-2 text-xs text-[var(--muted)]">
             Each repo also has a <strong>Claude Code setup</strong> tab with its exact command.

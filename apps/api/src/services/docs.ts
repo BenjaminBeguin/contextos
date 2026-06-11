@@ -1,4 +1,4 @@
-import { DOC_TITLES, DOC_TYPES, type DocType } from "@contextos/shared";
+import { DOC_TITLES, DOC_TYPES, type DocType } from "@cortex/shared";
 import { prisma } from "../db.js";
 import { llmEnabled, complete } from "./llm.js";
 

@@ -1,4 +1,4 @@
-import { extractedMemoriesSchema, type ExtractedMemory, type RecordSessionInput } from "@contextos/shared";
+import { extractedMemoriesSchema, type ExtractedMemory, type RecordSessionInput } from "@cortex/shared";
 import { llmEnabled, complete } from "./llm.js";
 
 const SYSTEM = `You extract durable operational memories from an AI coding agent's work session.

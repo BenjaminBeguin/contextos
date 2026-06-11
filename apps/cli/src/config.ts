@@ -2,9 +2,9 @@ import { homedir } from "node:os";
 import { join } from "node:path";
 import { readFileSync, writeFileSync, existsSync, mkdirSync } from "node:fs";
 
-const CRED_DIR = join(homedir(), ".contextos");
+const CRED_DIR = join(homedir(), ".cortex");
 const CRED_FILE = join(CRED_DIR, "credentials.json");
-const PROJECT_DIR = ".contextos";
+const PROJECT_DIR = ".cortex";
 const PROJECT_CONFIG = join(PROJECT_DIR, "config.json");
 
 export interface Credentials {
@@ -41,4 +41,4 @@ export function loadProjectConfig(cwd = process.cwd()): ProjectConfig | null {
 }
 
 export const DEFAULT_API_BASE_URL =
-  process.env.CONTEXTOS_API_URL ?? "http://localhost:3008";
+  process.env.CORTEX_API_URL ?? "http://localhost:3008";

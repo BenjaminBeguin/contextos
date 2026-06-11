@@ -1,5 +1,5 @@
-# API container for ContextOS (apps/api). Builds the whole pnpm workspace so
-# @contextos/shared and the Prisma client resolve, then runs the API with tsx.
+# API container for Cortex (apps/api). Builds the whole pnpm workspace so
+# @cortex/shared and the Prisma client resolve, then runs the API with tsx.
 # Frontends (landing, web) deploy to Vercel and are not built here.
 FROM node:24-slim AS base
 ENV PNPM_HOME="/pnpm" PATH="/pnpm:$PATH"

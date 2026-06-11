@@ -1,5 +1,5 @@
 {
-  "name": "contextos-monorepo",
+  "name": "cortex-monorepo",
   "version": "0.1.0",
   "private": true,
   "description": "Operational memory for AI coding agents",
@@ -11,7 +11,7 @@
     "db:deploy": "prisma migrate deploy",
     "db:seed": "tsx prisma/seed.ts",
     "start:api": "tsx apps/api/src/server.ts",
-    "cli": "pnpm --filter @mxbenjaminbeguin/cortex exec contextos",
+    "cli": "pnpm --filter @mxbenjaminbeguin/cortex exec cortex",
     "test": "vitest run",
     "test:watch": "vitest"
   },

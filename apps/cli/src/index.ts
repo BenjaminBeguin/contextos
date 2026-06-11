@@ -8,7 +8,7 @@ import { mcpCommand } from "./commands/mcp.js";
 const program = new Command();
 
 program
-  .name("contextos")
+  .name("cortex")
   .description("Operational memory for AI coding agents")
   .version("0.1.0");
 
@@ -21,7 +21,7 @@ program
 
 program
   .command("init")
-  .description("Connect this repo to ContextOS and generate Claude Code assets")
+  .description("Connect this repo to Cortex and generate Claude Code assets")
   .option("-r, --repo <repoId>", "Repo ID to connect")
   .action((opts) => run(() => initCommand(opts)));
 
@@ -34,7 +34,7 @@ program
 
 program
   .command("mcp")
-  .description("Run the ContextOS MCP stdio server (used by Claude Code)")
+  .description("Run the Cortex MCP stdio server (used by Claude Code)")
   .action(() => run(() => mcpCommand()));
 
 for (const stub of ["scan", "sync"]) {
@@ -42,7 +42,7 @@ for (const stub of ["scan", "sync"]) {
     .command(stub)
     .description(`(coming soon) ${stub}`)
     .action(() => {
-      console.error(`\`contextos ${stub}\` is not implemented in this MVP pass.`);
+      console.error(`\`cortex ${stub}\` is not implemented in this MVP pass.`);
       process.exit(1);
     });
 }
@@ -53,7 +53,7 @@ for (const stub of ["list", "propose"]) {
     .command(stub)
     .description(`(coming soon) memory ${stub}`)
     .action(() => {
-      console.error(`\`contextos memory ${stub}\` is not implemented in this MVP pass.`);
+      console.error(`\`cortex memory ${stub}\` is not implemented in this MVP pass.`);
       process.exit(1);
     });
 }

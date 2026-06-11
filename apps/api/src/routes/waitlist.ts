@@ -1,5 +1,5 @@
 import type { FastifyInstance } from "fastify";
-import { waitlistSchema } from "@contextos/shared";
+import { waitlistSchema } from "@cortex/shared";
 import { prisma } from "../db.js";
 import { rateLimit } from "../rate-limit.js";
 

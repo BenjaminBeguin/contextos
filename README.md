@@ -1,8 +1,8 @@
-# ContextOS
+# Cortex
 
 **Operational memory for AI coding agents.**
 
-ContextOS connects to Claude Code and builds a living memory layer for your team:
+Cortex connects to Claude Code and builds a living memory layer for your team:
 it captures what agents learn while working, turns it into structured, approved
 memory, and injects the right context back into future Claude Code sessions
 through the Model Context Protocol (MCP).
@@ -12,14 +12,14 @@ through the Model Context Protocol (MCP).
 ## Monorepo layout
 
 ```
-contextos/
+cortex/
 ├─ apps/
-│  ├─ landing/   @contextos/landing   Marketing site, waitlist, 3D core   → :3007
-│  ├─ web/       @contextos/web        Product app (dashboard, memory)      → :3009
-│  ├─ api/       @contextos/api        Fastify + Prisma REST/MCP API        → :3008
-│  └─ cli/       @contextos/cli        CLI + MCP stdio server (`contextos`)
+│  ├─ landing/   @cortex/landing   Marketing site, waitlist, 3D core   → :3007
+│  ├─ web/       @cortex/web        Product app (dashboard, memory)      → :3009
+│  ├─ api/       @cortex/api        Fastify + Prisma REST/MCP API        → :3008
+│  └─ cli/       @cortex/cli        CLI + MCP stdio server (`cortex`)
 ├─ packages/
-│  └─ shared/    @contextos/shared     Shared types + zod schemas
+│  └─ shared/    @cortex/shared     Shared types + zod schemas
 ├─ prisma/                             schema.prisma · seed.ts
 ├─ scripts/                            verify.sh · mcp-smoke.mjs
 └─ docker-compose.yml                  postgres :5455 · redis :6380
@@ -61,7 +61,7 @@ pnpm dev
 | API     | http://localhost:3008   |
 | Web app | http://localhost:3009   |
 
-Seed credentials: log in to the web app with **dev@contextos.dev** (email-only
+Seed credentials: log in to the web app with **dev@cortex.dev** (email-only
 dev auth). The seed also prints a fixed API token and the Acme/Globex workspace
 and repo IDs for local testing.
 
@@ -76,28 +76,28 @@ From any repo you want to give memory to:
 
 ```bash
 npm install -g @mxbenjaminbeguin/cortex   # (local dev: pnpm --filter @mxbenjaminbeguin/cortex build)
-contextos login              # stores an API token in ~/.contextos
-contextos init               # links the repo, writes CLAUDE.md / .mcp.json / hooks
+cortex login              # stores an API token in ~/.cortex
+cortex init               # links the repo, writes CLAUDE.md / .mcp.json / hooks
 ```
 
 > The npm package is published as `@mxbenjaminbeguin/cortex`; the installed
-> command is `contextos`.
+> command is `cortex`.
 
 `init` generates:
 
 ```
-.contextos/config.json       # repo link
+.cortex/config.json       # repo link
 CLAUDE.md                    # agent guidance
-.mcp.json                    # registers the contextos MCP server (stdio)
+.mcp.json                    # registers the cortex MCP server (stdio)
 .claude/hooks/*              # session + before-edit hooks (stubs)
 ```
 
-Open Claude Code in the repo; it discovers the `contextos` MCP server, which
+Open Claude Code in the repo; it discovers the `cortex` MCP server, which
 exposes:
 
 - `search_memory(query)` → approved memories for the repo
 - `get_repo_context()` → stack, recommended commands, risk warnings
-- `record_session_summary(...)` → submit what the agent did; ContextOS extracts
+- `record_session_summary(...)` → submit what the agent did; Cortex extracts
   **proposed** memories from it for review
 
 Memory is always scoped to a repo and never leaks across workspaces. Proposed
@@ -106,7 +106,7 @@ memories are suggestions until approved in the web app.
 ### AI memory extraction
 
 When a session is recorded (`POST /repos/:id/sessions` or the MCP tool),
-ContextOS extracts durable memories from the task/summary/commands/errors:
+Cortex extracts durable memories from the task/summary/commands/errors:
 
 - With `ANTHROPIC_API_KEY` set, it calls Claude (`ANTHROPIC_MODEL`, default
   `claude-sonnet-4-6`) with a cached system prompt and parses structured JSON.

@@ -13,7 +13,7 @@ interface RepoSummary {
 export async function initCommand(opts: { repo?: string }) {
   const creds = loadCredentials();
   if (!creds) {
-    throw new Error("Not logged in. Run `contextos login` first.");
+    throw new Error("Not logged in. Run `cortex login` first.");
   }
 
   const client = { baseUrl: creds.apiBaseUrl, token: creds.token };
@@ -46,7 +46,7 @@ export async function initCommand(opts: { repo?: string }) {
     repoId,
     repoFullName: repo.fullName,
   });
-  console.log(`Connected repo ${repo.fullName}. Wrote .contextos/config.json`);
+  console.log(`Connected repo ${repo.fullName}. Wrote .cortex/config.json`);
 
   writeClaudeAssets();
   console.log("Generated CLAUDE.md, .mcp.json, and Claude Code hooks.");

@@ -4,7 +4,7 @@ import {
   createWorkspaceSchema,
   joinWorkspaceSchema,
   updateWorkspaceSchema,
-} from "@contextos/shared";
+} from "@cortex/shared";
 import { prisma } from "../db.js";
 import { resolveUser, assertWorkspaceAccess, HttpError } from "../auth.js";
 

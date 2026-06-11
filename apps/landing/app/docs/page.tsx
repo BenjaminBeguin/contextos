@@ -2,8 +2,8 @@ import type { Metadata } from "next";
 import { APP_URL } from "../../lib/api";
 
 export const metadata: Metadata = {
-  title: "ContextOS — Setup & Docs",
-  description: "Install ContextOS and connect Claude Code to your team's operational memory.",
+  title: "Cortex — Setup & Docs",
+  description: "Install Cortex and connect Claude Code to your team's operational memory.",
 };
 
 function Code({ children }: { children: React.ReactNode }) {
@@ -36,7 +36,7 @@ export default function DocsPage() {
         <div className="mx-auto flex max-w-3xl items-center justify-between px-6 py-4">
           <a href="/" className="flex items-center gap-2 font-semibold tracking-tight">
             <span className="inline-block h-4 w-4 rotate-45 rounded-sm bg-gradient-to-br from-violet-400 to-cyan-400" />
-            ContextOS
+            Cortex
           </a>
           <a href={`${APP_URL}/login`} className="text-sm text-[var(--muted)] hover:text-white">
             Sign in
@@ -46,9 +46,9 @@ export default function DocsPage() {
 
       <main className="relative mx-auto max-w-3xl px-6 py-16">
         <p className="text-xs uppercase tracking-[0.3em] text-cyan-300/70">Documentation</p>
-        <h1 className="gradient-text mt-3 text-4xl font-semibold">Set up ContextOS</h1>
+        <h1 className="gradient-text mt-3 text-4xl font-semibold">Set up Cortex</h1>
         <p className="mt-4 text-[var(--muted)]">
-          ContextOS gives Claude Code your team&apos;s operational memory through the Model Context
+          Cortex gives Claude Code your team&apos;s operational memory through the Model Context
           Protocol. Connect a repo once, then every Claude Code session can retrieve approved
           memories, repo context, and risk warnings before it acts.
         </p>
@@ -57,7 +57,7 @@ export default function DocsPage() {
           <ul className="list-disc space-y-1 pl-5">
             <li>Node.js 20+ and a terminal</li>
             <li>Claude Code installed in your repo</li>
-            <li>A ContextOS account (create one when you sign in)</li>
+            <li>A Cortex account (create one when you sign in)</li>
           </ul>
         </Step>
 
@@ -66,26 +66,26 @@ export default function DocsPage() {
         </Step>
 
         <Step n={3} title="Authenticate">
-          <p>Log in to store an API token locally (in ~/.contextos/credentials.json):</p>
-          <Code>{`contextos login`}</Code>
+          <p>Log in to store an API token locally (in ~/.cortex/credentials.json):</p>
+          <Code>{`cortex login`}</Code>
         </Step>
 
         <Step n={4} title="Connect your repo">
           <p>
-            From the root of your repository, link it to a ContextOS workspace. This writes a local
+            From the root of your repository, link it to a Cortex workspace. This writes a local
             config and generates the Claude Code assets.
           </p>
-          <Code>{`contextos init`}</Code>
+          <Code>{`cortex init`}</Code>
           <p>This creates:</p>
-          <Code>{`.contextos/config.json          # repo link
+          <Code>{`.cortex/config.json          # repo link
 CLAUDE.md                       # guidance for the agent
-.mcp.json                       # registers the ContextOS MCP server
+.mcp.json                       # registers the Cortex MCP server
 .claude/hooks/*                 # session + before-edit hooks`}</Code>
         </Step>
 
         <Step n={5} title="Use it in Claude Code">
           <p>
-            Open Claude Code in the repo. It discovers the <code>contextos</code> MCP server and can
+            Open Claude Code in the repo. It discovers the <code>cortex</code> MCP server and can
             call these tools:
           </p>
           <Code>{`search_memory(query)      → approved memories for this repo
@@ -116,7 +116,7 @@ get_repo_context()        → stack, commands, risks, warnings`}</Code>
       </main>
 
       <footer className="border-t border-white/5 py-8 text-center text-sm text-[var(--muted)]">
-        ContextOS — Operational memory for AI coding agents.
+        Cortex — Operational memory for AI coding agents.
       </footer>
     </div>
   );
