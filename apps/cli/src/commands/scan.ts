@@ -100,14 +100,25 @@ async function agentScan(
     "mcp__cortex__propose_memories",
   ];
 
+  // Run on the user's Claude Code subscription, not an API key. A stale/invalid
+  // ANTHROPIC_API_KEY in the environment makes Claude Code prefer it and 401 — so
+  // strip those vars and let it use the logged-in (`claude login`) credentials.
+  const childEnv = { ...process.env };
+  delete childEnv.ANTHROPIC_API_KEY;
+  delete childEnv.ANTHROPIC_AUTH_TOKEN;
+
   const code = await new Promise<number>((resolve, reject) => {
-    const child = spawn(claudeBin, args, { cwd, stdio: "inherit" });
+    const child = spawn(claudeBin, args, { cwd, stdio: "inherit", env: childEnv });
     child.on("error", reject);
     child.on("close", (c) => resolve(c ?? 0));
   });
 
   if (code !== 0) {
-    throw new Error(`Claude Code exited with code ${code}. You can retry, or use \`cortex scan --server\`.`);
+    throw new Error(
+      `Claude Code exited with code ${code}.\n` +
+        "If you saw a 401/auth error, make sure Claude Code is logged in: run `claude` once and sign in (or `claude login`).\n" +
+        "Alternatively, use `cortex scan --server` to scan with the workspace API key.",
+    );
   }
 
   const after = await countProposed(client, config.repoId);
