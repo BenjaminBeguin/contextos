@@ -105,7 +105,7 @@ export function Button({
   title?: string;
 }) {
   const variants: Record<string, string> = {
-    primary: "bg-[var(--accent)] text-white hover:bg-[var(--accent-hover)] shadow-sm",
+    primary: "brand-gradient font-semibold text-white shadow-sm hover:brightness-110",
     ghost: "border border-[var(--border)] text-[var(--text)] hover:bg-white/5 hover:border-[var(--border-strong)]",
     subtle: "bg-[var(--surface-2)] text-[var(--text)] hover:bg-[var(--surface-3)]",
     danger: "border border-red-500/40 text-red-300 hover:bg-red-500/10",

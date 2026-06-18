@@ -13,8 +13,11 @@
   --accent: #6d5efc;
   --accent-hover: #8073ff;
   --accent-soft: rgba(109, 94, 252, 0.14);
+  --accent-cyan: #22d3ee;
   --ring: rgba(125, 112, 255, 0.6);
   --radius: 0.75rem;
+  /* Brand gradient (violet → cyan), kept deep enough for readable white text. */
+  --brand-grad: linear-gradient(100deg, #7c3aed, #0e8aa8);
 }
 
 html,
@@ -24,6 +27,30 @@ body {
   font-family: ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
   -webkit-font-smoothing: antialiased;
   text-rendering: optimizeLegibility;
+}
+
+/* Subtle brand glow at the top of the app, echoing the landing aurora. */
+body::before {
+  content: "";
+  position: fixed;
+  inset: 0 0 auto 0;
+  height: 420px;
+  pointer-events: none;
+  z-index: -1;
+  background:
+    radial-gradient(50% 60% at 18% 0%, rgba(139, 92, 246, 0.12), transparent 70%),
+    radial-gradient(45% 55% at 85% 0%, rgba(34, 211, 238, 0.1), transparent 70%);
+}
+
+/* Shared brand treatments (match the landing identity). */
+.brand-gradient {
+  background-image: var(--brand-grad);
+}
+.gradient-text {
+  background: linear-gradient(100deg, #e7e7ee 10%, #a78bfa 40%, #22d3ee 65%, #e7e7ee 95%);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
 }
 
 a {

@@ -45,8 +45,8 @@ export default function LoginPage() {
   return (
     <div className="flex min-h-screen items-center justify-center px-6">
       <Card className="w-full max-w-sm p-8">
-        <Link href="/" className="mb-6 flex items-center gap-2 font-semibold">
-          <span className="inline-block h-5 w-5 rounded-md bg-gradient-to-br from-[var(--accent)] to-[#a78bfa] shadow-[0_0_12px_rgba(109,94,252,0.5)]" />
+        <Link href="/" className="mb-6 flex items-center gap-2.5 font-semibold">
+          <span className="inline-block h-4 w-4 rotate-45 rounded-sm bg-gradient-to-br from-violet-400 to-cyan-400 shadow-[0_0_14px_rgba(34,211,238,0.45)]" />
           Cortex
         </Link>
         <h1 className="text-xl font-semibold">Sign in</h1>
