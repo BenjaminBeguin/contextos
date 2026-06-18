@@ -5,6 +5,9 @@ import { initCommand } from "./commands/init.js";
 import { claudeInstallCommand } from "./commands/claude-install.js";
 import { mcpCommand } from "./commands/mcp.js";
 import { scanCommand } from "./commands/scan.js";
+import { hookCommand } from "./commands/hook.js";
+import { statusCommand } from "./commands/status.js";
+import { uninstallCommand } from "./commands/uninstall.js";
 import { VERSION } from "./version.js";
 
 const program = new Command();
@@ -47,6 +50,23 @@ program
   .option("--agent", "Deep scan with local Claude Code (no API key, uses your subscription)")
   .option("--server", "Scan on the server from GitHub (uses the workspace Anthropic key)")
   .action((opts) => run(() => scanCommand(opts)));
+
+program
+  .command("status")
+  .description("Check whether Cortex is set up in this repo")
+  .action(() => run(() => statusCommand()));
+
+program
+  .command("uninstall")
+  .description("Remove Cortex wiring (MCP server, hooks, CLAUDE.md section) from this repo")
+  .option("-y, --yes", "Skip the confirmation prompt")
+  .action((opts) => run(() => uninstallCommand(opts)));
+
+// Internal: invoked by Claude Code hooks registered in .claude/settings.json.
+program
+  .command("hook <event>", { hidden: true })
+  .description("Run a Cortex Claude Code hook (internal)")
+  .action((event: string) => hookCommand(event));
 
 for (const stub of ["sync"]) {
   program

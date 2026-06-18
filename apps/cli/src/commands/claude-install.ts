@@ -1,4 +1,4 @@
-import { writeFileSync, readFileSync, existsSync, mkdirSync, chmodSync } from "node:fs";
+import { writeFileSync, readFileSync, existsSync, mkdirSync } from "node:fs";
 import { join } from "node:path";
 
 const MCP_SERVER = { type: "stdio", command: "cortex", args: ["mcp"] };
@@ -21,18 +21,19 @@ Important:
 - When asked to "scan" or "set up Cortex" for this repo, read the key files and call propose_memories.
 `;
 
-const SESSION_END_HOOK = `#!/usr/bin/env bash
-# Cortex session-end hook (stub).
-# A future Cortex release will summarize this Claude Code session and
-# propose new memories. For now this is a no-op placeholder.
-exit 0
-`;
+// Claude Code hooks that automate the capture/inject loop (run `cortex hook <event>`).
+type HookEntry = { matcher?: string; hooks: { type: string; command: string }[] };
+const HOOK_EVENTS: Record<string, HookEntry> = {
+  SessionStart: { hooks: [{ type: "command", command: "cortex hook session-start" }] },
+  PreToolUse: {
+    matcher: "Edit|Write|MultiEdit|NotebookEdit",
+    hooks: [{ type: "command", command: "cortex hook pre-edit" }],
+  },
+  SessionEnd: { hooks: [{ type: "command", command: "cortex hook session-end" }] },
+};
 
-const BEFORE_EDIT_HOOK = `#!/usr/bin/env bash
-# Cortex before-edit hook (stub).
-# A future Cortex release will surface relevant warnings before edits.
-exit 0
-`;
+const isCortexHook = (e: HookEntry): boolean =>
+  e.hooks?.some((h) => typeof h.command === "string" && h.command.includes("cortex hook"));
 
 /** Add the cortex MCP server to .mcp.json, preserving any existing servers. */
 function mergeMcpJson(path: string): string {
@@ -41,9 +42,7 @@ function mergeMcpJson(path: string): string {
     return "created .mcp.json";
   }
   try {
-    const json = JSON.parse(readFileSync(path, "utf8")) as {
-      mcpServers?: Record<string, unknown>;
-    };
+    const json = JSON.parse(readFileSync(path, "utf8")) as { mcpServers?: Record<string, unknown> };
     json.mcpServers = json.mcpServers ?? {};
     if (json.mcpServers.cortex) return ".mcp.json already has the cortex server — left as is";
     json.mcpServers.cortex = MCP_SERVER;
@@ -68,32 +67,100 @@ function mergeClaudeMd(path: string): string {
   return "appended Cortex section to existing CLAUDE.md";
 }
 
-function writeHookIfMissing(path: string, content: string): boolean {
-  if (existsSync(path)) return false;
-  writeFileSync(path, content);
-  chmodSync(path, 0o755);
-  return true;
+type Settings = { hooks?: Record<string, HookEntry[]> };
+
+/** Register the Cortex hooks in .claude/settings.json, preserving other hooks/settings. */
+function mergeSettingsHooks(claudeDir: string): string {
+  if (!existsSync(claudeDir)) mkdirSync(claudeDir, { recursive: true });
+  const path = join(claudeDir, "settings.json");
+  let json: Settings = {};
+  if (existsSync(path)) {
+    try {
+      json = JSON.parse(readFileSync(path, "utf8")) as Settings;
+    } catch {
+      return "could not parse .claude/settings.json — add the cortex hooks manually";
+    }
+  }
+  json.hooks = json.hooks ?? {};
+  let added = 0;
+  for (const [event, entry] of Object.entries(HOOK_EVENTS)) {
+    const list = (json.hooks[event] = json.hooks[event] ?? []);
+    if (list.some(isCortexHook)) continue; // already wired
+    list.push(entry);
+    added++;
+  }
+  if (added === 0) return ".claude/settings.json already has the cortex hooks — left as is";
+  writeFileSync(path, JSON.stringify(json, null, 2) + "\n");
+  return existsSync(path) ? `registered ${added} Cortex hook(s) in .claude/settings.json` : "wrote .claude/settings.json";
 }
 
 /** Generate/merge Claude Code assets without overwriting existing files. Returns a report. */
 export function writeClaudeAssets(cwd = process.cwd()): string[] {
-  const actions: string[] = [];
-  actions.push(mergeMcpJson(join(cwd, ".mcp.json")));
-  actions.push(mergeClaudeMd(join(cwd, "CLAUDE.md")));
+  return [
+    mergeMcpJson(join(cwd, ".mcp.json")),
+    mergeClaudeMd(join(cwd, "CLAUDE.md")),
+    mergeSettingsHooks(join(cwd, ".claude")),
+  ];
+}
 
-  const hooksDir = join(cwd, ".claude", "hooks");
-  if (!existsSync(hooksDir)) mkdirSync(hooksDir, { recursive: true });
-  actions.push(
-    writeHookIfMissing(join(hooksDir, "cortex-session-end.sh"), SESSION_END_HOOK)
-      ? "created .claude/hooks/cortex-session-end.sh"
-      : "kept existing cortex-session-end.sh",
-  );
-  actions.push(
-    writeHookIfMissing(join(hooksDir, "cortex-before-edit.sh"), BEFORE_EDIT_HOOK)
-      ? "created .claude/hooks/cortex-before-edit.sh"
-      : "kept existing cortex-before-edit.sh",
-  );
-  return actions;
+// ---------------------------------------------------------------------------
+// Removal helpers (used by `cortex uninstall`).
+
+export function removeMcpServer(cwd = process.cwd()): string | null {
+  const path = join(cwd, ".mcp.json");
+  if (!existsSync(path)) return null;
+  try {
+    const json = JSON.parse(readFileSync(path, "utf8")) as { mcpServers?: Record<string, unknown> };
+    if (!json.mcpServers?.cortex) return null;
+    delete json.mcpServers.cortex;
+    if (Object.keys(json.mcpServers).length === 0 && Object.keys(json).length === 1) {
+      // Only thing left is an empty mcpServers — write the empty shell back.
+      writeFileSync(path, JSON.stringify({ mcpServers: {} }, null, 2) + "\n");
+    } else {
+      writeFileSync(path, JSON.stringify(json, null, 2) + "\n");
+    }
+    return "removed cortex server from .mcp.json";
+  } catch {
+    return null;
+  }
+}
+
+export function removeSettingsHooks(cwd = process.cwd()): string | null {
+  const path = join(cwd, ".claude", "settings.json");
+  if (!existsSync(path)) return null;
+  try {
+    const json = JSON.parse(readFileSync(path, "utf8")) as Settings;
+    if (!json.hooks) return null;
+    let removed = 0;
+    for (const event of Object.keys(json.hooks)) {
+      const before = json.hooks[event]!.length;
+      json.hooks[event] = json.hooks[event]!.filter((e) => !isCortexHook(e));
+      removed += before - json.hooks[event]!.length;
+      if (json.hooks[event]!.length === 0) delete json.hooks[event];
+    }
+    if (removed === 0) return null;
+    if (Object.keys(json.hooks).length === 0) delete json.hooks;
+    writeFileSync(path, JSON.stringify(json, null, 2) + "\n");
+    return `removed ${removed} Cortex hook(s) from .claude/settings.json`;
+  } catch {
+    return null;
+  }
+}
+
+export function removeClaudeSection(cwd = process.cwd()): string | null {
+  const path = join(cwd, "CLAUDE.md");
+  if (!existsSync(path)) return null;
+  const existing = readFileSync(path, "utf8");
+  const idx = existing.indexOf("# Cortex Project Memory");
+  if (idx === -1) return null;
+  const trimmed = existing.slice(0, idx).trimEnd();
+  if (trimmed.length === 0) {
+    // The file was only the Cortex section.
+    writeFileSync(path, "");
+    return "cleared Cortex section from CLAUDE.md";
+  }
+  writeFileSync(path, trimmed + "\n");
+  return "removed Cortex section from CLAUDE.md";
 }
 
 export async function claudeInstallCommand() {
