@@ -5,6 +5,7 @@ dist/
 *.log
 .DS_Store
 .cortex/
+.claude/settings.local.json
 prisma/migrations/.lock
 
 # build info
