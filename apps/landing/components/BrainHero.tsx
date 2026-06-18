@@ -205,28 +205,46 @@ function Ring({
   );
 }
 
-/** Bright, breathing energy core with layered halos. */
+/** Soft radial-gradient glow texture so the core reads as a light source, not a hard disc. */
+function makeGlowTexture(): THREE.Texture {
+  const size = 256;
+  const c = document.createElement("canvas");
+  c.width = c.height = size;
+  const ctx = c.getContext("2d")!;
+  const g = ctx.createRadialGradient(size / 2, size / 2, 0, size / 2, size / 2, size / 2);
+  g.addColorStop(0, "rgba(255,255,255,1)");
+  g.addColorStop(0.16, "rgba(200,250,255,0.85)");
+  g.addColorStop(0.4, "rgba(56,189,248,0.32)");
+  g.addColorStop(0.75, "rgba(109,94,252,0.12)");
+  g.addColorStop(1, "rgba(34,211,238,0)");
+  ctx.fillStyle = g;
+  ctx.fillRect(0, 0, size, size);
+  const tex = new THREE.CanvasTexture(c);
+  tex.needsUpdate = true;
+  return tex;
+}
+
+/** A single luminous, breathing energy core (soft glow + a small bright center). */
 function Core() {
-  const halo = useRef<THREE.Mesh>(null);
-  const halo2 = useRef<THREE.Mesh>(null);
+  const tex = useMemo(makeGlowTexture, []);
+  const glow = useRef<THREE.Sprite>(null);
+  const inner = useRef<THREE.Sprite>(null);
   useFrame((state) => {
-    const p = 1 + Math.sin(state.clock.elapsedTime * 2.2) * 0.08;
-    if (halo.current) halo.current.scale.setScalar(p);
-    if (halo2.current) halo2.current.scale.setScalar(1 + Math.sin(state.clock.elapsedTime * 2.2 + 1) * 0.12);
+    const t = state.clock.elapsedTime;
+    if (glow.current) glow.current.scale.setScalar(2.4 + Math.sin(t * 1.8) * 0.18);
+    if (inner.current) inner.current.scale.setScalar(0.7 + Math.sin(t * 2.6) * 0.06);
   });
   return (
     <group>
+      <sprite ref={glow} scale={2.4}>
+        <spriteMaterial map={tex} transparent depthWrite={false} blending={THREE.AdditiveBlending} opacity={0.85} />
+      </sprite>
+      <sprite ref={inner} scale={0.7}>
+        <spriteMaterial map={tex} transparent depthWrite={false} blending={THREE.AdditiveBlending} />
+      </sprite>
       <mesh>
-        <sphereGeometry args={[0.15, 24, 24]} />
-        <meshBasicMaterial color="#eaffff" />
-      </mesh>
-      <mesh ref={halo}>
-        <sphereGeometry args={[0.27, 24, 24]} />
-        <meshBasicMaterial color={CYAN} transparent opacity={0.3} blending={THREE.AdditiveBlending} />
-      </mesh>
-      <mesh ref={halo2}>
-        <sphereGeometry args={[0.5, 24, 24]} />
-        <meshBasicMaterial color={BLUE} transparent opacity={0.1} blending={THREE.AdditiveBlending} />
+        <sphereGeometry args={[0.075, 24, 24]} />
+        <meshBasicMaterial color="#f4ffff" />
       </mesh>
     </group>
   );
@@ -246,7 +264,7 @@ function Scene() {
     g.rotation.z += (targetZ - g.rotation.z) * 0.05;
   });
   return (
-    <group ref={group} scale={1.25}>
+    <group ref={group} scale={0.92}>
       <Core />
       <Constellation />
       <Signals />
@@ -262,10 +280,10 @@ export function BrainHero() {
   useEffect(() => setMounted(true), []);
 
   return (
-    <div className="relative mx-auto h-[380px] w-full max-w-3xl sm:h-[460px]">
-      <div className="pointer-events-none absolute inset-0 -z-10 mx-auto h-2/3 w-2/3 self-center rounded-full bg-[radial-gradient(circle,rgba(34,211,238,0.18),transparent_70%)] blur-2xl" />
+    <div className="relative mx-auto h-[480px] w-full max-w-5xl sm:h-[620px]">
+      <div className="pointer-events-none absolute inset-0 -z-10 mx-auto h-2/5 w-2/5 self-center rounded-full bg-[radial-gradient(circle,rgba(34,211,238,0.15),transparent_70%)] blur-3xl" />
       {mounted ? (
-        <Canvas dpr={[1, 2]} camera={{ position: [0, 0.3, 4.6], fov: 45 }} gl={{ antialias: true, alpha: true }}>
+        <Canvas dpr={[1, 2]} camera={{ position: [0, 0.3, 6.4], fov: 45 }} gl={{ antialias: true, alpha: true }}>
           <Scene />
         </Canvas>
       ) : null}

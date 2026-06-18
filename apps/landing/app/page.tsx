@@ -2,7 +2,7 @@ import { WaitlistForm } from "../components/WaitlistForm";
 import { BrainHero } from "../components/BrainHero";
 import { Reveal } from "../components/Reveal";
 import { Spotlight } from "../components/Spotlight";
-import { APP_URL } from "../lib/api";
+import { IslandNav } from "../components/IslandNav";
 
 const features = [
   {
@@ -97,49 +97,10 @@ function Terminal({ title, children }: { title: string; children: React.ReactNod
   );
 }
 
-function Nav() {
-  return (
-    <header className="sticky top-0 z-20 border-b border-white/5 bg-[var(--background)]/70 backdrop-blur-xl">
-      <div className="mx-auto flex max-w-6xl items-center justify-between px-6 py-4">
-        <a href="/" className="flex items-center gap-2 font-semibold tracking-tight">
-          <span className="inline-block h-4 w-4 rotate-45 rounded-sm bg-gradient-to-br from-violet-400 to-cyan-400" />
-          Cortex
-        </a>
-        <nav className="flex items-center gap-5 text-sm text-[var(--muted)]">
-          <a href="#features" className="hidden hover:text-white sm:inline">
-            Features
-          </a>
-          <a href="#how" className="hidden hover:text-white sm:inline">
-            How it works
-          </a>
-          <a href="#start" className="hidden hover:text-white sm:inline">
-            Setup
-          </a>
-          <a href="#pricing" className="hidden hover:text-white sm:inline">
-            Pricing
-          </a>
-          <a href="/docs" className="hidden hover:text-white sm:inline">
-            Docs
-          </a>
-          <a href={`${APP_URL}/login`} className="hover:text-white">
-            Sign in
-          </a>
-          <a
-            href="#waitlist"
-            className="shine rounded-xl bg-gradient-to-r from-violet-500 to-cyan-400 px-4 py-1.5 font-semibold text-black transition hover:opacity-90"
-          >
-            Join waitlist
-          </a>
-        </nav>
-      </div>
-    </header>
-  );
-}
-
 export default function LandingPage() {
   return (
     <div className="relative min-h-screen overflow-hidden">
-      <Nav />
+      <IslandNav />
 
       {/* Hero */}
       <section className="relative">
@@ -164,11 +125,11 @@ export default function LandingPage() {
           </div>
 
           {/* 3D brain: memory = brain, with signals flowing in and out */}
-          <div className="mt-6">
+          <div className="mt-10">
             <BrainHero />
           </div>
 
-          <div className="mx-auto -mt-4 max-w-2xl">
+          <div className="mx-auto mt-2 max-w-2xl">
             <Terminal title="cortex · session">
               {`> claude code session
   ↳ Cortex learns
@@ -181,23 +142,34 @@ export default function LandingPage() {
 
       {/* Problem / Solution */}
       <Section>
-        <div className="grid gap-6 lg:grid-cols-2">
-          <div className="glass rounded-2xl p-8">
-            <p className="text-xs uppercase tracking-widest text-violet-300">The problem</p>
-            <h2 className="mt-3 text-2xl font-semibold">AI agents forget how your company works.</h2>
-            <p className="mt-3 text-[var(--muted)]">
-              They edit files, run commands, and ship changes — but never remember your
-              architecture, deployment rules, past outages, or hidden workflows. So they repeat
-              mistakes and need constant supervision.
+        <p className="text-center text-sm font-medium uppercase tracking-[0.3em] text-violet-300/80">
+          Every session starts from zero
+        </p>
+        <div className="relative mt-8 grid gap-6 lg:grid-cols-2">
+          {/* connector */}
+          <div className="absolute left-1/2 top-1/2 z-10 hidden h-11 w-11 -translate-x-1/2 -translate-y-1/2 items-center justify-center rounded-full border border-white/10 bg-[var(--background)] text-cyan-300 shadow-[0_0_30px_-8px_rgba(34,211,238,0.6)] lg:flex">
+            →
+          </div>
+          <div className="rounded-2xl border border-red-500/15 bg-red-500/[0.03] p-8">
+            <p className="text-xs font-medium uppercase tracking-widest text-red-300/80">
+              Without Cortex
+            </p>
+            <h2 className="mt-3 text-2xl font-semibold sm:text-3xl">
+              Agents forget how your company works.
+            </h2>
+            <p className="mt-4 text-[var(--muted)]">
+              They edit files and ship changes — but never learn your architecture, deploy rules, or
+              past outages. So they repeat the same mistakes and need constant babysitting.
             </p>
           </div>
-          <div className="glass rounded-2xl p-8">
-            <p className="text-xs uppercase tracking-widest text-cyan-300">The solution</p>
-            <h2 className="mt-3 text-2xl font-semibold">A living memory layer for your team.</h2>
-            <p className="mt-3 text-[var(--muted)]">
-              Cortex captures useful knowledge from real engineering work, turns it into
-              structured memory, and feeds the right context back into Claude Code at the moment it
-              matters.
+          <div className="conic-border glass rounded-2xl p-8">
+            <p className="text-xs font-medium uppercase tracking-widest text-cyan-300">With Cortex</p>
+            <h2 className="mt-3 text-2xl font-semibold sm:text-3xl">
+              Every session makes the next one smarter.
+            </h2>
+            <p className="mt-4 text-[var(--muted)]">
+              Cortex captures what works from real engineering, turns it into structured memory, and
+              injects the right context into Claude Code exactly when it acts.
             </p>
           </div>
         </div>
@@ -206,7 +178,7 @@ export default function LandingPage() {
       {/* Features */}
       <Section id="features">
         <h2 className="text-center text-3xl font-semibold sm:text-4xl">
-          Everything agents need to stop starting from zero.
+          Everything your agents should already know.
         </h2>
         <div className="mt-12 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
           {features.map((f) => (
@@ -357,7 +329,7 @@ cortex init
               }`}
             >
               {t.highlight ? (
-                <span className="mb-3 inline-block rounded-full bg-gradient-to-r from-violet-500 to-cyan-400 px-3 py-0.5 text-xs font-semibold text-black">
+                <span className="brand-gradient mb-3 inline-block rounded-full px-3 py-0.5 text-xs font-semibold text-white">
                   Most popular
                 </span>
               ) : null}
@@ -379,7 +351,7 @@ cortex init
                 href={t.cta === "Talk to us" ? "mailto:founders@cortex.dev" : "#waitlist"}
                 className={`mt-6 block rounded-xl px-4 py-2.5 text-center text-sm font-semibold transition ${
                   t.highlight
-                    ? "shine bg-gradient-to-r from-violet-500 to-cyan-400 text-black hover:opacity-90"
+                    ? "shine brand-gradient text-white hover:brightness-110"
                     : "border border-white/15 hover:bg-white/5"
                 }`}
               >

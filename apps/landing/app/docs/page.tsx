@@ -103,7 +103,7 @@ get_repo_context()        → stack, commands, risks, warnings`}</Code>
           </p>
           <a
             href={`${APP_URL}/dashboard`}
-            className="inline-block rounded-xl bg-gradient-to-r from-violet-500 to-cyan-400 px-5 py-2.5 text-sm font-semibold text-black"
+            className="brand-gradient inline-block rounded-xl px-5 py-2.5 text-sm font-semibold text-white transition hover:brightness-110"
           >
             Open the dashboard →
           </a>

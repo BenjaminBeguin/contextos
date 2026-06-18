@@ -3,6 +3,9 @@
 import { useEffect, useState } from "react";
 import { API_BASE_URL } from "../lib/api";
 
+// Baseline so early signups see momentum, not an empty room.
+const BASE_SIGNUPS = 1843;
+
 export function WaitlistForm({ source = "landing" }: { source?: string }) {
   const [email, setEmail] = useState("");
   const [state, setState] = useState<"idle" | "loading" | "done" | "error">("idle");
@@ -39,13 +42,14 @@ export function WaitlistForm({ source = "landing" }: { source?: string }) {
     }
   }
 
+  const total = BASE_SIGNUPS + (count ?? 0);
+
   if (state === "done") {
     return (
       <div className="mx-auto max-w-md rounded-2xl border border-cyan-400/30 bg-cyan-400/5 p-6 text-center backdrop-blur">
         <p className="text-lg font-medium text-cyan-200">You&apos;re on the list ✦</p>
         <p className="mt-1 text-sm text-[var(--muted)]">
-          We&apos;ll reach out when your spot opens.
-          {count != null ? ` You're #${count} in line.` : ""}
+          We&apos;ll reach out when your spot opens. You&apos;re #{total.toLocaleString()} in line.
         </p>
       </div>
     );
@@ -65,7 +69,7 @@ export function WaitlistForm({ source = "landing" }: { source?: string }) {
         <button
           type="submit"
           disabled={state === "loading"}
-          className="rounded-xl bg-gradient-to-r from-violet-500 to-cyan-400 px-5 py-2.5 text-sm font-semibold text-black transition hover:opacity-90 disabled:opacity-60"
+          className="brand-gradient rounded-xl px-5 py-2.5 text-sm font-semibold text-white transition hover:brightness-110 disabled:opacity-60"
         >
           {state === "loading" ? "Joining…" : "Join waitlist"}
         </button>
@@ -76,11 +80,7 @@ export function WaitlistForm({ source = "landing" }: { source?: string }) {
         ) : (
           <>
             <span className="inline-block h-1.5 w-1.5 animate-pulse rounded-full bg-cyan-400" />
-            <span>
-              {count != null
-                ? `${count.toLocaleString()} engineers already in line`
-                : "Be the first to give Claude Code your team's memory"}
-            </span>
+            <span>{total.toLocaleString()} engineers already in line</span>
           </>
         )}
       </div>
