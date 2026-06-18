@@ -1,5 +1,7 @@
 import { WaitlistForm } from "../components/WaitlistForm";
 import { BrainHero } from "../components/BrainHero";
+import { Reveal } from "../components/Reveal";
+import { Spotlight } from "../components/Spotlight";
 import { APP_URL } from "../lib/api";
 
 const features = [
@@ -124,7 +126,7 @@ function Nav() {
           </a>
           <a
             href="#waitlist"
-            className="rounded-xl bg-gradient-to-r from-violet-500 to-cyan-400 px-4 py-1.5 font-semibold text-black transition hover:opacity-90"
+            className="shine rounded-xl bg-gradient-to-r from-violet-500 to-cyan-400 px-4 py-1.5 font-semibold text-black transition hover:opacity-90"
           >
             Join waitlist
           </a>
@@ -142,6 +144,7 @@ export default function LandingPage() {
       {/* Hero */}
       <section className="relative">
         <div className="aurora" />
+        <Spotlight />
         <div className="pointer-events-none absolute inset-0 grid-bg" />
         <div className="relative mx-auto max-w-6xl px-6 pt-24 pb-20 text-center">
           <p className="mx-auto mb-6 inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/5 px-3 py-1 text-xs text-[var(--muted)] backdrop-blur">
@@ -350,7 +353,7 @@ cortex init
             <div
               key={t.name}
               className={`glass rounded-2xl p-7 ${
-                t.highlight ? "ring-1 ring-cyan-400/40" : ""
+                t.highlight ? "conic-border lg:-translate-y-3" : ""
               }`}
             >
               {t.highlight ? (
@@ -376,7 +379,7 @@ cortex init
                 href={t.cta === "Talk to us" ? "mailto:founders@cortex.dev" : "#waitlist"}
                 className={`mt-6 block rounded-xl px-4 py-2.5 text-center text-sm font-semibold transition ${
                   t.highlight
-                    ? "bg-gradient-to-r from-violet-500 to-cyan-400 text-black hover:opacity-90"
+                    ? "shine bg-gradient-to-r from-violet-500 to-cyan-400 text-black hover:opacity-90"
                     : "border border-white/15 hover:bg-white/5"
                 }`}
               >
@@ -413,7 +416,9 @@ cortex init
 function Section({ children, id }: { children: React.ReactNode; id?: string }) {
   return (
     <section id={id} className="relative border-t border-white/5">
-      <div className="mx-auto max-w-6xl px-6 py-20">{children}</div>
+      <div className="mx-auto max-w-6xl px-6 py-20">
+        <Reveal>{children}</Reveal>
+      </div>
     </section>
   );
 }

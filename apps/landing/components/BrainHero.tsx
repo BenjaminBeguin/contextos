@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
-import { Canvas, useFrame } from "@react-three/fiber";
+import { Canvas, useFrame, useThree } from "@react-three/fiber";
 import * as THREE from "three";
 
 const CYAN = "#22d3ee";
@@ -21,53 +21,169 @@ function circleGeometry(radius: number, segments = 160): THREE.BufferGeometry {
   return g;
 }
 
-function latitudeGeometry(lat: number, segments = 160): THREE.BufferGeometry {
-  const r = Math.cos(lat);
-  const y = Math.sin(lat);
-  const pts = new Float32Array(segments * 3);
-  for (let i = 0; i < segments; i++) {
-    const a = (i / segments) * Math.PI * 2;
-    pts[i * 3] = Math.cos(a) * r;
-    pts[i * 3 + 1] = y;
-    pts[i * 3 + 2] = Math.sin(a) * r;
+/** Evenly distributed points on a sphere (Fibonacci lattice). */
+function fibonacciSphere(n: number, radius: number): THREE.Vector3[] {
+  const pts: THREE.Vector3[] = [];
+  const golden = Math.PI * (3 - Math.sqrt(5));
+  for (let i = 0; i < n; i++) {
+    const y = 1 - (i / (n - 1)) * 2;
+    const r = Math.sqrt(1 - y * y);
+    const theta = golden * i;
+    pts.push(new THREE.Vector3(Math.cos(theta) * r, y, Math.sin(theta) * r).multiplyScalar(radius));
   }
-  const g = new THREE.BufferGeometry();
-  g.setAttribute("position", new THREE.BufferAttribute(pts, 3));
-  return g;
+  return pts;
 }
 
-/** Clean lat/long holographic globe. */
-function Globe() {
-  const meridian = useMemo(() => circleGeometry(1), []);
-  const latitudes = useMemo(
-    () => [-0.9, -0.55, -0.2, 0.2, 0.55, 0.9].map((l) => latitudeGeometry(l)),
-    [],
-  );
-  const meridians = useMemo(() => [0, 1, 2, 3, 4, 5].map((i) => (i * Math.PI) / 6), []);
+/**
+ * The memory itself: a neural constellation. Nodes on a sphere shell, connected to
+ * nearby neighbors so it reads as a living network / brain. Nodes gently pulse.
+ */
+function Constellation({ count = 88, radius = 1.55 }: { count?: number; radius?: number }) {
+  const nodes = useMemo(() => fibonacciSphere(count, radius), [count, radius]);
+
+  const pointsGeom = useMemo(() => {
+    const g = new THREE.BufferGeometry();
+    const arr = new Float32Array(count * 3);
+    nodes.forEach((p, i) => {
+      arr[i * 3] = p.x;
+      arr[i * 3 + 1] = p.y;
+      arr[i * 3 + 2] = p.z;
+    });
+    g.setAttribute("position", new THREE.BufferAttribute(arr, 3));
+    return g;
+  }, [nodes, count]);
+
+  const linesGeom = useMemo(() => {
+    const segs: number[] = [];
+    const threshold = radius * 0.55;
+    for (let i = 0; i < nodes.length; i++) {
+      let made = 0;
+      for (let j = i + 1; j < nodes.length && made < 3; j++) {
+        if (nodes[i]!.distanceTo(nodes[j]!) < threshold) {
+          segs.push(nodes[i]!.x, nodes[i]!.y, nodes[i]!.z, nodes[j]!.x, nodes[j]!.y, nodes[j]!.z);
+          made++;
+        }
+      }
+    }
+    const g = new THREE.BufferGeometry();
+    g.setAttribute("position", new THREE.BufferAttribute(new Float32Array(segs), 3));
+    return g;
+  }, [nodes, radius]);
+
+  const pts = useRef<THREE.Points>(null);
+  useFrame((state) => {
+    if (pts.current) {
+      const mat = pts.current.material as THREE.PointsMaterial;
+      mat.size = 0.05 + Math.sin(state.clock.elapsedTime * 1.6) * 0.012;
+    }
+  });
 
   return (
     <group>
-      {latitudes.map((g, i) => (
-        <lineLoop key={`lat-${i}`} geometry={g}>
-          <lineBasicMaterial color={CYAN} transparent opacity={0.22} />
-        </lineLoop>
-      ))}
-      {meridians.map((phi, i) => (
-        <lineLoop key={`mer-${i}`} geometry={meridian} rotation={[0, phi, 0]}>
-          <lineBasicMaterial color={CYAN} transparent opacity={0.18} />
-        </lineLoop>
-      ))}
+      <lineSegments geometry={linesGeom}>
+        <lineBasicMaterial color={BLUE} transparent opacity={0.14} blending={THREE.AdditiveBlending} />
+      </lineSegments>
+      <points ref={pts} geometry={pointsGeom}>
+        <pointsMaterial
+          size={0.05}
+          color="#cffaff"
+          transparent
+          opacity={0.9}
+          depthWrite={false}
+          blending={THREE.AdditiveBlending}
+        />
+      </points>
     </group>
   );
 }
 
-/** A single gyroscopic HUD ring on a fixed tilt, spinning in its own plane. */
+/** Data signals streaming inward to the core (retrieval) and back out (injection). */
+function Signals({ count = 28 }: { count?: number }) {
+  const inward = useRef<THREE.Points>(null);
+  const outward = useRef<THREE.Points>(null);
+
+  const beams = useMemo(
+    () =>
+      Array.from({ length: count }, () => {
+        const v = new THREE.Vector3(
+          Math.random() * 2 - 1,
+          Math.random() * 2 - 1,
+          Math.random() * 2 - 1,
+        );
+        if (v.lengthSq() < 1e-3) v.set(1, 0, 0);
+        v.normalize();
+        return { dir: v, speed: 0.45 + Math.random() * 0.5, phase: Math.random() };
+      }),
+    [count],
+  );
+
+  const inGeom = useMemo(() => {
+    const g = new THREE.BufferGeometry();
+    g.setAttribute("position", new THREE.BufferAttribute(new Float32Array(count * 3), 3));
+    return g;
+  }, [count]);
+  const outGeom = useMemo(() => {
+    const g = new THREE.BufferGeometry();
+    g.setAttribute("position", new THREE.BufferAttribute(new Float32Array(count * 3), 3));
+    return g;
+  }, [count]);
+
+  useFrame((state) => {
+    const t = state.clock.elapsedTime;
+    const inArr = inGeom.getAttribute("position").array as Float32Array;
+    const outArr = outGeom.getAttribute("position").array as Float32Array;
+    const OUTER = 2.3;
+    for (let i = 0; i < count; i++) {
+      const b = beams[i]!;
+      // inward: 1 → 0 over the loop
+      const pin = (b.phase + t * b.speed * 0.25) % 1;
+      const rin = (1 - pin) * OUTER + 0.12;
+      inArr[i * 3] = b.dir.x * rin;
+      inArr[i * 3 + 1] = b.dir.y * rin;
+      inArr[i * 3 + 2] = b.dir.z * rin;
+      // outward: 0 → 1, opposite direction, offset phase
+      const pout = (b.phase + 0.5 + t * b.speed * 0.22) % 1;
+      const rout = pout * OUTER + 0.12;
+      outArr[i * 3] = -b.dir.x * rout;
+      outArr[i * 3 + 1] = -b.dir.y * rout;
+      outArr[i * 3 + 2] = -b.dir.z * rout;
+    }
+    inGeom.getAttribute("position").needsUpdate = true;
+    outGeom.getAttribute("position").needsUpdate = true;
+  });
+
+  return (
+    <group>
+      <points ref={inward} geometry={inGeom}>
+        <pointsMaterial
+          size={0.1}
+          color={CYAN}
+          transparent
+          opacity={0.95}
+          depthWrite={false}
+          blending={THREE.AdditiveBlending}
+        />
+      </points>
+      <points ref={outward} geometry={outGeom}>
+        <pointsMaterial
+          size={0.08}
+          color={VIOLET}
+          transparent
+          opacity={0.8}
+          depthWrite={false}
+          blending={THREE.AdditiveBlending}
+        />
+      </points>
+    </group>
+  );
+}
+
 function Ring({
   radius,
   tilt,
   speed,
   color,
-  opacity = 0.55,
+  opacity = 0.5,
 }: {
   radius: number;
   tilt: [number, number, number];
@@ -83,145 +199,60 @@ function Ring({
   return (
     <group rotation={tilt}>
       <lineLoop ref={ref} geometry={geom}>
-        <lineBasicMaterial
-          color={color}
-          transparent
-          opacity={opacity}
-          blending={THREE.AdditiveBlending}
-        />
+        <lineBasicMaterial color={color} transparent opacity={opacity} blending={THREE.AdditiveBlending} />
       </lineLoop>
     </group>
   );
 }
 
-/** Tick marks around the outer boundary, for HUD detail. */
-function TickRing({ radius = 1.7, count = 64 }: { radius?: number; count?: number }) {
-  const geom = useMemo(() => {
-    const pts = new Float32Array(count * 2 * 3);
-    for (let i = 0; i < count; i++) {
-      const a = (i / count) * Math.PI * 2;
-      const inner = radius;
-      const outer = radius + (i % 4 === 0 ? 0.08 : 0.04);
-      pts[i * 6] = Math.cos(a) * inner;
-      pts[i * 6 + 1] = Math.sin(a) * inner;
-      pts[i * 6 + 2] = 0;
-      pts[i * 6 + 3] = Math.cos(a) * outer;
-      pts[i * 6 + 4] = Math.sin(a) * outer;
-      pts[i * 6 + 5] = 0;
-    }
-    const g = new THREE.BufferGeometry();
-    g.setAttribute("position", new THREE.BufferAttribute(pts, 3));
-    return g;
-  }, [radius, count]);
-  const ref = useRef<THREE.LineSegments>(null);
-  useFrame((_, d) => {
-    if (ref.current) ref.current.rotation.z -= d * 0.06;
-  });
-  return (
-    <lineSegments ref={ref} geometry={geom} rotation={[Math.PI / 2.4, 0, 0]}>
-      <lineBasicMaterial color={BLUE} transparent opacity={0.3} />
-    </lineSegments>
-  );
-}
-
-/** Glowing arc-reactor core with a soft halo. */
+/** Bright, breathing energy core with layered halos. */
 function Core() {
   const halo = useRef<THREE.Mesh>(null);
+  const halo2 = useRef<THREE.Mesh>(null);
   useFrame((state) => {
-    if (halo.current) {
-      const s = 1 + Math.sin(state.clock.elapsedTime * 2) * 0.06;
-      halo.current.scale.setScalar(s);
-    }
+    const p = 1 + Math.sin(state.clock.elapsedTime * 2.2) * 0.08;
+    if (halo.current) halo.current.scale.setScalar(p);
+    if (halo2.current) halo2.current.scale.setScalar(1 + Math.sin(state.clock.elapsedTime * 2.2 + 1) * 0.12);
   });
   return (
     <group>
       <mesh>
-        <sphereGeometry args={[0.16, 24, 24]} />
-        <meshBasicMaterial color="#bff7ff" />
+        <sphereGeometry args={[0.15, 24, 24]} />
+        <meshBasicMaterial color="#eaffff" />
       </mesh>
       <mesh ref={halo}>
-        <sphereGeometry args={[0.28, 24, 24]} />
-        <meshBasicMaterial
-          color={CYAN}
-          transparent
-          opacity={0.18}
-          blending={THREE.AdditiveBlending}
-        />
+        <sphereGeometry args={[0.27, 24, 24]} />
+        <meshBasicMaterial color={CYAN} transparent opacity={0.3} blending={THREE.AdditiveBlending} />
+      </mesh>
+      <mesh ref={halo2}>
+        <sphereGeometry args={[0.5, 24, 24]} />
+        <meshBasicMaterial color={BLUE} transparent opacity={0.1} blending={THREE.AdditiveBlending} />
       </mesh>
     </group>
   );
 }
 
-/** Precise data nodes orbiting on inclined circular paths. */
-function Nodes({ count = 7 }: { count?: number }) {
-  const ref = useRef<THREE.Points>(null);
-  const orbits = useMemo(
-    () =>
-      Array.from({ length: count }, () => ({
-        radius: 1.15 + Math.random() * 0.5,
-        incl: Math.random() * Math.PI,
-        tilt: Math.random() * Math.PI * 2,
-        speed: (0.3 + Math.random() * 0.6) * (Math.random() > 0.5 ? 1 : -1),
-        phase: Math.random() * Math.PI * 2,
-      })),
-    [count],
-  );
-  const geom = useMemo(() => {
-    const g = new THREE.BufferGeometry();
-    g.setAttribute("position", new THREE.BufferAttribute(new Float32Array(count * 3), 3));
-    return g;
-  }, [count]);
-
-  useFrame((state) => {
-    const t = state.clock.elapsedTime;
-    const arr = geom.getAttribute("position").array as Float32Array;
-    for (let i = 0; i < count; i++) {
-      const o = orbits[i]!;
-      const a = t * o.speed + o.phase;
-      // circle in its own plane, then incline
-      const x = Math.cos(a) * o.radius;
-      const z = Math.sin(a) * o.radius;
-      const y = z * Math.sin(o.incl);
-      const zz = z * Math.cos(o.incl);
-      const ct = Math.cos(o.tilt);
-      const st = Math.sin(o.tilt);
-      arr[i * 3] = x * ct - zz * st;
-      arr[i * 3 + 1] = y;
-      arr[i * 3 + 2] = x * st + zz * ct;
-    }
-    geom.getAttribute("position").needsUpdate = true;
-  });
-
-  return (
-    <points ref={ref} geometry={geom}>
-      <pointsMaterial
-        size={0.08}
-        color="#eafdff"
-        transparent
-        opacity={0.95}
-        depthWrite={false}
-        blending={THREE.AdditiveBlending}
-      />
-    </points>
-  );
-}
-
 function Scene() {
   const group = useRef<THREE.Group>(null);
+  const { pointer } = useThree();
   useFrame((state, delta) => {
-    if (!group.current) return;
-    group.current.rotation.y += delta * 0.08;
-    group.current.rotation.x = Math.sin(state.clock.elapsedTime * 0.12) * 0.08;
+    const g = group.current;
+    if (!g) return;
+    g.rotation.y += delta * 0.07;
+    // Parallax: ease the tilt toward the cursor for an interactive, alive feel.
+    const targetX = -pointer.y * 0.35 + Math.sin(state.clock.elapsedTime * 0.12) * 0.05;
+    const targetZ = pointer.x * 0.18;
+    g.rotation.x += (targetX - g.rotation.x) * 0.05;
+    g.rotation.z += (targetZ - g.rotation.z) * 0.05;
   });
   return (
-    <group ref={group} scale={1.2}>
+    <group ref={group} scale={1.25}>
       <Core />
-      <Globe />
-      <Ring radius={1.32} tilt={[Math.PI / 2, 0, 0]} speed={0.5} color={CYAN} />
-      <Ring radius={1.46} tilt={[Math.PI / 2.6, 0.4, 0]} speed={-0.35} color={BLUE} />
-      <Ring radius={1.6} tilt={[Math.PI / 3, -0.5, 0.3]} speed={0.25} color={VIOLET} opacity={0.4} />
-      <TickRing />
-      <Nodes />
+      <Constellation />
+      <Signals />
+      <Ring radius={1.78} tilt={[Math.PI / 2, 0, 0]} speed={0.5} color={CYAN} />
+      <Ring radius={1.94} tilt={[Math.PI / 2.6, 0.4, 0]} speed={-0.32} color={BLUE} />
+      <Ring radius={2.1} tilt={[Math.PI / 3, -0.5, 0.3]} speed={0.22} color={VIOLET} opacity={0.35} />
     </group>
   );
 }
@@ -231,19 +262,15 @@ export function BrainHero() {
   useEffect(() => setMounted(true), []);
 
   return (
-    <div className="relative mx-auto h-[360px] w-full max-w-3xl sm:h-[440px]">
-      <div className="pointer-events-none absolute inset-0 -z-10 mx-auto h-2/3 w-2/3 self-center rounded-full bg-[radial-gradient(circle,rgba(34,211,238,0.16),transparent_70%)] blur-2xl" />
+    <div className="relative mx-auto h-[380px] w-full max-w-3xl sm:h-[460px]">
+      <div className="pointer-events-none absolute inset-0 -z-10 mx-auto h-2/3 w-2/3 self-center rounded-full bg-[radial-gradient(circle,rgba(34,211,238,0.18),transparent_70%)] blur-2xl" />
       {mounted ? (
-        <Canvas
-          dpr={[1, 2]}
-          camera={{ position: [0, 0.3, 4], fov: 45 }}
-          gl={{ antialias: true, alpha: true }}
-        >
+        <Canvas dpr={[1, 2]} camera={{ position: [0, 0.3, 4.6], fov: 45 }} gl={{ antialias: true, alpha: true }}>
           <Scene />
         </Canvas>
       ) : null}
       <div className="pointer-events-none absolute bottom-2 left-0 right-0 text-center font-mono text-[11px] uppercase tracking-[0.3em] text-cyan-300/70">
-        context core · online
+        memory core · online
       </div>
     </div>
   );

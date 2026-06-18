@@ -103,3 +103,101 @@ a {
 .float-slow {
   animation: float-slow 7s ease-in-out infinite;
 }
+
+/* Scroll-reveal: elements fade/rise into view as they enter the viewport. */
+.reveal {
+  opacity: 0;
+  transform: translateY(26px);
+  transition:
+    opacity 0.7s cubic-bezier(0.2, 0.7, 0.2, 1),
+    transform 0.7s cubic-bezier(0.2, 0.7, 0.2, 1);
+  will-change: opacity, transform;
+}
+.reveal.in {
+  opacity: 1;
+  transform: none;
+}
+
+/* Cursor spotlight that tracks the pointer over the hero. */
+.spotlight-layer {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+  background: radial-gradient(
+    480px circle at var(--mx, 50%) var(--my, 18%),
+    rgba(124, 112, 255, 0.14),
+    transparent 55%
+  );
+  transition: background 0.15s ease-out;
+}
+
+/* Animated conic gradient border (popular plan, primary CTAs). */
+@property --angle {
+  syntax: "<angle>";
+  initial-value: 0deg;
+  inherits: false;
+}
+.conic-border {
+  position: relative;
+  isolation: isolate;
+}
+.conic-border::before {
+  content: "";
+  position: absolute;
+  inset: -1.5px;
+  border-radius: inherit;
+  padding: 1.5px;
+  background: conic-gradient(from var(--angle), #6d5efc, #22d3ee, #d946ef, #6d5efc);
+  -webkit-mask:
+    linear-gradient(#000 0 0) content-box,
+    linear-gradient(#000 0 0);
+  -webkit-mask-composite: xor;
+  mask-composite: exclude;
+  animation: spin-border 6s linear infinite;
+  z-index: -1;
+}
+@keyframes spin-border {
+  to {
+    --angle: 360deg;
+  }
+}
+
+/* Sweeping shine on primary buttons. */
+.shine {
+  position: relative;
+  overflow: hidden;
+}
+.shine::after {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: -150%;
+  height: 100%;
+  width: 55%;
+  transform: skewX(-20deg);
+  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.35), transparent);
+}
+.shine:hover::after {
+  animation: shine-sweep 0.85s ease;
+}
+@keyframes shine-sweep {
+  to {
+    left: 150%;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .reveal {
+    opacity: 1 !important;
+    transform: none !important;
+    transition: none !important;
+  }
+  .aurora,
+  .gradient-text,
+  .float-slow,
+  .conic-border::before,
+  .shine::after {
+    animation: none !important;
+  }
+}
