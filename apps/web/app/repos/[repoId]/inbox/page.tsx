@@ -7,7 +7,7 @@ import { api, type Memory } from "../../../../lib/api";
 import { AppShell } from "../../../../components/AppShell";
 import { RepoNav } from "../../../../components/RepoNav";
 import { MemoryCard } from "../../../../components/MemoryCard";
-import { Button, Card } from "../../../../components/ui";
+import { Button, Card, EmptyState, Input, PageHeader, Select, Spinner, Textarea } from "../../../../components/ui";
 
 export default function InboxPage({ params }: { params: Promise<{ repoId: string }> }) {
   const { repoId } = use(params);
@@ -45,50 +45,52 @@ function Inbox({ repoId }: { repoId: string }) {
 
   return (
     <div>
-      <h1 className="text-2xl font-semibold">Memory inbox</h1>
-      <p className="text-sm text-[var(--muted)]">
-        Proposed memories awaiting review. Approve to expose them to Claude Code.
-      </p>
+      <PageHeader
+        title="Memory inbox"
+        description="Proposed memories awaiting review. Approve to expose them to Claude Code."
+      />
 
-      <Card className="mt-6 p-6">
+      <Card className="p-6">
         <h2 className="font-semibold">Propose a memory</h2>
         <div className="mt-4 space-y-3">
-          <div className="flex gap-2">
-            <select
-              value={type}
-              onChange={(e) => setType(e.target.value)}
-              className="rounded-lg border border-[var(--border)] bg-[var(--surface-2)] px-3 py-2 text-sm"
-            >
+          <div className="flex flex-wrap gap-2">
+            <Select value={type} onChange={(e) => setType(e.target.value)}>
               {MEMORY_TYPES.map((t) => (
                 <option key={t} value={t}>
                   {t}
                 </option>
               ))}
-            </select>
-            <input
+            </Select>
+            <Input
               value={title}
               onChange={(e) => setTitle(e.target.value)}
               placeholder="Title"
-              className="flex-1 rounded-lg border border-[var(--border)] bg-[var(--surface-2)] px-3 py-2 text-sm outline-none focus:border-[var(--accent)]"
+              className="min-w-48 flex-1"
             />
           </div>
-          <textarea
+          <Textarea
             value={content}
             onChange={(e) => setContent(e.target.value)}
             placeholder="What should agents remember?"
             rows={3}
-            className="w-full rounded-lg border border-[var(--border)] bg-[var(--surface-2)] px-3 py-2 text-sm outline-none focus:border-[var(--accent)]"
           />
-          <Button onClick={() => create.mutate()} disabled={!title || !content || create.isPending}>
+          <Button onClick={() => create.mutate()} disabled={!title || !content} loading={create.isPending}>
             {create.isPending ? "Adding…" : "Add to inbox"}
           </Button>
         </div>
       </Card>
 
       <div className="mt-6 space-y-4">
-        {isLoading ? <p className="text-[var(--muted)]">Loading…</p> : null}
+        {isLoading ? (
+          <p className="flex items-center gap-2 text-[var(--muted)]">
+            <Spinner /> Loading…
+          </p>
+        ) : null}
         {memories?.length === 0 ? (
-          <p className="text-[var(--muted)]">Inbox is empty. Nothing to review.</p>
+          <EmptyState
+            title="Inbox is empty"
+            description="Nothing to review. New proposals from scans and Claude Code sessions show up here."
+          />
         ) : null}
         {memories?.map((m) => <MemoryCard key={m.id} memory={m} />)}
       </div>

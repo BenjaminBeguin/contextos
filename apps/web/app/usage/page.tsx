@@ -1,11 +1,11 @@
 "use client";
 
-import { useState } from "react";
 import Link from "next/link";
 import { useQuery } from "@tanstack/react-query";
 import { api, type Me, type WorkspaceMetrics } from "../../lib/api";
 import { AppShell } from "../../components/AppShell";
-import { Card } from "../../components/ui";
+import { useActiveWorkspace } from "../../lib/workspace";
+import { Card, PageHeader, Skeleton } from "../../components/ui";
 
 export default function UsagePage() {
   return (
@@ -17,8 +17,7 @@ export default function UsagePage() {
 
 function Usage() {
   const { data: me } = useQuery({ queryKey: ["me"], queryFn: () => api<Me>("/me") });
-  const [ws, setWs] = useState<string>("");
-  const activeWs = ws || me?.workspaces[0]?.id || "";
+  const { activeId: activeWs } = useActiveWorkspace();
 
   const { data: metrics, isLoading } = useQuery({
     queryKey: ["metrics", activeWs],
@@ -39,26 +38,14 @@ function Usage() {
 
   return (
     <div>
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-semibold">Usage</h1>
-          <p className="text-sm text-[var(--muted)]">How your team is using Cortex.</p>
-        </div>
-        <select
-          value={activeWs}
-          onChange={(e) => setWs(e.target.value)}
-          className="rounded-lg border border-[var(--border)] bg-[var(--surface-2)] px-2 py-1 text-sm"
-        >
-          {me?.workspaces.map((w) => (
-            <option key={w.id} value={w.id}>
-              {w.name}
-            </option>
-          ))}
-        </select>
-      </div>
+      <PageHeader title="Usage" description="How your team is using Cortex." />
 
       {isLoading || !metrics ? (
-        <p className="mt-6 text-[var(--muted)]">Loading…</p>
+        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+          {Array.from({ length: 4 }).map((_, i) => (
+            <Skeleton key={i} className="h-24" />
+          ))}
+        </div>
       ) : (
         <>
           <div className="mt-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">

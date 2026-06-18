@@ -4,10 +4,17 @@
   --background: #07070a;
   --surface: #0e0e14;
   --surface-2: #15151d;
+  --surface-3: #1c1c26;
   --border: #23232e;
+  --border-strong: #34343f;
   --text: #e7e7ee;
   --muted: #9b9bab;
+  --faint: #6a6a78;
   --accent: #6d5efc;
+  --accent-hover: #8073ff;
+  --accent-soft: rgba(109, 94, 252, 0.14);
+  --ring: rgba(125, 112, 255, 0.6);
+  --radius: 0.75rem;
 }
 
 html,
@@ -16,11 +23,74 @@ body {
   color: var(--text);
   font-family: ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
   -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
 }
 
 a {
   color: inherit;
   text-decoration: none;
+}
+
+/* Consistent, accessible focus ring across all interactive elements. */
+*:focus {
+  outline: none;
+}
+*:focus-visible {
+  outline: 2px solid var(--ring);
+  outline-offset: 2px;
+  border-radius: 0.4rem;
+}
+
+::selection {
+  background: var(--accent-soft);
+  color: #fff;
+}
+
+/* Native select: dark popup + custom chevron so it matches the theme. */
+select option {
+  background: var(--surface-2);
+  color: var(--text);
+}
+
+/* Slim, themed scrollbars. */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: var(--border-strong) transparent;
+}
+::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+::-webkit-scrollbar-thumb {
+  background: var(--border-strong);
+  border-radius: 999px;
+  border: 3px solid transparent;
+  background-clip: content-box;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: #44444f;
+  background-clip: content-box;
+}
+
+/* Subtle entrance used by cards/lists. */
+@keyframes ctx-fade-in {
+  from {
+    opacity: 0;
+    transform: translateY(4px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+.ctx-fade-in {
+  animation: ctx-fade-in 0.25s ease-out both;
+}
+
+@keyframes ctx-shimmer {
+  100% {
+    transform: translateX(100%);
+  }
 }
 
 /* Markdown rendering (chat answers, living docs) */

@@ -1,13 +1,25 @@
 "use client";
 
 import Link from "next/link";
-import { useRouter } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import { useQuery } from "@tanstack/react-query";
 import { api, type Me } from "../lib/api";
-import { Button } from "./ui";
+import { Button, cn, Spinner } from "./ui";
+import { WorkspaceSwitcher } from "./WorkspaceSwitcher";
+
+const NAV = [
+  { href: "/dashboard", label: "Dashboard", match: ["/dashboard", "/repos"] },
+  { href: "/search", label: "Search", match: ["/search"] },
+  { href: "/graph", label: "Graph", match: ["/graph"] },
+  { href: "/chat", label: "Chat", match: ["/chat"] },
+  { href: "/usage", label: "Usage", match: ["/usage"] },
+  { href: "/setup", label: "Setup", match: ["/setup"] },
+  { href: "/settings", label: "Settings", match: ["/settings"] },
+];
 
 export function AppShell({ children }: { children: React.ReactNode }) {
   const router = useRouter();
+  const pathname = usePathname();
   const { data: me, isLoading, isError } = useQuery({
     queryKey: ["me"],
     queryFn: () => api<Me>("/me"),
@@ -21,56 +33,72 @@ export function AppShell({ children }: { children: React.ReactNode }) {
 
   return (
     <div className="min-h-screen">
-      <header className="border-b border-[var(--border)]">
-        <div className="mx-auto flex max-w-6xl items-center justify-between px-6 py-4">
-          <div className="flex items-center gap-6">
+      <header className="sticky top-0 z-30 border-b border-[var(--border)] bg-[var(--background)]/80 backdrop-blur-md">
+        <div className="mx-auto flex max-w-6xl items-center justify-between gap-4 px-6 py-3">
+          <div className="flex items-center gap-7">
             <Link href="/dashboard" className="flex items-center gap-2 font-semibold">
-              <span className="inline-block h-4 w-4 rounded-sm bg-[var(--accent)]" />
+              <span className="inline-block h-5 w-5 rounded-md bg-gradient-to-br from-[var(--accent)] to-[#a78bfa] shadow-[0_0_12px_rgba(109,94,252,0.5)]" />
               Cortex
             </Link>
-            <nav className="flex items-center gap-4 text-sm text-[var(--muted)]">
-              <Link href="/dashboard" className="hover:text-white">
-                Dashboard
-              </Link>
-              <Link href="/search" className="hover:text-white">
-                Search
-              </Link>
-              <Link href="/graph" className="hover:text-white">
-                Graph
-              </Link>
-              <Link href="/chat" className="hover:text-white">
-                Chat
-              </Link>
-              <Link href="/usage" className="hover:text-white">
-                Usage
-              </Link>
-              <Link href="/setup" className="hover:text-white">
-                Setup
-              </Link>
-              <Link href="/settings" className="hover:text-white">
-                Settings
-              </Link>
+            <nav className="hidden items-center gap-1 text-sm md:flex">
+              {NAV.map((item) => {
+                const active = item.match.some((m) => pathname.startsWith(m));
+                return (
+                  <Link
+                    key={item.href}
+                    href={item.href}
+                    className={cn(
+                      "rounded-lg px-3 py-1.5 transition",
+                      active
+                        ? "bg-[var(--surface-2)] text-white"
+                        : "text-[var(--muted)] hover:bg-white/5 hover:text-white",
+                    )}
+                  >
+                    {item.label}
+                  </Link>
+                );
+              })}
             </nav>
           </div>
           <div className="flex items-center gap-3 text-sm text-[var(--muted)]">
+            {me && me.workspaces.length > 0 ? <WorkspaceSwitcher /> : null}
             {me ? (
-              <span className="flex items-center gap-2">
+              <span className="hidden items-center gap-2 sm:flex">
                 {me.avatarUrl ? (
                   // eslint-disable-next-line @next/next/no-img-element
-                  <img src={me.avatarUrl} alt="" className="h-6 w-6 rounded-full" />
+                  <img src={me.avatarUrl} alt="" className="h-7 w-7 rounded-full ring-1 ring-[var(--border)]" />
                 ) : null}
-                {me.email}
               </span>
             ) : null}
-            <Button variant="ghost" onClick={logout}>
+            <Button variant="ghost" size="sm" onClick={logout}>
               Log out
             </Button>
           </div>
         </div>
+        {/* Mobile nav */}
+        <nav className="flex items-center gap-1 overflow-x-auto px-4 pb-2 text-sm md:hidden">
+          {NAV.map((item) => {
+            const active = item.match.some((m) => pathname.startsWith(m));
+            return (
+              <Link
+                key={item.href}
+                href={item.href}
+                className={cn(
+                  "whitespace-nowrap rounded-lg px-3 py-1.5 transition",
+                  active ? "bg-[var(--surface-2)] text-white" : "text-[var(--muted)]",
+                )}
+              >
+                {item.label}
+              </Link>
+            );
+          })}
+        </nav>
       </header>
       <main className="mx-auto max-w-6xl px-6 py-8">
         {isLoading ? (
-          <p className="text-[var(--muted)]">Loading…</p>
+          <div className="flex items-center gap-2 text-[var(--muted)]">
+            <Spinner /> Loading…
+          </div>
         ) : isError || !me ? (
           <div className="text-[var(--muted)]">
             <p>You are not signed in.</p>
@@ -79,7 +107,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
             </Link>
           </div>
         ) : (
-          children
+          <div className="ctx-fade-in">{children}</div>
         )}
       </main>
     </div>

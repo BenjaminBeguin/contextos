@@ -5,8 +5,9 @@ import Link from "next/link";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { api, API_BASE_URL, type Me, type WorkspaceDetail, type ApiTokenInfo } from "../../lib/api";
 import { AppShell } from "../../components/AppShell";
+import { useActiveWorkspace } from "../../lib/workspace";
 import { CopyButton } from "../../components/CopyButton";
-import { Button, Card, Code } from "../../components/ui";
+import { Button, Card, Code, Input } from "../../components/ui";
 
 export default function SettingsPage() {
   return (
@@ -18,8 +19,7 @@ export default function SettingsPage() {
 
 function Settings() {
   const { data: me } = useQuery({ queryKey: ["me"], queryFn: () => api<Me>("/me") });
-  const [ws, setWs] = useState<string>("");
-  const activeWs = ws || me?.workspaces[0]?.id || "";
+  const { activeId: activeWs } = useActiveWorkspace();
   const role = me?.workspaces.find((w) => w.id === activeWs)?.role;
   const isOwner = role === "owner";
 
@@ -38,20 +38,23 @@ function Settings() {
     <div className="max-w-3xl">
       <div className="flex items-center justify-between">
         <h1 className="text-2xl font-semibold">Settings</h1>
-        <select
-          value={activeWs}
-          onChange={(e) => setWs(e.target.value)}
-          className="rounded-lg border border-[var(--border)] bg-[var(--surface-2)] px-2 py-1 text-sm"
-        >
-          {me?.workspaces.map((w) => (
-            <option key={w.id} value={w.id}>
-              {w.name}
-            </option>
-          ))}
-        </select>
+        <span className="text-sm text-[var(--muted)]">
+          Editing <span className="text-white">{me?.workspaces.find((w) => w.id === activeWs)?.name}</span>
+          {" "}· switch workspace in the top bar
+        </span>
       </div>
 
-      {activeWs ? <WorkspaceSettings workspaceId={activeWs} isOwner={isOwner} /> : null}
+      {activeWs ? (
+        <WorkspaceSettings key={activeWs} workspaceId={activeWs} isOwner={isOwner} />
+      ) : null}
+
+      <div className="mt-10 border-t border-[var(--border)] pt-6">
+        <h2 className="text-lg font-semibold">Account</h2>
+        <p className="mt-1 text-sm text-[var(--muted)]">
+          These apply to you across every workspace — they aren&apos;t tied to the workspace
+          selected above.
+        </p>
+      </div>
       <GitHubCard me={me} />
       <TokensCard />
     </div>
@@ -89,11 +92,11 @@ function WorkspaceSettings({ workspaceId, isOwner }: { workspaceId: string; isOw
       <Card className="mt-6 p-6">
         <h2 className="font-semibold">Workspace</h2>
         <div className="mt-4 flex flex-wrap items-center gap-3">
-          <input
+          <Input
             defaultValue={ws.name}
             onChange={(e) => setName(e.target.value)}
             disabled={!isOwner}
-            className="rounded-lg border border-[var(--border)] bg-[var(--surface-2)] px-3 py-2 text-sm outline-none focus:border-[var(--accent)] disabled:opacity-60"
+            className="w-56 disabled:opacity-60"
           />
           {isOwner ? (
             <Button onClick={() => rename.mutate()} disabled={!name || rename.isPending}>
@@ -216,12 +219,12 @@ function AiKeyCard({
       {isOwner ? (
         <div className="mt-4 space-y-2">
           <div className="flex flex-wrap items-center gap-2">
-            <input
+            <Input
               type="password"
               value={key}
               onChange={(e) => setKey(e.target.value)}
               placeholder="sk-ant-…"
-              className="min-w-64 flex-1 rounded-lg border border-[var(--border)] bg-[var(--surface-2)] px-3 py-2 text-sm outline-none focus:border-[var(--accent)]"
+              className="min-w-64 flex-1"
             />
             <Button onClick={() => save.mutate()} disabled={!key || save.isPending}>
               {save.isPending ? "Saving…" : hasKey ? "Replace" : "Save key"}
@@ -295,7 +298,9 @@ function TokensCard() {
       <div className="flex items-center justify-between">
         <div>
           <h2 className="font-semibold">API tokens</h2>
-          <p className="text-xs text-[var(--muted)]">Used by the CLI and MCP server.</p>
+          <p className="text-xs text-[var(--muted)]">
+            Used by the CLI and MCP server. One token authenticates you across all your workspaces.
+          </p>
         </div>
         <Button onClick={() => create.mutate()} disabled={create.isPending}>
           {create.isPending ? "Creating…" : "New token"}

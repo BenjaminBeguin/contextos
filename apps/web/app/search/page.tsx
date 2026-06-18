@@ -6,7 +6,17 @@ import { useQuery } from "@tanstack/react-query";
 import { MEMORY_STATUSES, MEMORY_TYPES } from "@cortex/shared";
 import { api, isStaleMemory, type Me, type WorkspaceMemory } from "../../lib/api";
 import { AppShell } from "../../components/AppShell";
-import { Badge, Card, StatusBadge } from "../../components/ui";
+import { useActiveWorkspace } from "../../lib/workspace";
+import {
+  Badge,
+  Card,
+  EmptyState,
+  Input,
+  PageHeader,
+  Select as UISelect,
+  Spinner,
+  StatusBadge,
+} from "../../components/ui";
 
 export default function SearchPage() {
   return (
@@ -18,8 +28,7 @@ export default function SearchPage() {
 
 function Search() {
   const { data: me } = useQuery({ queryKey: ["me"], queryFn: () => api<Me>("/me") });
-  const [ws, setWs] = useState("");
-  const activeWs = ws || me?.workspaces[0]?.id || "";
+  const { activeId: activeWs } = useActiveWorkspace();
   const [q, setQ] = useState("");
   const [status, setStatus] = useState("");
   const [type, setType] = useState("");
@@ -49,39 +58,33 @@ function Search() {
 
   return (
     <div>
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-semibold">Search memory</h1>
-          <p className="text-sm text-[var(--muted)]">Across every repo in the workspace.</p>
-        </div>
-        <select
-          value={activeWs}
-          onChange={(e) => setWs(e.target.value)}
-          className="rounded-lg border border-[var(--border)] bg-[var(--surface-2)] px-2 py-1 text-sm"
-        >
-          {me?.workspaces.map((w) => (
-            <option key={w.id} value={w.id}>
-              {w.name}
-            </option>
-          ))}
-        </select>
-      </div>
+      <PageHeader
+        title="Search memory"
+        description="Across every repo in the workspace."
+      />
 
-      <div className="mt-4 flex flex-wrap items-center gap-2">
-        <input
+      <div className="flex flex-wrap items-center gap-2">
+        <Input
           value={q}
           onChange={(e) => setQ(e.target.value)}
           placeholder="Search titles and content…"
-          className="min-w-64 flex-1 rounded-lg border border-[var(--border)] bg-[var(--surface-2)] px-3 py-2 text-sm outline-none focus:border-[var(--accent)]"
+          className="min-w-64 flex-1"
         />
         <Select value={status} onChange={setStatus} placeholder="All statuses" options={[...MEMORY_STATUSES]} />
         <Select value={type} onChange={setType} placeholder="All types" options={[...MEMORY_TYPES]} />
       </div>
 
       <div className="mt-6 space-y-3">
-        {isLoading ? <p className="text-[var(--muted)]">Searching…</p> : null}
+        {isLoading ? (
+          <p className="flex items-center gap-2 text-[var(--muted)]">
+            <Spinner /> Searching…
+          </p>
+        ) : null}
         {results?.length === 0 ? (
-          <p className="text-[var(--muted)]">No memories match.</p>
+          <EmptyState
+            title="No memories match"
+            description="Try a different search term, or clear the status and type filters."
+          />
         ) : null}
         {results?.map((m) => (
           <Card key={m.id} className="p-4">
@@ -121,17 +124,13 @@ function Select({
   options: string[];
 }) {
   return (
-    <select
-      value={value}
-      onChange={(e) => onChange(e.target.value)}
-      className="rounded-lg border border-[var(--border)] bg-[var(--surface-2)] px-3 py-2 text-sm"
-    >
+    <UISelect value={value} onChange={(e) => onChange(e.target.value)}>
       <option value="">{placeholder}</option>
       {options.map((o) => (
         <option key={o} value={o}>
           {o}
         </option>
       ))}
-    </select>
+    </UISelect>
   );
 }

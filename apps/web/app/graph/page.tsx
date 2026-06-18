@@ -1,11 +1,12 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useQuery } from "@tanstack/react-query";
-import { api, type Me, type GraphData, type GraphNode } from "../../lib/api";
+import { api, type GraphData, type GraphNode } from "../../lib/api";
 import { AppShell } from "../../components/AppShell";
+import { useActiveWorkspace } from "../../lib/workspace";
 
 export default function GraphPage() {
   return (
@@ -53,9 +54,7 @@ interface Sim {
 
 function Graph() {
   const router = useRouter();
-  const { data: me } = useQuery({ queryKey: ["me"], queryFn: () => api<Me>("/me") });
-  const [ws, setWs] = useState<string>("");
-  const activeWs = ws || me?.workspaces[0]?.id || "";
+  const { activeId: activeWs } = useActiveWorkspace();
 
   const { data: graph } = useQuery({
     queryKey: ["graph", activeWs],
@@ -301,17 +300,6 @@ function Graph() {
             Repos, memories, and sessions. Drag to move · scroll to zoom · click a node to open it.
           </p>
         </div>
-        <select
-          value={activeWs}
-          onChange={(e) => setWs(e.target.value)}
-          className="rounded-lg border border-[var(--border)] bg-[var(--surface-2)] px-2 py-1 text-sm"
-        >
-          {me?.workspaces.map((w) => (
-            <option key={w.id} value={w.id}>
-              {w.name}
-            </option>
-          ))}
-        </select>
       </div>
 
       <div className="mt-4 flex flex-wrap gap-3 text-xs text-[var(--muted)]">

@@ -5,8 +5,9 @@ import Link from "next/link";
 import { useQuery } from "@tanstack/react-query";
 import { api, type Me, type ChatResponse, type ChatSource } from "../../lib/api";
 import { AppShell } from "../../components/AppShell";
+import { useActiveWorkspace } from "../../lib/workspace";
 import { Markdown } from "../../components/Markdown";
-import { Button, Card } from "../../components/ui";
+import { Button, Card, Input, PageHeader } from "../../components/ui";
 
 interface Msg {
   role: "user" | "assistant";
@@ -24,8 +25,7 @@ export default function ChatPage() {
 
 function Chat() {
   const { data: me } = useQuery({ queryKey: ["me"], queryFn: () => api<Me>("/me") });
-  const [ws, setWs] = useState<string>("");
-  const activeWs = ws || me?.workspaces[0]?.id || "";
+  const { activeId: activeWs } = useActiveWorkspace();
 
   const [messages, setMessages] = useState<Msg[]>([]);
   const [input, setInput] = useState("");
@@ -67,27 +67,12 @@ function Chat() {
 
   return (
     <div className="mx-auto flex h-[calc(100vh-140px)] max-w-3xl flex-col">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-semibold">Chat with your memory</h1>
-          <p className="text-sm text-[var(--muted)]">
-            Answers are grounded in this workspace&apos;s approved memories.
-          </p>
-        </div>
-        <select
-          value={activeWs}
-          onChange={(e) => setWs(e.target.value)}
-          className="rounded-lg border border-[var(--border)] bg-[var(--surface-2)] px-2 py-1 text-sm"
-        >
-          {me?.workspaces.map((w) => (
-            <option key={w.id} value={w.id}>
-              {w.name}
-            </option>
-          ))}
-        </select>
-      </div>
+      <PageHeader
+        title="Chat with your memory"
+        description="Answers are grounded in this workspace's approved memories."
+      />
 
-      <div className="mt-6 flex-1 space-y-4 overflow-y-auto pr-1">
+      <div className="flex-1 space-y-4 overflow-y-auto pr-1">
         {messages.length === 0 ? (
           <Card className="p-8 text-center text-sm text-[var(--muted)]">
             Ask things like “How do we run billing tests?” or “What are the known risks in the
@@ -125,17 +110,26 @@ function Chat() {
             </div>
           </div>
         ))}
-        {loading ? <p className="text-sm text-[var(--muted)]">Thinking…</p> : null}
+        {loading ? (
+          <p className="flex items-center gap-2 text-sm text-[var(--muted)]">
+            <span className="inline-flex gap-1">
+              <span className="h-1.5 w-1.5 animate-bounce rounded-full bg-[var(--muted)] [animation-delay:-0.3s]" />
+              <span className="h-1.5 w-1.5 animate-bounce rounded-full bg-[var(--muted)] [animation-delay:-0.15s]" />
+              <span className="h-1.5 w-1.5 animate-bounce rounded-full bg-[var(--muted)]" />
+            </span>
+            Thinking…
+          </p>
+        ) : null}
       </div>
 
       <form onSubmit={send} className="mt-4 flex gap-2">
-        <input
+        <Input
           value={input}
           onChange={(e) => setInput(e.target.value)}
           placeholder="Ask about your repos…"
-          className="flex-1 rounded-lg border border-[var(--border)] bg-[var(--surface-2)] px-3 py-2 text-sm outline-none focus:border-[var(--accent)]"
+          className="flex-1"
         />
-        <Button type="submit" disabled={loading || !input.trim()}>
+        <Button type="submit" disabled={!input.trim()} loading={loading}>
           Send
         </Button>
       </form>
