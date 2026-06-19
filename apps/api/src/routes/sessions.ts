@@ -6,6 +6,7 @@ import { resolveUser, assertRepoAccess, HttpError } from "../auth.js";
 import { extractMemories } from "../services/extract.js";
 import { getWorkspaceKey } from "../services/llm.js";
 import { recordUsage } from "../services/analytics.js";
+import { loadDedupSet, partitionNew } from "../services/dedup.js";
 
 function handle(reply: import("fastify").FastifyReply, e: unknown) {
   if (e instanceof HttpError) return reply.code(e.statusCode).send({ error: e.message });
@@ -49,11 +50,13 @@ export async function sessionRoutes(app: FastifyInstance) {
       },
     });
 
-    // Extract proposed memories (workspace LLM key if set, heuristic otherwise).
+    // Extract proposed memories (workspace LLM key if set, heuristic otherwise),
+    // then drop ones that duplicate existing proposed/approved memories.
     const apiKey = await getWorkspaceKey(repo.workspaceId);
     const extracted = await extractMemories(body, apiKey);
+    const { fresh } = partitionNew(await loadDedupSet(repoId), extracted);
     const proposed = await Promise.all(
-      extracted.map((m) =>
+      fresh.map((m) =>
         prisma.memory.create({
           data: {
             repoId,

@@ -9,6 +9,7 @@ import { prisma } from "../db.js";
 import { resolveUser, assertRepoAccess, HttpError, type AuthedUser } from "../auth.js";
 import { searchMemories, writeAuditLog } from "../services/memory.js";
 import { recordUsage } from "../services/analytics.js";
+import { loadDedupSet, partitionNew, findDuplicate, similarity, DUP_THRESHOLD } from "../services/dedup.js";
 
 async function getMemoryWithAccess(userId: string, memoryId: string) {
   const memory = await prisma.memory.findUnique({
@@ -41,13 +42,38 @@ async function setStatus(
     entityId: memoryId,
     metadata: { from: memory.status, to: status },
   });
+  let superseded = 0;
   if (status === "approved") {
     await recordUsage("memory.approved", {
       workspaceId: memory.repo.workspaceId,
       repoId: memory.repoId,
     });
+    // Approving a memory supersedes any older approved memory that says the same
+    // thing — archive the duplicates so only the latest stays canonical.
+    const others = await prisma.memory.findMany({
+      where: { repoId: memory.repoId, status: "approved", id: { not: memoryId } },
+      select: { id: true, type: true, title: true, content: true },
+    });
+    const dups = others.filter((o) => similarity(o, memory) >= DUP_THRESHOLD);
+    if (dups.length > 0) {
+      await prisma.memory.updateMany({
+        where: { id: { in: dups.map((d) => d.id) } },
+        data: { status: "archived" },
+      });
+      for (const d of dups) {
+        await writeAuditLog({
+          workspaceId: memory.repo.workspaceId,
+          userId: user.id,
+          action: "memory.superseded",
+          entityType: "memory",
+          entityId: d.id,
+          metadata: { supersededBy: memoryId },
+        });
+      }
+      superseded = dups.length;
+    }
   }
-  return updated;
+  return { ...updated, superseded };
 }
 
 export async function memoryRoutes(app: FastifyInstance) {
@@ -64,10 +90,24 @@ export async function memoryRoutes(app: FastifyInstance) {
     if (q.search) {
       return searchMemories({ repoId, query: q.search, limit: 50 });
     }
-    return prisma.memory.findMany({
+    const memories = await prisma.memory.findMany({
       where: { repoId, status: q.status, type: q.type },
       orderBy: { updatedAt: "desc" },
       include: { evidence: true },
+    });
+
+    // Flag proposed memories that look like an existing approved memory, so a
+    // reviewer can supersede instead of creating a duplicate.
+    const proposed = memories.filter((m) => m.status === "proposed");
+    if (proposed.length === 0) return memories;
+    const approved = await prisma.memory.findMany({
+      where: { repoId, status: "approved" },
+      select: { id: true, type: true, title: true, content: true, status: true },
+    });
+    return memories.map((m) => {
+      if (m.status !== "proposed") return m;
+      const dup = findDuplicate(approved, m, 0.45);
+      return dup ? { ...m, duplicateOf: { id: dup.id, title: dup.title } } : m;
     });
   });
 
@@ -126,8 +166,12 @@ export async function memoryRoutes(app: FastifyInstance) {
       return handle(reply, e);
     }
     const body = proposeMemoriesSchema.parse(req.body);
+    // Skip near-duplicates of existing proposed/approved memories so the inbox
+    // doesn't fill with repeats (the SessionEnd hook proposes every session).
+    const existing = await loadDedupSet(repoId);
+    const { fresh, skipped } = partitionNew(existing, body.memories);
     await prisma.$transaction(
-      body.memories.map((m) =>
+      fresh.map((m) =>
         prisma.memory.create({
           data: {
             repoId,
@@ -147,9 +191,9 @@ export async function memoryRoutes(app: FastifyInstance) {
     await recordUsage("memory.created", {
       workspaceId: repo.workspaceId,
       repoId,
-      metadata: { count: body.memories.length, via: "agent" },
+      metadata: { count: fresh.length, skipped, via: "agent" },
     });
-    return reply.code(201).send({ proposedCount: body.memories.length });
+    return reply.code(201).send({ proposedCount: fresh.length, skipped });
   });
 
   app.patch("/memories/:memoryId", async (req, reply) => {

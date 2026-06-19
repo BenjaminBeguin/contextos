@@ -159,6 +159,7 @@ export interface Memory {
   updatedAt: string;
   lastUsedAt?: string | null;
   evidence?: { id: string; kind: string; content: string; url: string | null }[];
+  duplicateOf?: { id: string; title: string } | null;
 }
 
 export interface WorkspaceMemory extends Memory {

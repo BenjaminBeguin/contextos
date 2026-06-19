@@ -11,6 +11,7 @@ import {
 } from "../services/scan.js";
 import { getWorkspaceKey } from "../services/llm.js";
 import { recordUsage } from "../services/analytics.js";
+import { loadDedupSet, partitionNew } from "../services/dedup.js";
 
 /** Decode a GitHub contents/readme API payload (base64) to UTF-8 text. */
 function decodeGhContent(json: unknown): string | null {
@@ -224,9 +225,11 @@ export async function repoRoutes(app: FastifyInstance) {
       apiKey,
     );
 
-    if (drafts.length > 0) {
+    // Drop drafts that duplicate existing proposed/approved memories.
+    const { fresh: freshDrafts } = partitionNew(await loadDedupSet(repoId), drafts);
+    if (freshDrafts.length > 0) {
       await prisma.$transaction(
-        drafts.map((d) =>
+        freshDrafts.map((d) =>
           prisma.memory.create({
             data: {
               repoId,
@@ -248,10 +251,10 @@ export async function repoRoutes(app: FastifyInstance) {
     await recordUsage("repo.scanned", {
       workspaceId: repo.workspaceId,
       repoId,
-      metadata: { proposed: drafts.length, filesRead: files.length, totalFiles: filePaths.length },
+      metadata: { proposed: freshDrafts.length, filesRead: files.length, totalFiles: filePaths.length },
     });
 
-    return { ok: true, proposedCount: drafts.length, filesRead: files.length };
+    return { ok: true, proposedCount: freshDrafts.length, filesRead: files.length };
   });
 
   // Resync repo context (stack, default branch, description) from GitHub.

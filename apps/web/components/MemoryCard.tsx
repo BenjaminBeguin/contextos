@@ -124,6 +124,12 @@ export function MemoryCard({ memory }: { memory: Memory }) {
             </span>
           </div>
           <h3 className="font-semibold">{memory.title}</h3>
+          {memory.duplicateOf ? (
+            <p className="mt-1 inline-flex items-center gap-1 rounded-md border border-yellow-500/30 bg-yellow-500/10 px-2 py-0.5 text-xs text-yellow-200">
+              Possible duplicate of an approved memory: “{memory.duplicateOf.title}”. Approving
+              supersedes it.
+            </p>
+          ) : null}
           <p className="mt-1 text-sm text-[var(--muted)]">{memory.content}</p>
           {memory.paths?.length ? (
             <div className="mt-2 flex flex-wrap gap-1">
