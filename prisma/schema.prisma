@@ -26,6 +26,8 @@ model Workspace {
   slug         String   @unique
   joinCode     String   @unique
   anthropicKey String? // encrypted; BYOK for this workspace's AI features
+  autoApproveThreshold Float? // if set, proposed memories with confidence >= this are auto-approved
+  autoRejectThreshold  Float? // if set, proposed memories with confidence < this are auto-rejected
   createdAt    DateTime @default(now())
 
   memberships Membership[]

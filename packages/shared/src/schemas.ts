@@ -32,7 +32,11 @@ export const joinWorkspaceSchema = z.object({
 });
 
 export const updateWorkspaceSchema = z.object({
-  name: z.string().min(1).max(80),
+  name: z.string().min(1).max(80).optional(),
+  // null disables; a value in [0,1] auto-approves proposals at/above it.
+  autoApproveThreshold: z.number().min(0).max(1).nullable().optional(),
+  // null disables; a value in [0,1] auto-rejects proposals below it.
+  autoRejectThreshold: z.number().min(0).max(1).nullable().optional(),
 });
 
 export const chatSchema = z.object({

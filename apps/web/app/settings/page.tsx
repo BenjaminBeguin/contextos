@@ -128,6 +128,13 @@ function WorkspaceSettings({ workspaceId, isOwner }: { workspaceId: string; isOw
 
       <AiKeyCard workspaceId={workspaceId} hasKey={!!ws.hasAnthropicKey} isOwner={isOwner} />
 
+      <AutoTriageCard
+        workspaceId={workspaceId}
+        approve={ws.autoApproveThreshold ?? null}
+        reject={ws.autoRejectThreshold ?? null}
+        isOwner={isOwner}
+      />
+
       <Card className="mt-6 p-6">
         <h2 className="font-semibold">Members</h2>
         <ul className="mt-4 space-y-2">
@@ -246,6 +253,134 @@ function AiKeyCard({
         <p className="mt-3 text-xs text-[var(--muted)]">Only owners can manage the API key.</p>
       )}
     </Card>
+  );
+}
+
+function AutoTriageCard({
+  workspaceId,
+  approve,
+  reject,
+  isOwner,
+}: {
+  workspaceId: string;
+  approve: number | null;
+  reject: number | null;
+  isOwner: boolean;
+}) {
+  const qc = useQueryClient();
+  const [approveOn, setApproveOn] = useState(approve != null);
+  const [approvePct, setApprovePct] = useState(Math.round((approve ?? 0.85) * 100));
+  const [rejectOn, setRejectOn] = useState(reject != null);
+  const [rejectPct, setRejectPct] = useState(Math.round((reject ?? 0.4) * 100));
+
+  const save = useMutation({
+    mutationFn: () =>
+      api(`/workspaces/${workspaceId}`, {
+        method: "PATCH",
+        body: JSON.stringify({
+          autoApproveThreshold: approveOn ? approvePct / 100 : null,
+          autoRejectThreshold: rejectOn ? rejectPct / 100 : null,
+        }),
+      }),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["workspace", workspaceId] }),
+  });
+
+  const conflict = approveOn && rejectOn && rejectPct >= approvePct;
+
+  return (
+    <Card className="mt-6 p-6">
+      <h2 className="font-semibold">Automatic triage</h2>
+      <p className="mt-1 text-sm text-[var(--muted)]">
+        Route new proposed memories by confidence so the inbox only holds the ones that need a
+        human call.
+      </p>
+
+      <p className="mt-3 text-sm text-[var(--muted)]">
+        {approveOn ? (
+          <span className="text-emerald-300">≥ {approvePct}% → auto-approve</span>
+        ) : (
+          <span>approve: off</span>
+        )}
+        {"  ·  "}
+        {rejectOn ? (
+          <span className="text-red-300">&lt; {rejectPct}% → auto-reject</span>
+        ) : (
+          <span>reject: off</span>
+        )}
+        {"  ·  "}
+        <span>everything else → inbox</span>
+      </p>
+
+      {isOwner ? (
+        <div className="mt-5 space-y-4">
+          <TriageRow
+            label="Auto-approve at or above"
+            on={approveOn}
+            setOn={setApproveOn}
+            pct={approvePct}
+            setPct={setApprovePct}
+            accent="accent-emerald-400"
+          />
+          <TriageRow
+            label="Auto-reject below"
+            on={rejectOn}
+            setOn={setRejectOn}
+            pct={rejectPct}
+            setPct={setRejectPct}
+            accent="accent-red-400"
+          />
+          {conflict ? (
+            <p className="text-xs text-yellow-300">
+              The reject threshold should be lower than the approve threshold.
+            </p>
+          ) : null}
+          <Button onClick={() => save.mutate()} loading={save.isPending} disabled={conflict}>
+            Save triage rules
+          </Button>
+          {save.isSuccess ? (
+            <span className="ml-2 text-xs text-emerald-300">Saved</span>
+          ) : null}
+        </div>
+      ) : (
+        <p className="mt-3 text-xs text-[var(--muted)]">Only owners can change this.</p>
+      )}
+    </Card>
+  );
+}
+
+function TriageRow({
+  label,
+  on,
+  setOn,
+  pct,
+  setPct,
+  accent,
+}: {
+  label: string;
+  on: boolean;
+  setOn: (v: boolean) => void;
+  pct: number;
+  setPct: (v: number) => void;
+  accent: string;
+}) {
+  return (
+    <div className="flex flex-wrap items-center gap-3">
+      <label className="flex w-52 items-center gap-2 text-sm">
+        <input type="checkbox" checked={on} onChange={(e) => setOn(e.target.checked)} className="accent-[var(--accent)]" />
+        {label}
+      </label>
+      <input
+        type="range"
+        min={5}
+        max={100}
+        step={5}
+        value={pct}
+        onChange={(e) => setPct(Number(e.target.value))}
+        disabled={!on}
+        className={`h-1.5 w-56 max-w-full cursor-pointer ${accent} disabled:opacity-40`}
+      />
+      <span className={`w-12 text-sm tabular-nums ${on ? "" : "text-[var(--faint)]"}`}>{pct}%</span>
+    </div>
   );
 }
 

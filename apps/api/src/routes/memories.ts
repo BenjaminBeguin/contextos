@@ -7,7 +7,7 @@ import {
 } from "@cortex/shared";
 import { prisma } from "../db.js";
 import { resolveUser, assertRepoAccess, HttpError, type AuthedUser } from "../auth.js";
-import { searchMemories, writeAuditLog } from "../services/memory.js";
+import { searchMemories, writeAuditLog, getAutoThresholds, statusFor } from "../services/memory.js";
 import { recordUsage } from "../services/analytics.js";
 import { loadDedupSet, partitionNew, findDuplicate, similarity, DUP_THRESHOLD } from "../services/dedup.js";
 
@@ -170,9 +170,17 @@ export async function memoryRoutes(app: FastifyInstance) {
     // doesn't fill with repeats (the SessionEnd hook proposes every session).
     const existing = await loadDedupSet(repoId);
     const { fresh, skipped } = partitionNew(existing, body.memories);
+    const thresholds = await getAutoThresholds(repo.workspaceId);
+    let autoApproved = 0;
+    let autoRejected = 0;
+    let proposedCount = 0;
     await prisma.$transaction(
-      fresh.map((m) =>
-        prisma.memory.create({
+      fresh.map((m) => {
+        const status = statusFor(thresholds, m.confidence);
+        if (status === "approved") autoApproved++;
+        else if (status === "rejected") autoRejected++;
+        else proposedCount++;
+        return prisma.memory.create({
           data: {
             repoId,
             type: m.type,
@@ -181,19 +189,19 @@ export async function memoryRoutes(app: FastifyInstance) {
             paths: m.paths ?? [],
             scope: "repo",
             confidence: m.confidence,
-            status: "proposed",
+            status,
             source: "claude_code",
             evidence: m.evidence ? { create: [{ kind: "agent", content: m.evidence }] } : undefined,
           },
-        }),
-      ),
+        });
+      }),
     );
     await recordUsage("memory.created", {
       workspaceId: repo.workspaceId,
       repoId,
-      metadata: { count: fresh.length, skipped, via: "agent" },
+      metadata: { count: fresh.length, skipped, autoApproved, autoRejected, via: "agent" },
     });
-    return reply.code(201).send({ proposedCount: fresh.length, skipped });
+    return reply.code(201).send({ proposedCount, skipped, autoApproved, autoRejected });
   });
 
   app.patch("/memories/:memoryId", async (req, reply) => {

@@ -45,6 +45,8 @@ export interface WorkspaceDetail {
   slug: string;
   joinCode: string;
   hasAnthropicKey?: boolean;
+  autoApproveThreshold?: number | null;
+  autoRejectThreshold?: number | null;
   repos: { id: string; fullName: string; _count?: { memories: number } }[];
   memberships: {
     role: string;

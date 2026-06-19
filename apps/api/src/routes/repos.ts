@@ -12,6 +12,7 @@ import {
 import { getWorkspaceKey } from "../services/llm.js";
 import { recordUsage } from "../services/analytics.js";
 import { loadDedupSet, partitionNew } from "../services/dedup.js";
+import { getAutoThresholds, statusFor } from "../services/memory.js";
 
 /** Decode a GitHub contents/readme API payload (base64) to UTF-8 text. */
 function decodeGhContent(json: unknown): string | null {
@@ -227,6 +228,7 @@ export async function repoRoutes(app: FastifyInstance) {
 
     // Drop drafts that duplicate existing proposed/approved memories.
     const { fresh: freshDrafts } = partitionNew(await loadDedupSet(repoId), drafts);
+    const thresholds = await getAutoThresholds(repo.workspaceId);
     if (freshDrafts.length > 0) {
       await prisma.$transaction(
         freshDrafts.map((d) =>
@@ -239,7 +241,7 @@ export async function repoRoutes(app: FastifyInstance) {
               paths: d.paths ?? [],
               scope: "repo",
               confidence: d.confidence,
-              status: "proposed",
+              status: statusFor(thresholds, d.confidence),
               source: "repo_scan",
               evidence: d.evidence ? { create: [{ kind: "scan", content: d.evidence }] } : undefined,
             },

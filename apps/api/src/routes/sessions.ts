@@ -7,6 +7,7 @@ import { extractMemories } from "../services/extract.js";
 import { getWorkspaceKey } from "../services/llm.js";
 import { recordUsage } from "../services/analytics.js";
 import { loadDedupSet, partitionNew } from "../services/dedup.js";
+import { getAutoThresholds, statusFor } from "../services/memory.js";
 
 function handle(reply: import("fastify").FastifyReply, e: unknown) {
   if (e instanceof HttpError) return reply.code(e.statusCode).send({ error: e.message });
@@ -55,6 +56,7 @@ export async function sessionRoutes(app: FastifyInstance) {
     const apiKey = await getWorkspaceKey(repo.workspaceId);
     const extracted = await extractMemories(body, apiKey);
     const { fresh } = partitionNew(await loadDedupSet(repoId), extracted);
+    const thresholds = await getAutoThresholds(repo.workspaceId);
     const proposed = await Promise.all(
       fresh.map((m) =>
         prisma.memory.create({
@@ -65,7 +67,7 @@ export async function sessionRoutes(app: FastifyInstance) {
             content: m.content,
             scope: "repo",
             confidence: m.confidence,
-            status: "proposed",
+            status: statusFor(thresholds, m.confidence),
             source: "claude_code_session",
             evidence: m.evidence
               ? { create: [{ kind: "session", content: m.evidence }] }

@@ -129,7 +129,7 @@ export async function workspaceRoutes(app: FastifyInstance) {
     return { ...rest, hasAnthropicKey: Boolean(anthropicKey) };
   });
 
-  // Rename a workspace (owners only).
+  // Update workspace settings — name and/or auto-approve threshold (owners only).
   app.patch("/workspaces/:workspaceId", async (req, reply) => {
     const user = await resolveUser(req);
     if (!user) return reply.code(401).send({ error: "Unauthorized" });
@@ -142,10 +142,25 @@ export async function workspaceRoutes(app: FastifyInstance) {
       throw e;
     }
     const body = updateWorkspaceSchema.parse(req.body);
+    const data: {
+      name?: string;
+      autoApproveThreshold?: number | null;
+      autoRejectThreshold?: number | null;
+    } = {};
+    if (body.name !== undefined) data.name = body.name;
+    if (body.autoApproveThreshold !== undefined) data.autoApproveThreshold = body.autoApproveThreshold;
+    if (body.autoRejectThreshold !== undefined) data.autoRejectThreshold = body.autoRejectThreshold;
     const ws = await prisma.workspace.update({
       where: { id: workspaceId },
-      data: { name: body.name },
-      select: { id: true, name: true, slug: true, joinCode: true },
+      data,
+      select: {
+        id: true,
+        name: true,
+        slug: true,
+        joinCode: true,
+        autoApproveThreshold: true,
+        autoRejectThreshold: true,
+      },
     });
     return ws;
   });
