@@ -15,13 +15,24 @@ interface RepoContextResult {
   recommendedCommands: string[];
 }
 
-export async function mcpCommand() {
+export async function mcpCommand(opts: { repo?: string; api?: string } = {}) {
   const creds = loadCredentials();
-  const config = loadProjectConfig();
   if (!creds) throw new Error("Not logged in. Run `cortex login` first.");
-  if (!config) throw new Error("Repo not initialized. Run `cortex init` first.");
 
-  const client = { baseUrl: config.apiBaseUrl ?? creds.apiBaseUrl, token: creds.token };
+  // Repo + API can come from flags or env (for Claude Desktop, which has no
+  // per-repo working directory), falling back to .cortex/config.json (Claude Code).
+  const fileConfig = loadProjectConfig();
+  const repoId = opts.repo ?? process.env.CORTEX_REPO_ID ?? fileConfig?.repoId;
+  const baseUrl =
+    opts.api ?? process.env.CORTEX_API_URL ?? fileConfig?.apiBaseUrl ?? creds.apiBaseUrl;
+  if (!repoId) {
+    throw new Error(
+      "No repo configured. Run `cortex init` in your repo, or pass --repo <repoId> (or set CORTEX_REPO_ID) — e.g. for the Claude Desktop config.",
+    );
+  }
+
+  const config = { repoId, apiBaseUrl: baseUrl };
+  const client = { baseUrl, token: creds.token };
 
   const server = new McpServer({ name: "cortex", version: VERSION });
 

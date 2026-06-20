@@ -8,6 +8,7 @@ import { scanCommand } from "./commands/scan.js";
 import { hookCommand } from "./commands/hook.js";
 import { statusCommand } from "./commands/status.js";
 import { uninstallCommand } from "./commands/uninstall.js";
+import { chatCommand } from "./commands/chat.js";
 import { VERSION } from "./version.js";
 
 const program = new Command();
@@ -41,8 +42,10 @@ program
 
 program
   .command("mcp")
-  .description("Run the Cortex MCP stdio server (used by Claude Code)")
-  .action(() => run(() => mcpCommand()));
+  .description("Run the Cortex MCP stdio server (used by Claude Code / Claude Desktop)")
+  .option("-r, --repo <repoId>", "Repo to serve (for Claude Desktop; defaults to .cortex/config.json)")
+  .option("--api <url>", "API base URL")
+  .action((opts) => run(() => mcpCommand(opts)));
 
 program
   .command("scan")
@@ -50,6 +53,11 @@ program
   .option("--agent", "Deep scan with local Claude Code (no API key, uses your subscription)")
   .option("--server", "Scan on the server from GitHub (uses the workspace Anthropic key)")
   .action((opts) => run(() => scanCommand(opts)));
+
+program
+  .command("chat [question...]")
+  .description("Chat with this repo's memory using your own Anthropic (key or Claude subscription)")
+  .action((question: string[]) => run(() => chatCommand(question)));
 
 program
   .command("status")

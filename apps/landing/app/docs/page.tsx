@@ -80,7 +80,7 @@ export default function DocsPage() {
           <Code>{`.cortex/config.json          # repo link
 CLAUDE.md                       # guidance for the agent
 .mcp.json                       # registers the Cortex MCP server
-.claude/hooks/*                 # session + before-edit hooks`}</Code>
+.claude/settings.json           # SessionStart / PreToolUse / SessionEnd hooks`}</Code>
         </Step>
 
         <Step n={5} title="Use it in Claude Code">
@@ -96,7 +96,27 @@ get_repo_context()        → stack, commands, risks, warnings`}</Code>
           </p>
         </Step>
 
-        <Step n={6} title="Review & approve memory">
+        <Step n={6} title="Use it in Claude Desktop (optional)">
+          <p>
+            Claude Desktop runs MCP servers globally, so tell Cortex which repo to serve with{" "}
+            <code>--repo</code> (the repo ID is on its dashboard page). Add it to your Claude Desktop
+            config:
+          </p>
+          <Code>{`// macOS: ~/Library/Application Support/Claude/claude_desktop_config.json
+{
+  "mcpServers": {
+    "cortex": { "command": "cortex", "args": ["mcp", "--repo", "<repoId>"] }
+  }
+}`}</Code>
+          <p>
+            Restart Claude Desktop and the <code>search_memory</code> / <code>get_repo_context</code>{" "}
+            / <code>propose_memories</code> tools become available. Note: the automatic hooks
+            (context injection, risk warnings, session capture) are Claude Code-only — Desktop gets
+            the manual tools.
+          </p>
+        </Step>
+
+        <Step n={7} title="Review & approve memory">
           <p>
             Manage memory in the web app — review the inbox, approve or reject proposals, and browse
             the approved library. Approved memories are the only ones exposed to agents.
