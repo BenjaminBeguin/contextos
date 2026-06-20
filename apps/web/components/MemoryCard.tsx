@@ -14,7 +14,10 @@ export function MemoryCard({ memory }: { memory: Memory }) {
   const [type, setType] = useState(memory.type);
   const [paths, setPaths] = useState((memory.paths ?? []).join(", "));
 
-  const invalidate = () => qc.invalidateQueries({ queryKey: ["memories", memory.repoId] });
+  const invalidate = () => {
+    qc.invalidateQueries({ queryKey: ["memories"] });
+    qc.invalidateQueries({ queryKey: ["workspace-memories"] });
+  };
 
   const setStatus = useMutation({
     mutationFn: (action: "approve" | "reject" | "archive") =>

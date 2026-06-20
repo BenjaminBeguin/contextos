@@ -56,6 +56,54 @@ export async function workspaceRoutes(app: FastifyInstance) {
     return memories.map((m) => ({ ...m, repoFullName: repoName.get(m.repoId) ?? "" }));
   });
 
+  // All agent sessions across the project's repos (for the project Sessions tab).
+  app.get("/workspaces/:workspaceId/sessions", async (req, reply) => {
+    const user = await resolveUser(req);
+    if (!user) return reply.code(401).send({ error: "Unauthorized" });
+    const { workspaceId } = req.params as { workspaceId: string };
+    try {
+      await assertWorkspaceAccess(user.id, workspaceId);
+    } catch (e) {
+      if (e instanceof HttpError) return reply.code(e.statusCode).send({ error: e.message });
+      throw e;
+    }
+    const repos = await prisma.repo.findMany({
+      where: { workspaceId },
+      select: { id: true, fullName: true },
+    });
+    const repoName = new Map(repos.map((r) => [r.id, r.fullName]));
+    const sessions = await prisma.agentSession.findMany({
+      where: { repoId: { in: repos.map((r) => r.id) } },
+      orderBy: { createdAt: "desc" },
+      take: 50,
+      include: { _count: { select: { events: true } } },
+    });
+    return sessions.map((s) => ({ ...s, repoFullName: repoName.get(s.repoId) ?? "" }));
+  });
+
+  // All generated docs across the project's repos (for the project Docs tab).
+  app.get("/workspaces/:workspaceId/docs", async (req, reply) => {
+    const user = await resolveUser(req);
+    if (!user) return reply.code(401).send({ error: "Unauthorized" });
+    const { workspaceId } = req.params as { workspaceId: string };
+    try {
+      await assertWorkspaceAccess(user.id, workspaceId);
+    } catch (e) {
+      if (e instanceof HttpError) return reply.code(e.statusCode).send({ error: e.message });
+      throw e;
+    }
+    const repos = await prisma.repo.findMany({
+      where: { workspaceId },
+      select: { id: true, fullName: true },
+    });
+    const repoName = new Map(repos.map((r) => [r.id, r.fullName]));
+    const docs = await prisma.generatedDoc.findMany({
+      where: { repoId: { in: repos.map((r) => r.id) } },
+      orderBy: { updatedAt: "desc" },
+    });
+    return docs.map((d) => ({ ...d, repoFullName: repoName.get(d.repoId) ?? "" }));
+  });
+
   app.get("/workspaces", async (req, reply) => {
     const user = await resolveUser(req);
     if (!user) return reply.code(401).send({ error: "Unauthorized" });
