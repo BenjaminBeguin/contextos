@@ -33,7 +33,17 @@ import {
 type WsSession = AgentSessionSummary & { repoId: string; repoFullName: string };
 type WsDoc = GeneratedDoc & { repoFullName: string };
 
-const TABS = ["Overview", "Repos", "Memory", "Risks", "Sessions", "Docs", "Setup", "Settings"] as const;
+const TABS = [
+  "Overview",
+  "Repos",
+  "Memory",
+  "Risks",
+  "Sessions",
+  "Docs",
+  "Tools",
+  "Setup",
+  "Settings",
+] as const;
 type Tab = (typeof TABS)[number];
 
 export default function ProjectPage({ params }: { params: Promise<{ workspaceId: string }> }) {
@@ -110,6 +120,7 @@ function Project({ workspaceId }: { workspaceId: string }) {
         {tab === "Risks" ? <RisksTab workspaceId={workspaceId} repoId={repoFilter} /> : null}
         {tab === "Sessions" ? <SessionsTab workspaceId={workspaceId} repoId={repoFilter} /> : null}
         {tab === "Docs" ? <DocsTab workspaceId={workspaceId} repoId={repoFilter} /> : null}
+        {tab === "Tools" ? <ToolsTab /> : null}
         {tab === "Setup" ? <SetupTab /> : null}
         {tab === "Settings" ? <ProjectSettings workspaceId={workspaceId} isOwner={isOwner} /> : null}
       </div>
@@ -312,6 +323,27 @@ function DocsTab({ workspaceId, repoId }: { workspaceId: string; repoId: string 
             <p className="mt-1 text-xs text-[var(--muted)]">
               {d.type} · updated {timeAgo(d.updatedAt)}
             </p>
+          </Card>
+        </Link>
+      ))}
+    </div>
+  );
+}
+
+function ToolsTab() {
+  const tools = [
+    { href: "/search", title: "Search", desc: "Full-text search across every memory in the project." },
+    { href: "/chat", title: "Chat", desc: "Ask questions grounded in the project's approved memory." },
+    { href: "/graph", title: "Graph", desc: "Visualize repos, memories, and sessions as a network." },
+    { href: "/usage", title: "Usage", desc: "Retrieval activity and memory metrics for the project." },
+  ];
+  return (
+    <div className="grid gap-4 sm:grid-cols-2">
+      {tools.map((t) => (
+        <Link key={t.href} href={t.href} className="group">
+          <Card hover className="h-full p-5">
+            <h3 className="font-semibold transition group-hover:text-[var(--accent)]">{t.title}</h3>
+            <p className="mt-1 text-sm text-[var(--muted)]">{t.desc}</p>
           </Card>
         </Link>
       ))}
