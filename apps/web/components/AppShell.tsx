@@ -8,13 +8,9 @@ import { Button, cn, Spinner } from "./ui";
 import { WorkspaceSwitcher } from "./WorkspaceSwitcher";
 
 const NAV = [
-  { href: "/dashboard", label: "Dashboard", match: ["/dashboard", "/repos"] },
-  { href: "/search", label: "Search", match: ["/search"] },
-  { href: "/graph", label: "Graph", match: ["/graph"] },
-  { href: "/chat", label: "Chat", match: ["/chat"] },
-  { href: "/usage", label: "Usage", match: ["/usage"] },
-  { href: "/setup", label: "Setup", match: ["/setup"] },
-  { href: "/settings", label: "Settings", match: ["/settings"] },
+  { href: "/dashboard", label: "Projects", match: ["/dashboard", "/projects", "/repos", "/settings"] },
+  { href: "/account", label: "Account", match: ["/account"] },
+  { href: "/docs", label: "Documentation", match: ["/docs"] },
 ];
 
 export function AppShell({ children }: { children: React.ReactNode }) {

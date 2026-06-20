@@ -3,11 +3,11 @@
 import { useState } from "react";
 import Link from "next/link";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { api, API_BASE_URL, type Me, type WorkspaceDetail, type ApiTokenInfo } from "../../lib/api";
+import { api, type Me, type WorkspaceDetail } from "../../lib/api";
 import { AppShell } from "../../components/AppShell";
 import { useActiveWorkspace } from "../../lib/workspace";
 import { CopyButton } from "../../components/CopyButton";
-import { Button, Card, Code, Input } from "../../components/ui";
+import { Button, Card, Input, PageHeader } from "../../components/ui";
 
 export default function SettingsPage() {
   return (
@@ -36,27 +36,23 @@ function Settings() {
 
   return (
     <div className="max-w-3xl">
-      <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-semibold">Settings</h1>
-        <span className="text-sm text-[var(--muted)]">
-          Editing <span className="text-white">{me?.workspaces.find((w) => w.id === activeWs)?.name}</span>
-          {" "}· switch workspace in the top bar
-        </span>
-      </div>
-
+      <PageHeader
+        title="Project settings"
+        description={
+          <>
+            Settings for{" "}
+            <span className="text-white">{me?.workspaces.find((w) => w.id === activeWs)?.name}</span>{" "}
+            — switch project in the top bar. Your account settings live under{" "}
+            <Link href="/account" className="text-[var(--accent)]">
+              Account
+            </Link>
+            .
+          </>
+        }
+      />
       {activeWs ? (
         <WorkspaceSettings key={activeWs} workspaceId={activeWs} isOwner={isOwner} />
       ) : null}
-
-      <div className="mt-10 border-t border-[var(--border)] pt-6">
-        <h2 className="text-lg font-semibold">Account</h2>
-        <p className="mt-1 text-sm text-[var(--muted)]">
-          These apply to you across every workspace — they aren&apos;t tied to the workspace
-          selected above.
-        </p>
-      </div>
-      <GitHubCard me={me} />
-      <TokensCard />
     </div>
   );
 }
@@ -384,93 +380,3 @@ function TriageRow({
   );
 }
 
-function GitHubCard({ me }: { me?: Me }) {
-  return (
-    <Card className="mt-6 p-6">
-      <h2 className="font-semibold">Connections</h2>
-      <div className="mt-4 flex items-center justify-between">
-        <div>
-          <p className="text-sm">GitHub</p>
-          <p className="text-xs text-[var(--muted)]">
-            {me?.githubConnected
-              ? "Connected — used for the repo picker."
-              : "Not connected. Connect to list your repositories."}
-          </p>
-        </div>
-        <a
-          href={`${API_BASE_URL}/auth/github/login`}
-          className="rounded-lg border border-[var(--border)] px-3 py-1.5 text-sm hover:bg-white/5"
-        >
-          {me?.githubConnected ? "Reconnect" : "Connect GitHub"}
-        </a>
-      </div>
-    </Card>
-  );
-}
-
-function TokensCard() {
-  const qc = useQueryClient();
-  const { data: tokens } = useQuery({
-    queryKey: ["tokens"],
-    queryFn: () => api<ApiTokenInfo[]>("/auth/tokens"),
-  });
-  const [newToken, setNewToken] = useState<string | null>(null);
-
-  const create = useMutation({
-    mutationFn: () => api<{ token: string }>("/auth/tokens", { method: "POST", body: "{}" }),
-    onSuccess: (d) => {
-      setNewToken(d.token);
-      qc.invalidateQueries({ queryKey: ["tokens"] });
-    },
-  });
-  const revoke = useMutation({
-    mutationFn: (id: string) => api(`/auth/tokens/${id}`, { method: "DELETE" }),
-    onSuccess: () => qc.invalidateQueries({ queryKey: ["tokens"] }),
-  });
-
-  return (
-    <Card className="mt-6 p-6">
-      <div className="flex items-center justify-between">
-        <div>
-          <h2 className="font-semibold">API tokens</h2>
-          <p className="text-xs text-[var(--muted)]">
-            Used by the CLI and MCP server. One token authenticates you across all your workspaces.
-          </p>
-        </div>
-        <Button onClick={() => create.mutate()} disabled={create.isPending}>
-          {create.isPending ? "Creating…" : "New token"}
-        </Button>
-      </div>
-
-      {newToken ? (
-        <div className="mt-4">
-          <div className="mb-1 flex items-center justify-between">
-            <p className="text-xs text-yellow-300">Copy it now — it won&apos;t be shown again.</p>
-            <CopyButton value={newToken} />
-          </div>
-          <Code>{newToken}</Code>
-        </div>
-      ) : null}
-
-      <ul className="mt-4 space-y-2">
-        {tokens?.length === 0 ? (
-          <li className="text-sm text-[var(--muted)]">No tokens yet.</li>
-        ) : null}
-        {tokens?.map((t) => (
-          <li key={t.id} className="flex items-center justify-between text-sm">
-            <span>
-              {t.name}{" "}
-              <span className="text-xs text-[var(--muted)]">
-                · created {new Date(t.createdAt).toLocaleDateString()}
-                {t.lastUsedAt ? ` · last used ${new Date(t.lastUsedAt).toLocaleDateString()}` : ""}
-              </span>
-            </span>
-            <Button variant="danger" onClick={() => revoke.mutate(t.id)} disabled={revoke.isPending}>
-              Revoke
-            </Button>
-          </li>
-        ))}
-      </ul>
-    </Card>
-  );
-}

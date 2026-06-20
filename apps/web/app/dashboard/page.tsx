@@ -135,28 +135,38 @@ function Workspaces({ me }: { me: Me }) {
   return (
     <div>
       <PageHeader
-        title="Dashboard"
+        title="Projects"
         description={
           <span className="flex flex-wrap items-center gap-2">
             <span>
-              Workspace: <span className="text-white">{workspace.name}</span> · {workspace.role}
+              Project: <span className="text-white">{workspace.name}</span> · {workspace.role}
             </span>
             <button
               onClick={() => setShowWsForm((v) => !v)}
               className="rounded-md border border-[var(--border)] px-2 py-0.5 text-xs transition hover:border-[var(--accent)] hover:text-white"
             >
-              {showWsForm ? "Cancel" : "+ New workspace"}
+              {showWsForm ? "Cancel" : "+ New project"}
             </button>
           </span>
         }
-        actions={<Button onClick={() => setShowForm((v) => !v)}>Add repo</Button>}
+        actions={
+          <>
+            <Link
+              href="/settings"
+              className="rounded-lg border border-[var(--border)] px-3.5 py-2 text-sm transition hover:bg-white/5 hover:border-[var(--border-strong)]"
+            >
+              Project settings
+            </Link>
+            <Button onClick={() => setShowForm((v) => !v)}>Add repo</Button>
+          </>
+        }
       />
 
       {showWsForm ? (
         <Card className="mt-6 p-6">
-          <h2 className="font-semibold">New workspace</h2>
+          <h2 className="font-semibold">New project</h2>
           <p className="mt-1 text-sm text-[var(--muted)]">
-            Create a separate workspace for another team or project, or join one with its code.
+            Create a separate project for another team, or join one with its code.
           </p>
           <div className="mt-4">
             <WorkspaceForms
