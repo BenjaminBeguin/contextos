@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { MEMORY_TYPES } from "@cortex/shared";
-import { api, isStaleMemory, STALE_DAYS, type Memory } from "../lib/api";
+import { api, isStaleMemory, STALE_DAYS, timeAgo, type Memory } from "../lib/api";
 import { Badge, StatusBadge, Button, Card } from "./ui";
 
 export function MemoryCard({ memory }: { memory: Memory }) {
@@ -121,6 +121,12 @@ export function MemoryCard({ memory }: { memory: Memory }) {
             ) : null}
             <span className="text-xs text-[var(--muted)]">
               conf {Math.round(memory.confidence * 100)}%
+            </span>
+            <span
+              className="text-xs text-[var(--faint)]"
+              title={new Date(memory.createdAt).toLocaleString()}
+            >
+              · {timeAgo(memory.createdAt)}
             </span>
           </div>
           <h3 className="font-semibold">{memory.title}</h3>
