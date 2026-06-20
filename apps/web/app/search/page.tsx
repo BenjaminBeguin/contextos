@@ -6,6 +6,7 @@ import { useQuery } from "@tanstack/react-query";
 import { MEMORY_STATUSES, MEMORY_TYPES } from "@cortex/shared";
 import { api, isStaleMemory, type Me, type WorkspaceMemory } from "../../lib/api";
 import { AppShell } from "../../components/AppShell";
+import { ToolBreadcrumb } from "../../components/ToolBreadcrumb";
 import { useActiveWorkspace } from "../../lib/workspace";
 import {
   Badge,
@@ -58,10 +59,8 @@ function Search() {
 
   return (
     <div>
-      <PageHeader
-        title="Search memory"
-        description="Across every repo in the workspace."
-      />
+      <ToolBreadcrumb section="Search" />
+      <PageHeader title="Search memory" description="Across every repo in this project." />
 
       <div className="flex flex-wrap items-center gap-2">
         <Input

@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation";
 import { useQuery } from "@tanstack/react-query";
 import { api, type GraphData, type GraphNode } from "../../lib/api";
 import { AppShell } from "../../components/AppShell";
+import { ToolBreadcrumb } from "../../components/ToolBreadcrumb";
 import { useActiveWorkspace } from "../../lib/workspace";
 
 export default function GraphPage() {
@@ -293,6 +294,7 @@ function Graph() {
 
   return (
     <div>
+      <ToolBreadcrumb section="Graph" />
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-semibold">Knowledge graph</h1>

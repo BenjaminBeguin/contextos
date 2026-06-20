@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useQuery } from "@tanstack/react-query";
 import { api, type Me, type WorkspaceMetrics } from "../../lib/api";
 import { AppShell } from "../../components/AppShell";
+import { ToolBreadcrumb } from "../../components/ToolBreadcrumb";
 import { useActiveWorkspace } from "../../lib/workspace";
 import { Card, PageHeader, Skeleton } from "../../components/ui";
 
@@ -38,7 +39,8 @@ function Usage() {
 
   return (
     <div>
-      <PageHeader title="Usage" description="How your team is using Cortex." />
+      <ToolBreadcrumb section="Usage" />
+      <PageHeader title="Usage" description="How your team is using this project." />
 
       {isLoading || !metrics ? (
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">

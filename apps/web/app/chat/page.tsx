@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useQuery } from "@tanstack/react-query";
 import { api, type Me, type ChatResponse, type ChatSource } from "../../lib/api";
 import { AppShell } from "../../components/AppShell";
+import { ToolBreadcrumb } from "../../components/ToolBreadcrumb";
 import { useActiveWorkspace } from "../../lib/workspace";
 import { Markdown } from "../../components/Markdown";
 import { Button, Card, Input, PageHeader } from "../../components/ui";
@@ -67,9 +68,10 @@ function Chat() {
 
   return (
     <div className="mx-auto flex h-[calc(100vh-140px)] max-w-3xl flex-col">
+      <ToolBreadcrumb section="Chat" />
       <PageHeader
         title="Chat with your memory"
-        description="Answers are grounded in this workspace's approved memories."
+        description="Answers are grounded in this project's approved memories."
       />
 
       <div className="flex-1 space-y-4 overflow-y-auto pr-1">
