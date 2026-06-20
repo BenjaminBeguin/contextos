@@ -37,8 +37,11 @@ export function RepoNav({ repoId }: { repoId: string }) {
   return (
     <div className="mb-6">
       <div className="mb-3 flex items-center gap-2 text-sm">
-        <Link href="/dashboard" className="text-[var(--muted)] hover:text-white">
-          {repo?.workspace?.name ?? "Workspace"}
+        <Link
+          href={repo?.workspaceId ? `/projects/${repo.workspaceId}` : "/dashboard"}
+          className="text-[var(--muted)] hover:text-white"
+        >
+          {repo?.workspace?.name ?? "Project"}
         </Link>
         <span className="text-[var(--muted)]">/</span>
         <span className="font-medium text-white">{repo?.fullName ?? repoId}</span>
