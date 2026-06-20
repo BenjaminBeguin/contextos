@@ -6,6 +6,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { api, type Me, type RepoSummary, type Workspace } from "../../lib/api";
 import { AppShell } from "../../components/AppShell";
 import { useActiveWorkspace } from "../../lib/workspace";
+import { projectColor } from "../../lib/projectColor";
 import { Button, Card, Input, PageHeader } from "../../components/ui";
 
 export default function DashboardPage() {
@@ -144,9 +145,19 @@ function ProjectsList({ me }: { me: Me }) {
       <div className="mt-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
         {me.workspaces.map((w) => (
           <Link key={w.id} href={`/projects/${w.id}`} className="group" onClick={() => setActiveId(w.id)}>
-            <Card hover className="h-full p-5">
+            <Card hover className="h-full overflow-hidden p-5">
+              <div
+                className="-mx-5 -mt-5 mb-4 h-1.5"
+                style={{ background: projectColor(w.id).color }}
+              />
               <div className="flex items-center justify-between gap-2">
-                <h3 className="font-semibold transition group-hover:text-[var(--accent)]">{w.name}</h3>
+                <h3 className="flex items-center gap-2 font-semibold transition group-hover:text-[var(--accent)]">
+                  <span
+                    className="inline-block h-2.5 w-2.5 shrink-0 rounded-full"
+                    style={{ background: projectColor(w.id).color }}
+                  />
+                  {w.name}
+                </h3>
                 <span className="shrink-0 text-xs text-[var(--muted)]">{w.role}</span>
               </div>
               <p className="mt-1 text-xs text-[var(--muted)]">{repoCount(w.slug)} repos</p>

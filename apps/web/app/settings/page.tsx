@@ -5,6 +5,7 @@ import { useQuery } from "@tanstack/react-query";
 import { api, type Me } from "../../lib/api";
 import { AppShell } from "../../components/AppShell";
 import { useActiveWorkspace } from "../../lib/workspace";
+import { projectColor } from "../../lib/projectColor";
 import { ProjectSettings } from "../../components/ProjectSettings";
 import { PageHeader } from "../../components/ui";
 
@@ -36,6 +37,7 @@ function Settings() {
   return (
     <div className="max-w-3xl">
       <PageHeader
+        accent={projectColor(activeWs).color}
         title="Project settings"
         description={
           <>

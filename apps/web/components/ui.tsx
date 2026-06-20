@@ -229,15 +229,27 @@ export function PageHeader({
   title,
   description,
   actions,
+  accent,
 }: {
   title: string;
   description?: ReactNode;
   actions?: ReactNode;
+  /** Optional project color — renders a colored dot before the title. */
+  accent?: string;
 }) {
   return (
     <div className="mb-6 flex flex-wrap items-start justify-between gap-3">
       <div>
-        <h1 className="text-2xl font-semibold tracking-tight">{title}</h1>
+        <h1 className="flex items-center gap-2.5 text-2xl font-semibold tracking-tight">
+          {accent ? (
+            <span
+              className="inline-block h-3 w-3 shrink-0 rounded-full"
+              style={{ background: accent, boxShadow: `0 0 12px ${accent}` }}
+              aria-hidden
+            />
+          ) : null}
+          {title}
+        </h1>
         {description ? <p className="mt-1 text-sm text-[var(--muted)]">{description}</p> : null}
       </div>
       {actions ? <div className="flex items-center gap-2">{actions}</div> : null}

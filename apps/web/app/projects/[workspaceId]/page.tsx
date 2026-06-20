@@ -17,6 +17,7 @@ import { AppShell } from "../../../components/AppShell";
 import { MemoryCard } from "../../../components/MemoryCard";
 import { ProjectSettings } from "../../../components/ProjectSettings";
 import { useActiveWorkspace } from "../../../lib/workspace";
+import { projectColor } from "../../../lib/projectColor";
 import {
   Badge,
   Button,
@@ -76,6 +77,7 @@ function Project({ workspaceId }: { workspaceId: string }) {
   return (
     <div>
       <PageHeader
+        accent={projectColor(workspaceId).color}
         title={ws?.name ?? "Project"}
         description={`${repos.length} repo${repos.length === 1 ? "" : "s"} · ${role ?? "member"}`}
       />
