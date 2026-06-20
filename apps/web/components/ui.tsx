@@ -5,6 +5,7 @@ import type {
   SelectHTMLAttributes,
   TextareaHTMLAttributes,
 } from "react";
+import Link from "next/link";
 
 /** Tiny class joiner. */
 export function cn(...parts: (string | false | null | undefined)[]): string {
@@ -222,6 +223,53 @@ export function EmptyState({
       ) : null}
       {action ? <div className="mt-4">{action}</div> : null}
     </div>
+  );
+}
+
+export interface Crumb {
+  label: string;
+  href?: string;
+  /** Optional color dot (used for the project segment). */
+  color?: string;
+}
+
+/** Location path: `Projects / ● Project / repo`. The last item is the current page. */
+export function Breadcrumb({ items }: { items: Crumb[] }) {
+  return (
+    <nav className="mb-3 flex flex-wrap items-center gap-1.5 text-sm">
+      {items.map((it, i) => {
+        const last = i === items.length - 1;
+        const inner = (
+          <span
+            className={cn(
+              "inline-flex items-center gap-1.5",
+              last ? "font-medium text-white" : "text-[var(--muted)]",
+            )}
+          >
+            {it.color ? (
+              <span
+                className="inline-block h-2 w-2 shrink-0 rounded-full"
+                style={{ background: it.color }}
+                aria-hidden
+              />
+            ) : null}
+            {it.label}
+          </span>
+        );
+        return (
+          <span key={i} className="inline-flex items-center gap-1.5">
+            {i > 0 ? <span className="text-[var(--faint)]">/</span> : null}
+            {it.href && !last ? (
+              <Link href={it.href} className="transition hover:text-white">
+                {inner}
+              </Link>
+            ) : (
+              inner
+            )}
+          </span>
+        );
+      })}
+    </nav>
   );
 }
 

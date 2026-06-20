@@ -20,6 +20,7 @@ import { useActiveWorkspace } from "../../../lib/workspace";
 import { projectColor } from "../../../lib/projectColor";
 import {
   Badge,
+  Breadcrumb,
   Button,
   Card,
   Code,
@@ -76,8 +77,13 @@ function Project({ workspaceId }: { workspaceId: string }) {
 
   return (
     <div>
+      <Breadcrumb
+        items={[
+          { label: "Projects", href: "/dashboard" },
+          { label: ws?.name ?? "Project", color: projectColor(workspaceId).color },
+        ]}
+      />
       <PageHeader
-        accent={projectColor(workspaceId).color}
         title={ws?.name ?? "Project"}
         description={`${repos.length} repo${repos.length === 1 ? "" : "s"} · ${role ?? "member"}`}
       />

@@ -7,7 +7,7 @@ import { AppShell } from "../../components/AppShell";
 import { useActiveWorkspace } from "../../lib/workspace";
 import { projectColor } from "../../lib/projectColor";
 import { ProjectSettings } from "../../components/ProjectSettings";
-import { PageHeader } from "../../components/ui";
+import { Breadcrumb, PageHeader } from "../../components/ui";
 
 export default function SettingsPage() {
   return (
@@ -34,16 +34,22 @@ function Settings() {
     );
   }
 
+  const projectName = me?.workspaces.find((w) => w.id === activeWs)?.name;
+
   return (
     <div className="max-w-3xl">
+      <Breadcrumb
+        items={[
+          { label: "Projects", href: "/dashboard" },
+          { label: projectName ?? "Project", href: `/projects/${activeWs}`, color: projectColor(activeWs).color },
+          { label: "Settings" },
+        ]}
+      />
       <PageHeader
-        accent={projectColor(activeWs).color}
         title="Project settings"
         description={
           <>
-            Settings for{" "}
-            <span className="text-white">{me?.workspaces.find((w) => w.id === activeWs)?.name}</span>{" "}
-            — switch project in the top bar. Your account settings live under{" "}
+            Your account settings live under{" "}
             <Link href="/account" className="text-[var(--accent)]">
               Account
             </Link>

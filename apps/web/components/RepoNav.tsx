@@ -6,6 +6,8 @@ import { usePathname } from "next/navigation";
 import { useQuery } from "@tanstack/react-query";
 import { api } from "../lib/api";
 import { setActiveWorkspaceId } from "../lib/workspace";
+import { projectColor } from "../lib/projectColor";
+import { Breadcrumb } from "./ui";
 
 interface RepoHeader {
   fullName?: string;
@@ -36,16 +38,17 @@ export function RepoNav({ repoId }: { repoId: string }) {
   ];
   return (
     <div className="mb-6">
-      <div className="mb-3 flex items-center gap-2 text-sm">
-        <Link
-          href={repo?.workspaceId ? `/projects/${repo.workspaceId}` : "/dashboard"}
-          className="text-[var(--muted)] hover:text-white"
-        >
-          {repo?.workspace?.name ?? "Project"}
-        </Link>
-        <span className="text-[var(--muted)]">/</span>
-        <span className="font-medium text-white">{repo?.fullName ?? repoId}</span>
-      </div>
+      <Breadcrumb
+        items={[
+          { label: "Projects", href: "/dashboard" },
+          {
+            label: repo?.workspace?.name ?? "Project",
+            href: repo?.workspaceId ? `/projects/${repo.workspaceId}` : "/dashboard",
+            color: projectColor(repo?.workspaceId).color,
+          },
+          { label: repo?.fullName ?? repoId },
+        ]}
+      />
       <nav className="flex gap-1 border-b border-[var(--border)]">
         {tabs.map((t) => {
           const active = pathname === t.href;
