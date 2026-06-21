@@ -105,7 +105,6 @@ async function agentScan(
   // strip those vars and let it use the logged-in (`claude login`) credentials.
   const childEnv = { ...process.env };
   delete childEnv.ANTHROPIC_API_KEY;
-  delete childEnv.ANTHROPIC_AUTH_TOKEN;
 
   const code = await new Promise<number>((resolve, reject) => {
     const child = spawn(claudeBin, args, { cwd, stdio: "inherit", env: childEnv });

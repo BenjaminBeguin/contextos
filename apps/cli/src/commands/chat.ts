@@ -74,11 +74,11 @@ async function answerWithKey(apiKey: string, context: string, question: string):
 
 async function answerWithClaude(claudeBin: string, context: string, question: string): Promise<void> {
   const prompt = `${SYSTEM}\n\n${context}\n\nQuestion: ${question}`;
-  // Run on the user's Claude Code subscription. A stale ANTHROPIC_API_KEY/_AUTH_TOKEN in the
-  // environment makes Claude Code prefer it and 401 — strip them so it uses the logged-in creds.
+  // Run exactly like a normal `claude -p` so it uses whatever auth Claude Code already has
+  // (subscription login or ANTHROPIC_AUTH_TOKEN). Only drop a stale ANTHROPIC_API_KEY, which
+  // Claude Code would otherwise prefer over your subscription and reject.
   const env = { ...process.env };
   delete env.ANTHROPIC_API_KEY;
-  delete env.ANTHROPIC_AUTH_TOKEN;
   await new Promise<void>((resolve, reject) => {
     const child = spawn(claudeBin, ["-p", prompt], { stdio: ["ignore", "inherit", "inherit"], env });
     child.on("error", reject);
