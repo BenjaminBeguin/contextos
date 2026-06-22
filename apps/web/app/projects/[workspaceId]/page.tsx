@@ -21,13 +21,11 @@ import { useActiveWorkspace } from "../../../lib/workspace";
 import { projectColor } from "../../../lib/projectColor";
 import {
   Badge,
-  Breadcrumb,
   Button,
   Card,
   Code,
   EmptyState,
   Input,
-  PageHeader,
   Select,
   Spinner,
   StatusBadge,
@@ -80,43 +78,55 @@ function Project({ workspaceId }: { workspaceId: string }) {
   const showRepoFilter =
     ["Memory", "Decisions", "Risks", "Sessions", "Docs"].includes(tab) && repos.length > 1;
 
+  const color = projectColor(workspaceId).color;
+
   return (
     <div>
-      <Breadcrumb
-        items={[
-          { label: "Projects", href: "/dashboard" },
-          { label: ws?.name ?? "Project", color: projectColor(workspaceId).color },
-        ]}
-      />
-      <PageHeader
-        title={ws?.name ?? "Project"}
-        description={`${repos.length} repo${repos.length === 1 ? "" : "s"} · ${role ?? "member"}`}
-      />
-
-      {/* Tab bar */}
-      <div className="flex flex-wrap gap-1 border-b border-[var(--border)]">
-        {TABS.map((t) => (
-          <button
-            key={t}
-            onClick={() => setTab(t)}
-            className={cn(
-              "-mb-px inline-flex items-center gap-1.5 border-b-2 px-3 py-2 text-sm transition",
-              t === tab
-                ? "border-[var(--accent)] text-white"
-                : "border-transparent text-[var(--muted)] hover:text-white",
-            )}
+      {/* Workspace main menu — sticky top bar with project context + section tabs */}
+      <div className="sticky top-0 z-20 -mx-6 -mt-8 mb-6 border-b border-[var(--border)] bg-[var(--background)]/90 px-6 pb-0 pt-5 backdrop-blur">
+        <div className="flex items-center gap-2.5">
+          <span
+            className="inline-block h-3 w-3 shrink-0 rounded-full"
+            style={{ background: color, boxShadow: `0 0 12px ${color}` }}
+            aria-hidden
+          />
+          <h1 className="text-lg font-semibold tracking-tight">{ws?.name ?? "Project"}</h1>
+          <span className="text-xs text-[var(--muted)]">
+            {repos.length} repo{repos.length === 1 ? "" : "s"} · {role ?? "member"}
+          </span>
+          <Link
+            href="/dashboard"
+            className="ml-auto text-xs text-[var(--muted)] transition hover:text-white"
           >
-            {t}
-            {t === "Memory" && (ws?.pendingMemories ?? 0) > 0 ? (
-              <span
-                className="inline-flex h-4 min-w-4 items-center justify-center rounded-full bg-amber-500/20 px-1 text-[10px] font-semibold text-amber-300"
-                title={`${ws?.pendingMemories} awaiting review`}
-              >
-                {ws?.pendingMemories}
-              </span>
-            ) : null}
-          </button>
-        ))}
+            All projects →
+          </Link>
+        </div>
+
+        {/* Tab bar */}
+        <div className="mt-3 flex flex-wrap gap-1">
+          {TABS.map((t) => (
+            <button
+              key={t}
+              onClick={() => setTab(t)}
+              className={cn(
+                "-mb-px inline-flex items-center gap-1.5 border-b-2 px-3 py-2 text-sm transition",
+                t === tab
+                  ? "border-[var(--accent)] text-white"
+                  : "border-transparent text-[var(--muted)] hover:text-white",
+              )}
+            >
+              {t}
+              {t === "Memory" && (ws?.pendingMemories ?? 0) > 0 ? (
+                <span
+                  className="inline-flex h-4 min-w-4 items-center justify-center rounded-full bg-amber-500/20 px-1 text-[10px] font-semibold text-amber-300"
+                  title={`${ws?.pendingMemories} awaiting review`}
+                >
+                  {ws?.pendingMemories}
+                </span>
+              ) : null}
+            </button>
+          ))}
+        </div>
       </div>
 
       {/* Repo filter (sections that span repos) */}
