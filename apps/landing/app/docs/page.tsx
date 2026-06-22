@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { APP_URL } from "../../lib/api";
+import { APP_URL, APP_LIVE } from "../../lib/api";
 
 export const metadata: Metadata = {
   title: "Cortex — Setup & Docs",
@@ -38,9 +38,15 @@ export default function DocsPage() {
             <span className="inline-block h-4 w-4 rotate-45 rounded-sm bg-gradient-to-br from-violet-400 to-cyan-400" />
             Cortex
           </a>
-          <a href={`${APP_URL}/login`} className="text-sm text-[var(--muted)] hover:text-white">
-            Sign in
-          </a>
+          {APP_LIVE ? (
+            <a href={`${APP_URL}/login`} className="text-sm text-[var(--muted)] hover:text-white">
+              Sign in
+            </a>
+          ) : (
+            <a href="/#waitlist" className="text-sm text-[var(--muted)] hover:text-white">
+              Join waitlist
+            </a>
+          )}
         </div>
       </header>
 
@@ -122,10 +128,10 @@ get_repo_context()        → stack, commands, risks, warnings`}</Code>
             the approved library. Approved memories are the only ones exposed to agents.
           </p>
           <a
-            href={`${APP_URL}/dashboard`}
+            href={APP_LIVE ? `${APP_URL}/dashboard` : "/#waitlist"}
             className="brand-gradient inline-block rounded-xl px-5 py-2.5 text-sm font-semibold text-white transition hover:brightness-110"
           >
-            Open the dashboard →
+            {APP_LIVE ? "Open the dashboard →" : "Join the waitlist →"}
           </a>
         </Step>
 

@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { APP_URL } from "../lib/api";
+import { APP_URL, APP_LIVE } from "../lib/api";
 
 const links = [
   { href: "#features", label: "Features" },
@@ -51,12 +51,14 @@ export function IslandNav() {
 
         <span className="mx-1 hidden h-5 w-px bg-white/10 md:block" />
 
-        <a
-          href={`${APP_URL}/login`}
-          className="hidden rounded-full px-3 py-1.5 text-sm text-[var(--muted)] transition hover:text-white sm:inline"
-        >
-          Sign in
-        </a>
+        {APP_LIVE ? (
+          <a
+            href={`${APP_URL}/login`}
+            className="hidden rounded-full px-3 py-1.5 text-sm text-[var(--muted)] transition hover:text-white sm:inline"
+          >
+            Sign in
+          </a>
+        ) : null}
         <a
           href="#waitlist"
           className="shine brand-gradient rounded-full px-4 py-1.5 text-sm font-bold text-white transition hover:brightness-110"
