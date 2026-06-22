@@ -1,6 +1,6 @@
 {
   "name": "@mxbenjaminbeguin/cortex",
-  "version": "0.5.0",
+  "version": "0.6.0",
   "description": "Operational memory for AI coding agents — CLI + MCP server for Claude Code.",
   "license": "MIT",
   "type": "module",
