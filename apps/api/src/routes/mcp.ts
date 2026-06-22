@@ -68,10 +68,18 @@ export async function mcpRoutes(app: FastifyInstance) {
       orderBy: { confidence: "desc" },
       take: 5,
     });
+    // "served" = we actually had context to inject (not just that the hook fired).
+    const served =
+      (repo.stack?.length ?? 0) > 0 ||
+      !!repo.packageManager ||
+      !!repo.notes ||
+      warnings.length > 0 ||
+      commands.length > 0;
     await recordUsage("mcp.get_repo_context", {
       workspaceId: repo.workspaceId,
       repoId: repo.id,
       sessionId: body.sessionId,
+      metadata: { served },
     });
     return {
       repoContext: {

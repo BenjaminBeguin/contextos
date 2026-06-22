@@ -111,10 +111,20 @@ export async function metricsRoutes(app: FastifyInstance) {
           type: { in: ["mcp.get_repo_context", "mcp.get_relevant_warnings", "mcp.search_memory"] },
           createdAt: { gte: since30 },
         },
-        select: { sessionId: true },
+        select: { sessionId: true, type: true, metadata: true },
       }),
     ]);
-    const memorySessionIds = new Set(memoryUseEvents.map((e) => e.sessionId).filter(Boolean));
+    // Count a session as "with memory" only when memory was actually served —
+    // non-empty repo context, a matched risk warning, or a search hit — not just
+    // that the SessionStart hook fired.
+    const served = memoryUseEvents.filter((e) => {
+      const m = (e.metadata ?? {}) as { matched?: number; results?: number; served?: boolean };
+      if (e.type === "mcp.get_relevant_warnings") return (m.matched ?? 0) > 0;
+      if (e.type === "mcp.get_repo_context") return m.served === true;
+      if (e.type === "mcp.search_memory") return (m.results ?? 0) > 0;
+      return false;
+    });
+    const memorySessionIds = new Set(served.map((e) => e.sessionId).filter(Boolean));
     let withN = 0;
     let withErr = 0;
     let woN = 0;
