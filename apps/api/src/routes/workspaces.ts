@@ -10,6 +10,7 @@ import {
 import { prisma } from "../db.js";
 import { resolveUser, assertWorkspaceAccess, HttpError } from "../auth.js";
 import { encryptToken } from "../crypto.js";
+import { getAutoThresholds } from "../services/memory.js";
 
 function generateJoinCode(): string {
   // Human-friendly, unambiguous join code, e.g. "WS-7F3K9Q".
@@ -151,6 +152,48 @@ export async function workspaceRoutes(app: FastifyInstance) {
       });
     }
     return { id: workspace.id, name: workspace.name, slug: workspace.slug };
+  });
+
+  // Re-apply the saved confidence band to all currently-proposed memories (owners only).
+  app.post("/workspaces/:workspaceId/triage", async (req, reply) => {
+    const user = await resolveUser(req);
+    if (!user) return reply.code(401).send({ error: "Unauthorized" });
+    const { workspaceId } = req.params as { workspaceId: string };
+    try {
+      const membership = await assertWorkspaceAccess(user.id, workspaceId);
+      if (membership.role !== "owner") throw new HttpError(403, "Only owners can re-triage");
+    } catch (e) {
+      if (e instanceof HttpError) return reply.code(e.statusCode).send({ error: e.message });
+      throw e;
+    }
+    const t = await getAutoThresholds(workspaceId);
+    if (t.approve == null && t.reject == null) {
+      return reply.code(400).send({ error: "Set an auto-approve or auto-reject threshold first." });
+    }
+    const repos = await prisma.repo.findMany({ where: { workspaceId }, select: { id: true } });
+    const repoIds = repos.map((r) => r.id);
+
+    // Approve takes precedence: approve first (those leave 'proposed'), then reject the rest.
+    let approved = 0;
+    let rejected = 0;
+    if (t.approve != null) {
+      const r = await prisma.memory.updateMany({
+        where: { repoId: { in: repoIds }, status: "proposed", confidence: { gte: t.approve } },
+        data: { status: "approved" },
+      });
+      approved = r.count;
+    }
+    if (t.reject != null) {
+      const r = await prisma.memory.updateMany({
+        where: { repoId: { in: repoIds }, status: "proposed", confidence: { lt: t.reject } },
+        data: { status: "rejected" },
+      });
+      rejected = r.count;
+    }
+    const kept = await prisma.memory.count({
+      where: { repoId: { in: repoIds }, status: "proposed" },
+    });
+    return { approved, rejected, kept };
   });
 
   // Add an existing Cortex user to the workspace by email (owners only).

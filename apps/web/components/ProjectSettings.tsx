@@ -308,6 +308,21 @@ function AutoTriageCard({
     onSuccess: () => qc.invalidateQueries({ queryKey: ["workspace", workspaceId] }),
   });
 
+  // Apply the SAVED band to existing proposed memories (auto-triage only runs at creation).
+  const reTriage = useMutation({
+    mutationFn: () =>
+      api<{ approved: number; rejected: number; kept: number }>(
+        `/workspaces/${workspaceId}/triage`,
+        { method: "POST" },
+      ),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["workspace", workspaceId] });
+      qc.invalidateQueries({ queryKey: ["memories"] });
+      qc.invalidateQueries({ queryKey: ["workspace-memories"] });
+    },
+  });
+  const hasSaved = approve != null || reject != null;
+
   const conflict = approveOn && rejectOn && rejectPct >= approvePct;
 
   return (
@@ -361,6 +376,36 @@ function AutoTriageCard({
             Save triage rules
           </Button>
           {save.isSuccess ? <span className="ml-2 text-xs text-emerald-300">Saved</span> : null}
+
+          <div className="mt-4 border-t border-[var(--border)] pt-4">
+            <p className="text-sm">Apply to existing proposals</p>
+            <p className="text-xs text-[var(--muted)]">
+              Auto-triage only runs on new memories. Run it across everything already in the inbox
+              using your <em>saved</em> thresholds.
+            </p>
+            <div className="mt-2 flex flex-wrap items-center gap-2">
+              <Button
+                variant="subtle"
+                onClick={() => reTriage.mutate()}
+                loading={reTriage.isPending}
+                disabled={!hasSaved}
+              >
+                Re-triage inbox
+              </Button>
+              {!hasSaved ? (
+                <span className="text-xs text-[var(--faint)]">Save a threshold first.</span>
+              ) : null}
+              {reTriage.isSuccess ? (
+                <span className="text-xs text-emerald-300">
+                  Approved {reTriage.data.approved} · rejected {reTriage.data.rejected} ·{" "}
+                  {reTriage.data.kept} left for review
+                </span>
+              ) : null}
+              {reTriage.isError ? (
+                <span className="text-xs text-red-400">{(reTriage.error as Error).message}</span>
+              ) : null}
+            </div>
+          </div>
         </div>
       ) : (
         <p className="mt-3 text-xs text-[var(--muted)]">Only owners can change this.</p>
