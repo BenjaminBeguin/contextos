@@ -3,6 +3,7 @@ import { BrainHero } from "../components/BrainHero";
 import { Reveal } from "../components/Reveal";
 import { Spotlight } from "../components/Spotlight";
 import { IslandNav } from "../components/IslandNav";
+import { CookieSettingsLink } from "../components/CookieSettingsLink";
 
 const features = [
   {
@@ -379,7 +380,13 @@ cortex init
       </section>
 
       <footer className="border-t border-white/5 py-8 text-center text-sm text-[var(--muted)]">
-        Cortex — Operational memory for AI coding agents.
+        <p>Cortex — Operational memory for AI coding agents.</p>
+        <div className="mt-2 flex items-center justify-center gap-4">
+          <a href="/privacy" className="hover:text-white">
+            Privacy &amp; Cookies
+          </a>
+          <CookieSettingsLink />
+        </div>
       </footer>
     </div>
   );
