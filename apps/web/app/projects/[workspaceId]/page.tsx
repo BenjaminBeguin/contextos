@@ -203,10 +203,22 @@ function ReposTab({
   );
 }
 
+type MemorySort = "recent" | "oldest" | "confidence";
+
+function sortMemories(list: WorkspaceMemory[], sort: MemorySort): WorkspaceMemory[] {
+  const t = (s: string) => +new Date(s);
+  return [...list].sort((a, b) => {
+    if (sort === "recent") return t(b.createdAt) - t(a.createdAt);
+    if (sort === "oldest") return t(a.createdAt) - t(b.createdAt);
+    return b.confidence - a.confidence || t(b.updatedAt) - t(a.updatedAt);
+  });
+}
+
 function MemoryTab({ workspaceId, repoId }: { workspaceId: string; repoId: string }) {
   const [q, setQ] = useState("");
   const [status, setStatus] = useState("");
   const [type, setType] = useState("");
+  const [sort, setSort] = useState<MemorySort>("recent");
   const params = new URLSearchParams();
   if (q) params.set("search", q);
   if (status) params.set("status", status);
@@ -216,7 +228,10 @@ function MemoryTab({ workspaceId, repoId }: { workspaceId: string; repoId: strin
     queryKey: ["workspace-memories", workspaceId, q, status, type],
     queryFn: () => api<WorkspaceMemory[]>(`/workspaces/${workspaceId}/memories?${params.toString()}`),
   });
-  const memories = (data ?? []).filter((m) => !repoId || m.repoId === repoId);
+  const memories = sortMemories(
+    (data ?? []).filter((m) => !repoId || m.repoId === repoId),
+    sort,
+  );
 
   return (
     <div>
@@ -237,6 +252,11 @@ function MemoryTab({ workspaceId, repoId }: { workspaceId: string; repoId: strin
               {t}
             </option>
           ))}
+        </Select>
+        <Select value={sort} onChange={(e) => setSort(e.target.value as MemorySort)} title="Sort">
+          <option value="recent">Newest</option>
+          <option value="oldest">Oldest</option>
+          <option value="confidence">Confidence</option>
         </Select>
       </div>
       <MemoryList memories={memories} isLoading={isLoading} empty="No memories match." />
