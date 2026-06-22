@@ -138,7 +138,7 @@ export async function mcpCommand(opts: { repo?: string; api?: string } = {}) {
     {
       title: "Propose Cortex memories",
       description:
-        "Record durable, reusable knowledge you discovered (conventions, architecture, commands, risks, gotchas) as PROPOSED memories for human review. Use this to bootstrap a repo — read its key files (README, configs, manifests, schema, entry points) and propose memories — or any time you learn something a future agent should know. Add file globs in `paths` for risk/area-specific memories.",
+        "Record durable, reusable knowledge you discovered (conventions, architecture, commands, risks, gotchas) as PROPOSED memories for human review. Use this to bootstrap a repo — read its key files (README, configs, manifests, schema, entry points) and propose memories — or any time you learn something a future agent should know. Keep each memory ATOMIC (one fact/rule/command/entity per memory — split multi-topic content) and CONCISE (1–3 sentences, ideally under ~280 characters); prefer many small memories over a few long ones. Add file globs in `paths` for risk/area-specific memories.",
       inputSchema: {
         memories: z.array(
           z.object({

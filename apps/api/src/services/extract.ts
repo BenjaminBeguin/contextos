@@ -10,6 +10,8 @@ risks, dependencies, testing practices, deployment steps, or business context.
 Rules:
 - Only extract high-signal, durable facts. Ignore one-off trivia and noise.
 - Each memory must be specific and self-contained.
+- ATOMIC: one fact per memory — split multi-topic learnings into separate memories.
+- CONCISE: 1–3 sentences, ideally under ~280 characters. State the fact, not a story.
 - Set confidence 0..1 reflecting how certain and reusable the memory is.
 - Prefer 0-4 memories. If nothing is worth remembering, return [].
 

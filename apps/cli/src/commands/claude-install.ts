@@ -11,7 +11,7 @@ Recommended tools:
 - get_repo_context — call before starting work in this repo
 - search_memory — search approved memories relevant to your task
 - get_relevant_warnings — call BEFORE editing files, passing the paths you'll touch, to surface known risks/outages
-- propose_memories — record durable knowledge you discover (conventions, architecture, commands, risks); to bootstrap this repo, read its key files and propose memories
+- propose_memories — record durable knowledge you discover (conventions, architecture, commands, risks); keep each memory ATOMIC (one fact) and CONCISE (1–3 sentences); to bootstrap this repo, read its key files and propose memories
 - record_session_summary — call at the end of a meaningful task so Cortex can propose new memories
 
 Important:

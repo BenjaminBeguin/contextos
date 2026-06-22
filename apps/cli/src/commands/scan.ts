@@ -50,9 +50,13 @@ Then call the propose_memories MCP tool (mcp__cortex__propose_memories) to recor
 Rules:
 - Base every memory ONLY on what you actually read. Do not invent or assume.
 - Be SPECIFIC and concrete — reference real modules, files, and names. No generic boilerplate.
+- ATOMIC: each memory is ONE fact, rule, command, entity, or decision. Split multi-topic content
+  into separate memories — never pack a whole subsystem into one giant memory.
+- CONCISE: 1–3 sentences, ideally under ~280 characters. State the fact, not an essay.
 - For area- or risk-specific memories, include path globs in "paths" (e.g. "apps/api/src/routes/**").
 - Set confidence 0..1 by certainty and reusability.
-- Propose as many high-signal memories as the codebase warrants (up to 20). Favor depth.
+- Propose as many small, high-signal memories as the codebase warrants (up to 30). Favor many
+  atomic memories over a few long ones.
 
 When you're done, briefly report how many memories you proposed.`;
 

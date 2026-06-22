@@ -120,7 +120,11 @@ Cover, where the material supports it:
 Rules:
 - Use ONLY the provided material (structure, file contents, stack). Do NOT invent or assume.
 - Be SPECIFIC and concrete — reference real modules, files, and names. No generic boilerplate.
-- Produce as many high-signal memories as the codebase warrants (up to 20). Favor depth.
+- ATOMIC: each memory captures ONE fact, rule, command, entity, or decision. Split anything
+  multi-topic into separate memories — never pack a whole subsystem into one.
+- CONCISE: 1–3 sentences, ideally under ~280 characters. State the fact, not an essay. No walls of text.
+- Produce as many small, high-signal memories as the codebase warrants (up to 30). Favor many
+  atomic memories over a few long ones.
 - When a memory applies to specific files/areas, add their path globs in "paths" (e.g. "apps/api/src/routes/**").
 - Set confidence 0..1 by certainty and reusability.
 
