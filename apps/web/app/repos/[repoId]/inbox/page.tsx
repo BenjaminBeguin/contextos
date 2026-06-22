@@ -7,6 +7,7 @@ import { api, type Memory } from "../../../../lib/api";
 import { AppShell } from "../../../../components/AppShell";
 import { RepoNav } from "../../../../components/RepoNav";
 import { MemoryCard } from "../../../../components/MemoryCard";
+import { usePagination, Pagination } from "../../../../components/Pagination";
 import { Button, Card, EmptyState, Input, PageHeader, Select, Spinner, Textarea } from "../../../../components/ui";
 
 export default function InboxPage({ params }: { params: Promise<{ repoId: string }> }) {
@@ -25,6 +26,7 @@ function Inbox({ repoId }: { repoId: string }) {
     queryKey: ["memories", repoId, "proposed"],
     queryFn: () => api<Memory[]>(`/repos/${repoId}/memories?status=proposed`),
   });
+  const { pageItems, page, setPage, totalPages, total } = usePagination(memories ?? []);
 
   const [type, setType] = useState<string>("project_rule");
   const [title, setTitle] = useState("");
@@ -92,7 +94,10 @@ function Inbox({ repoId }: { repoId: string }) {
             description="Nothing to review. New proposals from scans and Claude Code sessions show up here."
           />
         ) : null}
-        {memories?.map((m) => <MemoryCard key={m.id} memory={m} />)}
+        {pageItems.map((m) => (
+          <MemoryCard key={m.id} memory={m} />
+        ))}
+        <Pagination page={page} totalPages={totalPages} total={total} onPage={setPage} label="proposals" />
       </div>
     </div>
   );

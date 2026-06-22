@@ -7,6 +7,7 @@ import { MEMORY_STATUSES, MEMORY_TYPES } from "@cortex/shared";
 import { api, isStaleMemory, type Me, type WorkspaceMemory } from "../../lib/api";
 import { AppShell } from "../../components/AppShell";
 import { ToolBreadcrumb } from "../../components/ToolBreadcrumb";
+import { usePagination, Pagination } from "../../components/Pagination";
 import { useActiveWorkspace } from "../../lib/workspace";
 import {
   Badge,
@@ -45,6 +46,7 @@ function Search() {
       api<WorkspaceMemory[]>(`/workspaces/${activeWs}/memories?${params.toString()}`),
     enabled: !!activeWs,
   });
+  const { pageItems, page, setPage, totalPages, total } = usePagination(results ?? []);
 
   if (me && me.workspaces.length === 0) {
     return (
@@ -85,7 +87,7 @@ function Search() {
             description="Try a different search term, or clear the status and type filters."
           />
         ) : null}
-        {results?.map((m) => (
+        {pageItems.map((m) => (
           <Card key={m.id} className="p-4">
             <div className="mb-1 flex flex-wrap items-center gap-2">
               <Badge label={m.type} />
@@ -107,6 +109,7 @@ function Search() {
           </Card>
         ))}
       </div>
+      <Pagination page={page} totalPages={totalPages} total={total} onPage={setPage} label="memories" />
     </div>
   );
 }

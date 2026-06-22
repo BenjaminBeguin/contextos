@@ -7,6 +7,7 @@ import { api, isStaleMemory, type Memory } from "../../../../lib/api";
 import { AppShell } from "../../../../components/AppShell";
 import { RepoNav } from "../../../../components/RepoNav";
 import { MemoryCard } from "../../../../components/MemoryCard";
+import { usePagination, Pagination } from "../../../../components/Pagination";
 
 export default function MemoriesPage({ params }: { params: Promise<{ repoId: string }> }) {
   const { repoId } = use(params);
@@ -35,7 +36,8 @@ function Library({ repoId }: { repoId: string }) {
   });
 
   const staleCount = (memories ?? []).filter(isStaleMemory).length;
-  const shown = staleOnly ? (memories ?? []).filter(isStaleMemory) : memories;
+  const shown = staleOnly ? (memories ?? []).filter(isStaleMemory) : (memories ?? []);
+  const { pageItems, page, setPage, totalPages, total } = usePagination(shown);
 
   return (
     <div>
@@ -61,11 +63,14 @@ function Library({ repoId }: { repoId: string }) {
 
       <div className="mt-6 space-y-4">
         {isLoading ? <p className="text-[var(--muted)]">Loading…</p> : null}
-        {shown?.length === 0 ? (
+        {shown.length === 0 ? (
           <p className="text-[var(--muted)]">No memories match these filters.</p>
         ) : null}
-        {shown?.map((m) => <MemoryCard key={m.id} memory={m} />)}
+        {pageItems.map((m) => (
+          <MemoryCard key={m.id} memory={m} />
+        ))}
       </div>
+      <Pagination page={page} totalPages={totalPages} total={total} onPage={setPage} label="memories" />
     </div>
   );
 }

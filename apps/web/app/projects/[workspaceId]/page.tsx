@@ -16,6 +16,7 @@ import {
 import { AppShell } from "../../../components/AppShell";
 import { MemoryCard } from "../../../components/MemoryCard";
 import { ProjectSettings } from "../../../components/ProjectSettings";
+import { usePagination, Pagination } from "../../../components/Pagination";
 import { useActiveWorkspace } from "../../../lib/workspace";
 import { projectColor } from "../../../lib/projectColor";
 import {
@@ -232,6 +233,7 @@ function MemoryTab({ workspaceId, repoId }: { workspaceId: string; repoId: strin
     (data ?? []).filter((m) => !repoId || m.repoId === repoId),
     sort,
   );
+  const { pageItems, page, setPage, totalPages, total } = usePagination(memories);
 
   return (
     <div>
@@ -259,7 +261,8 @@ function MemoryTab({ workspaceId, repoId }: { workspaceId: string; repoId: strin
           <option value="confidence">Confidence</option>
         </Select>
       </div>
-      <MemoryList memories={memories} isLoading={isLoading} empty="No memories match." />
+      <MemoryList memories={pageItems} isLoading={isLoading} empty="No memories match." />
+      <Pagination page={page} totalPages={totalPages} total={total} onPage={setPage} label="memories" />
     </div>
   );
 }
@@ -287,6 +290,7 @@ function DecisionsTab({
     .filter((d) => d.status !== "rejected" && d.status !== "archived")
     .filter((d) => !repoId || d.repoId === repoId)
     .sort((a, b) => +new Date(b.createdAt) - +new Date(a.createdAt));
+  const { pageItems, page, setPage, totalPages, total } = usePagination(decisions);
 
   const record = useMutation({
     mutationFn: () =>
@@ -358,22 +362,31 @@ function DecisionsTab({
             description="Record one above, or use the cortex decision command from your repo."
           />
         ) : (
-          <ol className="relative space-y-4 border-l border-[var(--border)] pl-5">
-            {decisions.map((d) => (
-              <li key={d.id} className="relative">
-                <span className="absolute -left-[1.45rem] top-1.5 h-2.5 w-2.5 rounded-full bg-[var(--accent)]" />
-                <div className="flex flex-wrap items-center gap-2 text-xs text-[var(--muted)]">
-                  <StatusBadge status={d.status} />
-                  <span>{d.repoFullName}</span>
-                  <span title={new Date(d.createdAt).toLocaleString()}>· {timeAgo(d.createdAt)}</span>
-                </div>
-                <h3 className="mt-1 font-medium">{d.title}</h3>
-                {d.content && d.content !== d.title ? (
-                  <p className="mt-1 whitespace-pre-wrap text-sm text-[var(--muted)]">{d.content}</p>
-                ) : null}
-              </li>
-            ))}
-          </ol>
+          <>
+            <ol className="relative space-y-4 border-l border-[var(--border)] pl-5">
+              {pageItems.map((d) => (
+                <li key={d.id} className="relative">
+                  <span className="absolute -left-[1.45rem] top-1.5 h-2.5 w-2.5 rounded-full bg-[var(--accent)]" />
+                  <div className="flex flex-wrap items-center gap-2 text-xs text-[var(--muted)]">
+                    <StatusBadge status={d.status} />
+                    <span>{d.repoFullName}</span>
+                    <span title={new Date(d.createdAt).toLocaleString()}>· {timeAgo(d.createdAt)}</span>
+                  </div>
+                  <h3 className="mt-1 font-medium">{d.title}</h3>
+                  {d.content && d.content !== d.title ? (
+                    <p className="mt-1 whitespace-pre-wrap text-sm text-[var(--muted)]">{d.content}</p>
+                  ) : null}
+                </li>
+              ))}
+            </ol>
+            <Pagination
+              page={page}
+              totalPages={totalPages}
+              total={total}
+              onPage={setPage}
+              label="decisions"
+            />
+          </>
         )}
       </div>
     </div>
@@ -381,19 +394,34 @@ function DecisionsTab({
 }
 
 function RisksTab({ workspaceId, repoId }: { workspaceId: string; repoId: string }) {
+  const [sort, setSort] = useState<MemorySort>("recent");
   const { data, isLoading } = useQuery({
     queryKey: ["workspace-memories", workspaceId, "risks"],
     queryFn: () => api<WorkspaceMemory[]>(`/workspaces/${workspaceId}/memories?status=approved`),
   });
-  const memories = (data ?? [])
-    .filter((m) => m.type === "risk" || m.type === "failure")
-    .filter((m) => !repoId || m.repoId === repoId);
+  const memories = sortMemories(
+    (data ?? [])
+      .filter((m) => m.type === "risk" || m.type === "failure")
+      .filter((m) => !repoId || m.repoId === repoId),
+    sort,
+  );
+  const { pageItems, page, setPage, totalPages, total } = usePagination(memories);
   return (
-    <MemoryList
-      memories={memories}
-      isLoading={isLoading}
-      empty="No approved risks or failures yet."
-    />
+    <div>
+      <div className="mb-2 flex justify-end">
+        <Select value={sort} onChange={(e) => setSort(e.target.value as MemorySort)} title="Sort">
+          <option value="recent">Newest</option>
+          <option value="oldest">Oldest</option>
+          <option value="confidence">Confidence</option>
+        </Select>
+      </div>
+      <MemoryList
+        memories={pageItems}
+        isLoading={isLoading}
+        empty="No approved risks or failures yet."
+      />
+      <Pagination page={page} totalPages={totalPages} total={total} onPage={setPage} label="risks" />
+    </div>
   );
 }
 
@@ -426,29 +454,45 @@ function MemoryList({
 }
 
 function SessionsTab({ workspaceId, repoId }: { workspaceId: string; repoId: string }) {
+  const [q, setQ] = useState("");
   const { data, isLoading } = useQuery({
     queryKey: ["workspace-sessions", workspaceId],
     queryFn: () => api<WsSession[]>(`/workspaces/${workspaceId}/sessions`),
   });
-  const sessions = (data ?? []).filter((s) => !repoId || s.repoId === repoId);
+  const ql = q.trim().toLowerCase();
+  const sessions = (data ?? [])
+    .filter((s) => !repoId || s.repoId === repoId)
+    .filter((s) => !ql || `${s.task ?? ""} ${s.summary ?? ""}`.toLowerCase().includes(ql));
+  const { pageItems, page, setPage, totalPages, total } = usePagination(sessions);
   if (isLoading) return <Loading />;
-  if (sessions.length === 0)
-    return <EmptyState title="No sessions yet" description="Agent sessions appear here as Claude Code works." />;
   return (
-    <div className="space-y-3">
-      {sessions.map((s) => (
-        <Card key={s.id} className="p-4">
-          <div className="flex items-center justify-between text-xs text-[var(--muted)]">
-            <span className="flex items-center gap-2">
-              <Badge label={s.agent} />
-              <span>{s.repoFullName}</span>
-            </span>
-            <span>{timeAgo(s.createdAt)}</span>
-          </div>
-          <p className="mt-2 font-medium">{s.task ?? "Session"}</p>
-          {s.summary ? <p className="mt-1 text-sm text-[var(--muted)]">{s.summary}</p> : null}
-        </Card>
-      ))}
+    <div>
+      <Input
+        value={q}
+        onChange={(e) => setQ(e.target.value)}
+        placeholder="Filter sessions…"
+        className="mb-4 max-w-sm"
+      />
+      {sessions.length === 0 ? (
+        <EmptyState title="No sessions yet" description="Agent sessions appear here as Claude Code works." />
+      ) : (
+        <div className="space-y-3">
+          {pageItems.map((s) => (
+            <Card key={s.id} className="p-4">
+              <div className="flex items-center justify-between text-xs text-[var(--muted)]">
+                <span className="flex items-center gap-2">
+                  <Badge label={s.agent} />
+                  <span>{s.repoFullName}</span>
+                </span>
+                <span>{timeAgo(s.createdAt)}</span>
+              </div>
+              <p className="mt-2 font-medium">{s.task ?? "Session"}</p>
+              {s.summary ? <p className="mt-1 text-sm text-[var(--muted)]">{s.summary}</p> : null}
+            </Card>
+          ))}
+        </div>
+      )}
+      <Pagination page={page} totalPages={totalPages} total={total} onPage={setPage} label="sessions" />
     </div>
   );
 }
@@ -459,24 +503,28 @@ function DocsTab({ workspaceId, repoId }: { workspaceId: string; repoId: string 
     queryFn: () => api<WsDoc[]>(`/workspaces/${workspaceId}/docs`),
   });
   const docs = (data ?? []).filter((d) => !repoId || d.repoId === repoId);
+  const { pageItems, page, setPage, totalPages, total } = usePagination(docs);
   if (isLoading) return <Loading />;
   if (docs.length === 0)
     return <EmptyState title="No docs yet" description="Generated docs for the project's repos show up here." />;
   return (
-    <div className="space-y-3">
-      {docs.map((d) => (
-        <Link key={d.id} href={`/repos/${d.repoId}/docs`}>
-          <Card hover className="p-4">
-            <div className="flex items-center justify-between">
-              <h3 className="font-medium">{d.title}</h3>
-              <span className="text-xs text-[var(--muted)]">{d.repoFullName}</span>
-            </div>
-            <p className="mt-1 text-xs text-[var(--muted)]">
-              {d.type} · updated {timeAgo(d.updatedAt)}
-            </p>
-          </Card>
-        </Link>
-      ))}
+    <div>
+      <div className="space-y-3">
+        {pageItems.map((d) => (
+          <Link key={d.id} href={`/repos/${d.repoId}/docs`}>
+            <Card hover className="p-4">
+              <div className="flex items-center justify-between">
+                <h3 className="font-medium">{d.title}</h3>
+                <span className="text-xs text-[var(--muted)]">{d.repoFullName}</span>
+              </div>
+              <p className="mt-1 text-xs text-[var(--muted)]">
+                {d.type} · updated {timeAgo(d.updatedAt)}
+              </p>
+            </Card>
+          </Link>
+        ))}
+      </div>
+      <Pagination page={page} totalPages={totalPages} total={total} onPage={setPage} label="docs" />
     </div>
   );
 }
