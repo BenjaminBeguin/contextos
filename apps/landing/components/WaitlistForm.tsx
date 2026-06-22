@@ -40,7 +40,15 @@ export function WaitlistForm({ source = "landing" }: { source?: string }) {
         const res = await fetch(ENDPOINT, {
           method: "POST",
           headers: { "content-type": "application/json", accept: "application/json" },
-          body: JSON.stringify({ email, source }),
+          // `_*` fields are FormSubmit conventions (ignored by other providers):
+          // nicer email + skip the captcha redirect.
+          body: JSON.stringify({
+            email,
+            source,
+            _subject: "New Cortex waitlist signup",
+            _template: "table",
+            _captcha: "false",
+          }),
         });
         if (!res.ok) throw new Error("Couldn't join right now. Please try again.");
       }
