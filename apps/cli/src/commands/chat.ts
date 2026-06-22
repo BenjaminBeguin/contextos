@@ -79,11 +79,18 @@ async function answerWithClaude(claudeBin: string, context: string, question: st
   // Claude Code would otherwise prefer over your subscription and reject.
   const env = { ...process.env };
   delete env.ANTHROPIC_API_KEY;
-  await new Promise<void>((resolve, reject) => {
+  const code = await new Promise<number>((resolve, reject) => {
     const child = spawn(claudeBin, ["-p", prompt], { stdio: ["ignore", "inherit", "inherit"], env });
     child.on("error", reject);
-    child.on("close", () => resolve());
+    child.on("close", (c) => resolve(c ?? 0));
   });
+  if (code !== 0) {
+    process.stderr.write(
+      "\nClaude Code couldn't run headlessly here. Make sure it's logged in for terminal use:\n" +
+        "  • run `claude`, then `/login` and finish the browser flow, and verify with `claude -p \"hi\"`\n" +
+        "  • or set ANTHROPIC_API_KEY to use the API directly.\n",
+    );
+  }
 }
 
 export async function chatCommand(questionArgs: string[] = []) {
