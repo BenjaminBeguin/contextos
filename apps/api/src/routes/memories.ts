@@ -10,6 +10,8 @@ import { resolveUser, assertRepoAccess, HttpError, type AuthedUser } from "../au
 import { searchMemories, writeAuditLog, getAutoThresholds, statusFor } from "../services/memory.js";
 import { recordUsage } from "../services/analytics.js";
 import { loadDedupSet, partitionNew, findDuplicate, similarity, DUP_THRESHOLD } from "../services/dedup.js";
+import { splitMemory } from "../services/split.js";
+import { getWorkspaceKey } from "../services/llm.js";
 
 async function getMemoryWithAccess(userId: string, memoryId: string) {
   const memory = await prisma.memory.findUnique({
@@ -229,6 +231,60 @@ export async function memoryRoutes(app: FastifyInstance) {
       metadata: body,
     });
     return updated;
+  });
+
+  // Split a long memory into several atomic, concise memories (archives the original).
+  app.post("/memories/:memoryId/split", async (req, reply) => {
+    const user = await resolveUser(req);
+    if (!user) return reply.code(401).send({ error: "Unauthorized" });
+    const { memoryId } = req.params as { memoryId: string };
+    let memory;
+    try {
+      memory = await getMemoryWithAccess(user.id, memoryId);
+    } catch (e) {
+      return handle(reply, e);
+    }
+    const apiKey = await getWorkspaceKey(memory.repo.workspaceId);
+    const parts = await splitMemory(
+      {
+        type: memory.type,
+        title: memory.title,
+        content: memory.content,
+        paths: memory.paths,
+        confidence: memory.confidence,
+      },
+      apiKey,
+    );
+    if (parts.length <= 1) {
+      return reply.code(400).send({ error: "Nothing to split — this memory is already atomic." });
+    }
+    await prisma.$transaction([
+      ...parts.map((p) =>
+        prisma.memory.create({
+          data: {
+            repoId: memory.repoId,
+            type: p.type,
+            title: p.title.slice(0, 140),
+            content: p.content,
+            paths: p.paths ?? memory.paths,
+            scope: "repo",
+            confidence: p.confidence,
+            status: "proposed",
+            source: "split",
+          },
+        }),
+      ),
+      prisma.memory.update({ where: { id: memoryId }, data: { status: "archived" } }),
+    ]);
+    await writeAuditLog({
+      workspaceId: memory.repo.workspaceId,
+      userId: user.id,
+      action: "memory.split",
+      entityType: "memory",
+      entityId: memoryId,
+      metadata: { into: parts.length },
+    });
+    return reply.code(201).send({ created: parts.length });
   });
 
   for (const [path, status, action] of [

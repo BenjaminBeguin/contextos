@@ -25,6 +25,12 @@ export function MemoryCard({ memory }: { memory: Memory }) {
     onSuccess: invalidate,
   });
 
+  const split = useMutation({
+    mutationFn: () => api(`/memories/${memory.id}/split`, { method: "POST" }),
+    onSuccess: invalidate,
+  });
+  const splittable = memory.content.length > 280;
+
   const save = useMutation({
     mutationFn: () =>
       api(`/memories/${memory.id}`, {
@@ -162,13 +168,28 @@ export function MemoryCard({ memory }: { memory: Memory }) {
             </div>
           ) : null}
         </div>
-        <button
-          onClick={() => setEditing(true)}
-          className="shrink-0 text-xs text-[var(--muted)] hover:text-white"
-        >
-          Edit
-        </button>
+        <div className="flex shrink-0 items-center gap-3 text-xs">
+          {splittable ? (
+            <button
+              onClick={() => split.mutate()}
+              disabled={split.isPending}
+              title="Break this long memory into atomic, concise memories (proposed for review)"
+              className="text-[var(--muted)] hover:text-white disabled:opacity-50"
+            >
+              {split.isPending ? "Splitting…" : "Split"}
+            </button>
+          ) : null}
+          <button
+            onClick={() => setEditing(true)}
+            className="text-[var(--muted)] hover:text-white"
+          >
+            Edit
+          </button>
+        </div>
       </div>
+      {split.isError ? (
+        <p className="mt-2 text-xs text-red-400">{(split.error as Error).message}</p>
+      ) : null}
       <div className="mt-4 flex gap-2">
         {memory.status !== "approved" ? (
           <Button onClick={() => setStatus.mutate("approve")} disabled={setStatus.isPending}>
