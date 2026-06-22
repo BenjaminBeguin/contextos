@@ -1,22 +1,34 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { API_BASE_URL } from "../lib/api";
 
 // Baseline so early signups see momentum, not an empty room.
 const BASE_SIGNUPS = 1843;
 
+// Optional third-party form endpoint (e.g. a Formspree/Tally/Buttondown URL) that
+// accepts a JSON POST. Set NEXT_PUBLIC_WAITLIST_ENDPOINT in Vercel to actually
+// capture emails — the landing has no backend of its own.
+const ENDPOINT = process.env.NEXT_PUBLIC_WAITLIST_ENDPOINT;
+
+const STORE_COUNT = "cortex.waitlist.count";
+const STORE_JOINED = "cortex.waitlist.joined";
+
 export function WaitlistForm({ source = "landing" }: { source?: string }) {
   const [email, setEmail] = useState("");
   const [state, setState] = useState<"idle" | "loading" | "done" | "error">("idle");
-  const [count, setCount] = useState<number | null>(null);
+  const [joined, setJoined] = useState(0);
   const [error, setError] = useState<string | null>(null);
 
+  // Front-end only: remember signups in this browser so the count nudges up and
+  // we don't ask someone who already joined.
   useEffect(() => {
-    fetch(`${API_BASE_URL}/waitlist/count`)
-      .then((r) => (r.ok ? r.json() : null))
-      .then((d) => d && setCount(d.count))
-      .catch(() => {});
+    try {
+      const n = Number(localStorage.getItem(STORE_COUNT) || "0");
+      if (!Number.isNaN(n)) setJoined(n);
+      if (localStorage.getItem(STORE_JOINED)) setState("done");
+    } catch {
+      /* ignore */
+    }
   }, []);
 
   async function submit(e: React.FormEvent) {
@@ -24,17 +36,22 @@ export function WaitlistForm({ source = "landing" }: { source?: string }) {
     setState("loading");
     setError(null);
     try {
-      const res = await fetch(`${API_BASE_URL}/waitlist`, {
-        method: "POST",
-        headers: { "content-type": "application/json" },
-        body: JSON.stringify({ email, source }),
-      });
-      if (!res.ok) {
-        const body = await res.json().catch(() => null);
-        throw new Error(body?.error ?? "Something went wrong");
+      if (ENDPOINT) {
+        const res = await fetch(ENDPOINT, {
+          method: "POST",
+          headers: { "content-type": "application/json", accept: "application/json" },
+          body: JSON.stringify({ email, source }),
+        });
+        if (!res.ok) throw new Error("Couldn't join right now. Please try again.");
       }
-      const data = await res.json();
-      setCount(data.count ?? null);
+      try {
+        const next = joined + 1;
+        localStorage.setItem(STORE_COUNT, String(next));
+        localStorage.setItem(STORE_JOINED, "1");
+        setJoined(next);
+      } catch {
+        /* ignore */
+      }
       setState("done");
     } catch (err) {
       setError(err instanceof Error ? err.message : "Something went wrong");
@@ -42,7 +59,7 @@ export function WaitlistForm({ source = "landing" }: { source?: string }) {
     }
   }
 
-  const total = BASE_SIGNUPS + (count ?? 0);
+  const total = BASE_SIGNUPS + joined;
 
   if (state === "done") {
     return (
