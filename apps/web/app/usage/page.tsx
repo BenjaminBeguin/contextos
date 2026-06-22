@@ -39,8 +39,11 @@ function Usage() {
 
   return (
     <div>
-      <ToolBreadcrumb section="Usage" />
-      <PageHeader title="Usage" description="How your team is using this project." />
+      <ToolBreadcrumb section="Impact" />
+      <PageHeader
+        title="Impact"
+        description="What Cortex is doing for this project — what your agents would be missing without it."
+      />
 
       {isLoading || !metrics ? (
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
@@ -51,11 +54,29 @@ function Usage() {
       ) : (
         <>
           <div className="mt-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-            <Stat label="Memory retrievals · 7d" value={metrics.retrievals7} />
-            <Stat label="Memory retrievals · 30d" value={metrics.retrievals30} />
-            <Stat label="Approved memories" value={metrics.approvedMemories} />
-            <Stat label="Pending review" value={metrics.pendingMemories} />
+            <Stat
+              label="Context injected · 30d"
+              value={metrics.contextInjections30}
+              sub="agents primed with repo context"
+            />
+            <Stat
+              label="Risky edits flagged · 30d"
+              value={metrics.warningsMatched30}
+              sub="warned before touching known-risk files"
+            />
+            <Stat
+              label="Memory retrievals · 30d"
+              value={metrics.retrievals30}
+              sub={`${metrics.retrievals7} in the last 7d`}
+            />
+            <Stat
+              label="Knowledge captured"
+              value={metrics.approvedMemories}
+              sub={`approved · ${metrics.pendingMemories} awaiting review`}
+            />
           </div>
+
+          <WithWithout metrics={metrics} />
 
           <Card className="mt-6 p-6">
             <h2 className="font-semibold">Retrievals · last 14 days</h2>
@@ -91,12 +112,49 @@ function Usage() {
   );
 }
 
-function Stat({ label, value }: { label: string; value: number }) {
+function Stat({ label, value, sub }: { label: string; value: number; sub?: string }) {
   return (
     <Card className="p-5">
       <p className="text-sm text-[var(--muted)]">{label}</p>
       <p className="mt-1 text-3xl font-semibold">{value.toLocaleString()}</p>
+      {sub ? <p className="mt-1 text-xs text-[var(--faint)]">{sub}</p> : null}
     </Card>
+  );
+}
+
+function WithWithout({ metrics }: { metrics: WorkspaceMetrics }) {
+  const coverage =
+    metrics.reposCount > 0 ? Math.round((metrics.reposWithMemory / metrics.reposCount) * 100) : 0;
+  return (
+    <div className="mt-6 grid gap-4 lg:grid-cols-2">
+      <Card className="border-red-500/15 bg-red-500/[0.03] p-6">
+        <p className="text-xs font-medium uppercase tracking-widest text-red-300/80">
+          Without Cortex
+        </p>
+        <p className="mt-3 text-sm text-[var(--muted)]">
+          Every session starts cold — no architecture, commands, or past failures. Agents rediscover
+          the codebase each time, repeat known mistakes, and edit risky files blind.
+        </p>
+      </Card>
+      <Card className="border-cyan-400/30 p-6">
+        <p className="text-xs font-medium uppercase tracking-widest text-cyan-300">With Cortex</p>
+        <ul className="mt-3 space-y-1.5 text-sm text-[var(--muted)]">
+          <li>
+            <span className="text-white">{metrics.contextInjections30.toLocaleString()}</span> sessions
+            opened with your stack, commands, and risks pre-loaded (30d).
+          </li>
+          <li>
+            <span className="text-white">{metrics.warningsMatched30.toLocaleString()}</span> risky-file
+            edits flagged from known failures before they happened.
+          </li>
+          <li>
+            <span className="text-white">{metrics.approvedMemories.toLocaleString()}</span> approved
+            memories serving every agent · <span className="text-white">{coverage}%</span> of repos
+            covered.
+          </li>
+        </ul>
+      </Card>
+    </div>
   );
 }
 

@@ -39,7 +39,17 @@ export async function metricsRoutes(app: FastifyInstance) {
     const since7 = new Date(Date.now() - 7 * 86400_000);
     const since14 = new Date(Date.now() - 14 * 86400_000);
 
-    const [statusGroups, retrievals30, retrievals7, seriesEvents] = await Promise.all([
+    const [
+      statusGroups,
+      retrievals30,
+      retrievals7,
+      seriesEvents,
+      contextInjections30,
+      warningEvents30,
+      sessions30,
+      approved30,
+      approvedByRepo,
+    ] = await Promise.all([
       prisma.memory.groupBy({
         by: ["status"],
         where: { repoId: { in: repoIds } },
@@ -55,10 +65,37 @@ export async function metricsRoutes(app: FastifyInstance) {
         where: { workspaceId, type: "mcp.search_memory", createdAt: { gte: since14 } },
         select: { createdAt: true },
       }),
+      // Context primed into agents (SessionStart hook + manual get_repo_context).
+      prisma.usageEvent.count({
+        where: { workspaceId, type: "mcp.get_repo_context", createdAt: { gte: since30 } },
+      }),
+      // Risk warnings: count checks and sum how many actually matched a risky file.
+      prisma.usageEvent.findMany({
+        where: { workspaceId, type: "mcp.get_relevant_warnings", createdAt: { gte: since30 } },
+        select: { metadata: true },
+      }),
+      prisma.usageEvent.count({
+        where: { workspaceId, type: "session.recorded", createdAt: { gte: since30 } },
+      }),
+      prisma.usageEvent.count({
+        where: { workspaceId, type: "memory.approved", createdAt: { gte: since30 } },
+      }),
+      prisma.memory.groupBy({
+        by: ["repoId"],
+        where: { repoId: { in: repoIds }, status: "approved" },
+        _count: true,
+      }),
     ]);
 
     const memoryCounts: Record<string, number> = {};
     for (const g of statusGroups) memoryCounts[g.status] = g._count;
+
+    let warningsMatched = 0;
+    for (const e of warningEvents30) {
+      const m = (e.metadata ?? {}) as { matched?: number };
+      if (typeof m.matched === "number") warningsMatched += m.matched;
+    }
+    const reposWithMemory = approvedByRepo.length;
 
     // Bucket retrievals into the last 14 days.
     const buckets: Record<string, number> = {};
@@ -79,6 +116,12 @@ export async function metricsRoutes(app: FastifyInstance) {
       retrievals30,
       retrievals7,
       retrievalSeries: series,
+      contextInjections30,
+      warningChecks30: warningEvents30.length,
+      warningsMatched30: warningsMatched,
+      sessions30,
+      approved30,
+      reposWithMemory,
       topRepos: repos
         .map((r) => ({ id: r.id, fullName: r.fullName, memories: r._count.memories }))
         .sort((a, b) => b.memories - a.memories)

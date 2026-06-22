@@ -343,7 +343,7 @@ function ToolsTab() {
     { href: "/search", title: "Search", desc: "Full-text search across every memory in the project." },
     { href: "/chat", title: "Chat", desc: "Ask questions grounded in the project's approved memory." },
     { href: "/graph", title: "Graph", desc: "Visualize repos, memories, and sessions as a network." },
-    { href: "/usage", title: "Usage", desc: "Retrieval activity and memory metrics for the project." },
+    { href: "/usage", title: "Impact", desc: "What Cortex is doing — context injected, risks flagged, knowledge captured." },
   ];
   return (
     <div className="grid gap-4 sm:grid-cols-2">

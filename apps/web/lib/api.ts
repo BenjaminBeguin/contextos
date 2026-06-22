@@ -114,6 +114,12 @@ export interface WorkspaceMetrics {
   retrievals30: number;
   retrievals7: number;
   retrievalSeries: { date: string; count: number }[];
+  contextInjections30: number;
+  warningChecks30: number;
+  warningsMatched30: number;
+  sessions30: number;
+  approved30: number;
+  reposWithMemory: number;
   topRepos: { id: string; fullName: string; memories: number }[];
 }
 
