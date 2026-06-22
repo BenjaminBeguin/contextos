@@ -31,6 +31,10 @@ export const joinWorkspaceSchema = z.object({
   joinCode: z.string().min(1),
 });
 
+export const inviteMemberSchema = z.object({
+  email: z.string().email(),
+});
+
 export const updateWorkspaceSchema = z.object({
   name: z.string().min(1).max(80).optional(),
   // null disables; a value in [0,1] auto-approves proposals at/above it.

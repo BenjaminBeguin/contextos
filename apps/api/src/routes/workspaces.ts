@@ -5,6 +5,7 @@ import {
   createWorkspaceSchema,
   joinWorkspaceSchema,
   updateWorkspaceSchema,
+  inviteMemberSchema,
 } from "@cortex/shared";
 import { prisma } from "../db.js";
 import { resolveUser, assertWorkspaceAccess, HttpError } from "../auth.js";
@@ -150,6 +151,63 @@ export async function workspaceRoutes(app: FastifyInstance) {
       });
     }
     return { id: workspace.id, name: workspace.name, slug: workspace.slug };
+  });
+
+  // Add an existing Cortex user to the workspace by email (owners only).
+  app.post("/workspaces/:workspaceId/members", async (req, reply) => {
+    const user = await resolveUser(req);
+    if (!user) return reply.code(401).send({ error: "Unauthorized" });
+    const { workspaceId } = req.params as { workspaceId: string };
+    try {
+      const membership = await assertWorkspaceAccess(user.id, workspaceId);
+      if (membership.role !== "owner") throw new HttpError(403, "Only owners can add members");
+    } catch (e) {
+      if (e instanceof HttpError) return reply.code(e.statusCode).send({ error: e.message });
+      throw e;
+    }
+    const body = inviteMemberSchema.parse(req.body);
+    const target = await prisma.user.findFirst({
+      where: { email: { equals: body.email, mode: "insensitive" } },
+    });
+    if (!target) {
+      return reply.code(404).send({
+        error: "No Cortex account with that email yet. Share the join code so they can sign up and join.",
+      });
+    }
+    const existing = await prisma.membership.findUnique({
+      where: { userId_workspaceId: { userId: target.id, workspaceId } },
+    });
+    if (existing) return reply.code(409).send({ error: "Already a member." });
+    await prisma.membership.create({
+      data: { userId: target.id, workspaceId, role: "member" },
+    });
+    return reply.code(201).send({ ok: true });
+  });
+
+  // Remove a member from the workspace (owners only; never the last owner).
+  app.delete("/workspaces/:workspaceId/members/:userId", async (req, reply) => {
+    const user = await resolveUser(req);
+    if (!user) return reply.code(401).send({ error: "Unauthorized" });
+    const { workspaceId, userId } = req.params as { workspaceId: string; userId: string };
+    try {
+      const membership = await assertWorkspaceAccess(user.id, workspaceId);
+      if (membership.role !== "owner") throw new HttpError(403, "Only owners can remove members");
+    } catch (e) {
+      if (e instanceof HttpError) return reply.code(e.statusCode).send({ error: e.message });
+      throw e;
+    }
+    const target = await prisma.membership.findUnique({
+      where: { userId_workspaceId: { userId, workspaceId } },
+    });
+    if (!target) return reply.code(404).send({ error: "Not a member." });
+    if (target.role === "owner") {
+      const owners = await prisma.membership.count({ where: { workspaceId, role: "owner" } });
+      if (owners <= 1) return reply.code(400).send({ error: "Can't remove the last owner." });
+    }
+    await prisma.membership.delete({
+      where: { userId_workspaceId: { userId, workspaceId } },
+    });
+    return { ok: true };
   });
 
   app.get("/workspaces/:workspaceId", async (req, reply) => {

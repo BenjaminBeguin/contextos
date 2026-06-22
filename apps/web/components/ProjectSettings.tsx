@@ -3,7 +3,7 @@
 import { useState } from "react";
 import Link from "next/link";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { api, type WorkspaceDetail } from "../lib/api";
+import { api, type Me, type WorkspaceDetail } from "../lib/api";
 import { CopyButton } from "./CopyButton";
 import { Button, Card, Input } from "./ui";
 
@@ -82,25 +82,7 @@ export function ProjectSettings({ workspaceId, isOwner }: { workspaceId: string;
         isOwner={isOwner}
       />
 
-      <Card className="p-6">
-        <h2 className="font-semibold">Members</h2>
-        <ul className="mt-4 space-y-2">
-          {ws.memberships.map((m) => (
-            <li key={m.user.id} className="flex items-center justify-between text-sm">
-              <span className="flex items-center gap-2">
-                {m.user.avatarUrl ? (
-                  // eslint-disable-next-line @next/next/no-img-element
-                  <img src={m.user.avatarUrl} alt="" className="h-6 w-6 rounded-full" />
-                ) : (
-                  <span className="h-6 w-6 rounded-full bg-white/10" />
-                )}
-                {m.user.name ?? m.user.email}
-              </span>
-              <span className="text-xs text-[var(--muted)]">{m.role}</span>
-            </li>
-          ))}
-        </ul>
-      </Card>
+      <MembersCard workspaceId={workspaceId} memberships={ws.memberships} isOwner={isOwner} />
 
       <Card className="p-6">
         <h2 className="font-semibold">Repositories</h2>
@@ -120,6 +102,104 @@ export function ProjectSettings({ workspaceId, isOwner }: { workspaceId: string;
         )}
       </Card>
     </div>
+  );
+}
+
+function MembersCard({
+  workspaceId,
+  memberships,
+  isOwner,
+}: {
+  workspaceId: string;
+  memberships: WorkspaceDetail["memberships"];
+  isOwner: boolean;
+}) {
+  const qc = useQueryClient();
+  const { data: me } = useQuery({ queryKey: ["me"], queryFn: () => api<Me>("/me") });
+  const [email, setEmail] = useState("");
+  const invalidate = () => qc.invalidateQueries({ queryKey: ["workspace", workspaceId] });
+
+  const invite = useMutation({
+    mutationFn: () =>
+      api(`/workspaces/${workspaceId}/members`, {
+        method: "POST",
+        body: JSON.stringify({ email }),
+      }),
+    onSuccess: () => {
+      setEmail("");
+      invalidate();
+    },
+  });
+  const remove = useMutation({
+    mutationFn: (userId: string) =>
+      api(`/workspaces/${workspaceId}/members/${userId}`, { method: "DELETE" }),
+    onSuccess: invalidate,
+  });
+
+  return (
+    <Card className="p-6">
+      <h2 className="font-semibold">Members</h2>
+      <ul className="mt-4 space-y-2">
+        {memberships.map((m) => (
+          <li key={m.user.id} className="flex items-center justify-between text-sm">
+            <span className="flex items-center gap-2">
+              {m.user.avatarUrl ? (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img src={m.user.avatarUrl} alt="" className="h-6 w-6 rounded-full" />
+              ) : (
+                <span className="h-6 w-6 rounded-full bg-white/10" />
+              )}
+              {m.user.name ?? m.user.email}
+              {m.user.id === me?.id ? (
+                <span className="text-xs text-[var(--faint)]">(you)</span>
+              ) : null}
+            </span>
+            <span className="flex items-center gap-3">
+              <span className="text-xs text-[var(--muted)]">{m.role}</span>
+              {isOwner ? (
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => remove.mutate(m.user.id)}
+                  disabled={remove.isPending}
+                >
+                  Remove
+                </Button>
+              ) : null}
+            </span>
+          </li>
+        ))}
+      </ul>
+
+      {isOwner ? (
+        <div className="mt-5 border-t border-[var(--border)] pt-4">
+          <p className="text-sm">Invite a teammate</p>
+          <p className="text-xs text-[var(--muted)]">
+            They need a Cortex account. Otherwise share the join code above so they can sign up and
+            join.
+          </p>
+          <div className="mt-3 flex flex-wrap items-center gap-2">
+            <Input
+              type="email"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              placeholder="teammate@company.com"
+              className="min-w-56 flex-1"
+            />
+            <Button onClick={() => invite.mutate()} disabled={!email} loading={invite.isPending}>
+              Invite
+            </Button>
+          </div>
+          {invite.isError ? (
+            <p className="mt-2 text-sm text-red-400">{(invite.error as Error).message}</p>
+          ) : null}
+          {invite.isSuccess ? <p className="mt-2 text-xs text-emerald-300">Added.</p> : null}
+          {remove.isError ? (
+            <p className="mt-2 text-sm text-red-400">{(remove.error as Error).message}</p>
+          ) : null}
+        </div>
+      ) : null}
+    </Card>
   );
 }
 
