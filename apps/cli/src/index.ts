@@ -10,6 +10,7 @@ import { statusCommand } from "./commands/status.js";
 import { uninstallCommand } from "./commands/uninstall.js";
 import { chatCommand } from "./commands/chat.js";
 import { decisionCommand } from "./commands/decision.js";
+import { syncCommand } from "./commands/sync.js";
 import { VERSION } from "./version.js";
 
 const program = new Command();
@@ -83,15 +84,10 @@ program
   .description("Run a Cortex Claude Code hook (internal)")
   .action((event: string) => hookCommand(event));
 
-for (const stub of ["sync"]) {
-  program
-    .command(stub)
-    .description(`(coming soon) ${stub}`)
-    .action(() => {
-      console.error(`\`cortex ${stub}\` is not implemented in this MVP pass.`);
-      process.exit(1);
-    });
-}
+program
+  .command("sync")
+  .description("Write approved memories into a managed CLAUDE.md block")
+  .action(() => run(() => syncCommand()));
 
 const memory = program.command("memory").description("(coming soon) manage memories from the CLI");
 for (const stub of ["list", "propose"]) {
