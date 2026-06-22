@@ -17,7 +17,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
     <div className="flex min-h-screen">
       <WorkspaceRail />
       <main className="min-w-0 flex-1">
-        <div className="mx-auto max-w-6xl px-6 py-8">
+        <div className="px-8 py-8">
           {isLoading ? (
             <div className="flex items-center gap-2 text-[var(--muted)]">
               <Spinner /> Loading…

@@ -50,6 +50,17 @@ const TABS = [
 ] as const;
 type Tab = (typeof TABS)[number];
 
+/** Section tabs shown in the header row; Settings is pinned separately at the end. */
+const SECTION_TABS = TABS.filter((t) => t !== "Settings");
+
+const tabCls = (active: boolean) =>
+  cn(
+    "-mb-px inline-flex items-center gap-1.5 whitespace-nowrap border-b-2 px-3 text-sm transition",
+    active
+      ? "border-[var(--accent)] text-white"
+      : "border-transparent text-[var(--muted)] hover:text-white",
+  );
+
 export default function ProjectPage({ params }: { params: Promise<{ workspaceId: string }> }) {
   const { workspaceId } = use(params);
   return (
@@ -79,55 +90,62 @@ function Project({ workspaceId }: { workspaceId: string }) {
     ["Memory", "Decisions", "Risks", "Sessions", "Docs"].includes(tab) && repos.length > 1;
 
   const color = projectColor(workspaceId).color;
+  const pending = ws?.pendingMemories ?? 0;
 
   return (
     <div>
-      {/* Workspace main menu — sticky top bar with project context + section tabs */}
-      <div className="sticky top-0 z-20 -mx-6 -mt-8 mb-6 border-b border-[var(--border)] bg-[var(--background)]/90 px-6 pb-0 pt-5 backdrop-blur">
-        <div className="flex items-center gap-2.5">
-          <span
-            className="inline-block h-3 w-3 shrink-0 rounded-full"
-            style={{ background: color, boxShadow: `0 0 12px ${color}` }}
-            aria-hidden
-          />
-          <h1 className="text-lg font-semibold tracking-tight">{ws?.name ?? "Project"}</h1>
-          <span className="text-xs text-[var(--muted)]">
-            {repos.length} repo{repos.length === 1 ? "" : "s"} · {role ?? "member"}
-          </span>
-          <Link
-            href="/dashboard"
-            className="ml-auto text-xs text-[var(--muted)] transition hover:text-white"
-          >
-            All projects →
-          </Link>
-        </div>
+      {/* Workspace header — one row: project identity · section tabs · settings */}
+      <header className="sticky top-0 z-20 -mx-8 -mt-8 mb-6 border-b border-[var(--border)] bg-[var(--background)]/90 px-8 backdrop-blur">
+        <div className="flex items-stretch gap-6">
+          {/* Identity */}
+          <div className="flex shrink-0 items-center gap-2.5 py-3.5">
+            <span
+              className="inline-block h-3 w-3 shrink-0 rounded-full"
+              style={{ background: color, boxShadow: `0 0 12px ${color}` }}
+              aria-hidden
+            />
+            <h1 className="whitespace-nowrap text-base font-semibold tracking-tight">
+              {ws?.name ?? "Project"}
+            </h1>
+            <span className="hidden whitespace-nowrap text-xs text-[var(--muted)] sm:inline">
+              {repos.length} repo{repos.length === 1 ? "" : "s"} · {role ?? "member"}
+            </span>
+          </div>
 
-        {/* Tab bar */}
-        <div className="mt-3 flex flex-wrap gap-1">
-          {TABS.map((t) => (
-            <button
-              key={t}
-              onClick={() => setTab(t)}
-              className={cn(
-                "-mb-px inline-flex items-center gap-1.5 border-b-2 px-3 py-2 text-sm transition",
-                t === tab
-                  ? "border-[var(--accent)] text-white"
-                  : "border-transparent text-[var(--muted)] hover:text-white",
-              )}
-            >
-              {t}
-              {t === "Memory" && (ws?.pendingMemories ?? 0) > 0 ? (
-                <span
-                  className="inline-flex h-4 min-w-4 items-center justify-center rounded-full bg-amber-500/20 px-1 text-[10px] font-semibold text-amber-300"
-                  title={`${ws?.pendingMemories} awaiting review`}
-                >
-                  {ws?.pendingMemories}
-                </span>
-              ) : null}
+          {/* Section tabs */}
+          <nav className="flex min-w-0 flex-1 items-stretch gap-1 overflow-x-auto">
+            {SECTION_TABS.map((t) => (
+              <button key={t} onClick={() => setTab(t)} className={tabCls(t === tab)}>
+                {t}
+                {t === "Memory" && pending > 0 ? (
+                  <span
+                    className="inline-flex h-4 min-w-4 items-center justify-center rounded-full bg-amber-500/20 px-1 text-[10px] font-semibold text-amber-300"
+                    title={`${pending} awaiting review`}
+                  >
+                    {pending}
+                  </span>
+                ) : null}
+              </button>
+            ))}
+          </nav>
+
+          {/* Settings pinned to the end of the row */}
+          <div className="flex shrink-0 items-stretch">
+            <button onClick={() => setTab("Settings")} className={tabCls(tab === "Settings")}>
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" aria-hidden>
+                <circle cx="12" cy="12" r="3" stroke="currentColor" strokeWidth="1.6" />
+                <path
+                  d="M19.4 13a7.8 7.8 0 0 0 0-2l2-1.5-2-3.4-2.4 1a7.8 7.8 0 0 0-1.7-1l-.4-2.6h-3.8l-.4 2.6a7.8 7.8 0 0 0-1.7 1l-2.4-1-2 3.4L4.6 11a7.8 7.8 0 0 0 0 2l-2 1.5 2 3.4 2.4-1a7.8 7.8 0 0 0 1.7 1l.4 2.6h3.8l.4-2.6a7.8 7.8 0 0 0 1.7-1l2.4 1 2-3.4-2-1.5Z"
+                  stroke="currentColor"
+                  strokeWidth="1.4"
+                  strokeLinejoin="round"
+                />
+              </svg>
+              Settings
             </button>
-          ))}
+          </div>
         </div>
-      </div>
+      </header>
 
       {/* Repo filter (sections that span repos) */}
       {showRepoFilter ? (
