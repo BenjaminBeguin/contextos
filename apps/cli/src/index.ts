@@ -9,6 +9,7 @@ import { hookCommand } from "./commands/hook.js";
 import { statusCommand } from "./commands/status.js";
 import { uninstallCommand } from "./commands/uninstall.js";
 import { chatCommand } from "./commands/chat.js";
+import { decisionCommand } from "./commands/decision.js";
 import { VERSION } from "./version.js";
 
 const program = new Command();
@@ -58,6 +59,12 @@ program
   .command("chat [question...]")
   .description("Chat with this repo's memory using your own Anthropic (key or Claude subscription)")
   .action((question: string[]) => run(() => chatCommand(question)));
+
+program
+  .command("decision <text...>")
+  .description("Record a project decision (what changed) as memory")
+  .option("--why <reason>", "Why the decision was made")
+  .action((text: string[], opts: { why?: string }) => run(() => decisionCommand(text, opts)));
 
 program
   .command("status")

@@ -2,7 +2,7 @@
 
 import { use, useEffect, useState } from "react";
 import Link from "next/link";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { MEMORY_TYPES, MEMORY_STATUSES } from "@cortex/shared";
 import { RepoPicker } from "../../../components/RepoPicker";
 import {
@@ -29,6 +29,8 @@ import {
   PageHeader,
   Select,
   Spinner,
+  StatusBadge,
+  Textarea,
   cn,
 } from "../../../components/ui";
 
@@ -39,6 +41,7 @@ const TABS = [
   "Overview",
   "Repos",
   "Memory",
+  "Decisions",
   "Risks",
   "Sessions",
   "Docs",
@@ -73,7 +76,8 @@ function Project({ workspaceId }: { workspaceId: string }) {
   });
 
   const repos = ws?.repos ?? [];
-  const showRepoFilter = ["Memory", "Risks", "Sessions", "Docs"].includes(tab) && repos.length > 1;
+  const showRepoFilter =
+    ["Memory", "Decisions", "Risks", "Sessions", "Docs"].includes(tab) && repos.length > 1;
 
   return (
     <div>
@@ -125,6 +129,9 @@ function Project({ workspaceId }: { workspaceId: string }) {
         {tab === "Overview" ? <Overview ws={ws} /> : null}
         {tab === "Repos" ? <ReposTab repos={repos} workspaceId={workspaceId} /> : null}
         {tab === "Memory" ? <MemoryTab workspaceId={workspaceId} repoId={repoFilter} /> : null}
+        {tab === "Decisions" ? (
+          <DecisionsTab workspaceId={workspaceId} repoId={repoFilter} repos={repos} />
+        ) : null}
         {tab === "Risks" ? <RisksTab workspaceId={workspaceId} repoId={repoFilter} /> : null}
         {tab === "Sessions" ? <SessionsTab workspaceId={workspaceId} repoId={repoFilter} /> : null}
         {tab === "Docs" ? <DocsTab workspaceId={workspaceId} repoId={repoFilter} /> : null}
@@ -233,6 +240,122 @@ function MemoryTab({ workspaceId, repoId }: { workspaceId: string; repoId: strin
         </Select>
       </div>
       <MemoryList memories={memories} isLoading={isLoading} empty="No memories match." />
+    </div>
+  );
+}
+
+function DecisionsTab({
+  workspaceId,
+  repoId,
+  repos,
+}: {
+  workspaceId: string;
+  repoId: string;
+  repos: WorkspaceDetail["repos"];
+}) {
+  const qc = useQueryClient();
+  const [text, setText] = useState("");
+  const [why, setWhy] = useState("");
+  const [pickRepo, setPickRepo] = useState(repos[0]?.id ?? "");
+  const targetRepo = repoId || pickRepo;
+
+  const { data, isLoading } = useQuery({
+    queryKey: ["workspace-memories", workspaceId, "decisions"],
+    queryFn: () => api<WorkspaceMemory[]>(`/workspaces/${workspaceId}/memories?type=decision`),
+  });
+  const decisions = (data ?? [])
+    .filter((d) => d.status !== "rejected" && d.status !== "archived")
+    .filter((d) => !repoId || d.repoId === repoId)
+    .sort((a, b) => +new Date(b.createdAt) - +new Date(a.createdAt));
+
+  const record = useMutation({
+    mutationFn: () =>
+      api(`/repos/${targetRepo}/memories`, {
+        method: "POST",
+        body: JSON.stringify({
+          type: "decision",
+          title: text.trim().slice(0, 140),
+          content: why.trim() ? `${text.trim()}\n\nWhy: ${why.trim()}` : text.trim(),
+          status: "approved",
+          source: "decision_log",
+          confidence: 0.9,
+        }),
+      }),
+    onSuccess: () => {
+      setText("");
+      setWhy("");
+      qc.invalidateQueries({ queryKey: ["workspace-memories"] });
+    },
+  });
+
+  return (
+    <div>
+      <Card className="p-6">
+        <h2 className="font-semibold">Record a decision</h2>
+        <p className="mt-1 text-sm text-[var(--muted)]">
+          What changed (a feature added or removed) — and why. It becomes durable context agents
+          retrieve.
+        </p>
+        <div className="mt-4 space-y-3">
+          <Input
+            value={text}
+            onChange={(e) => setText(e.target.value)}
+            placeholder="e.g. Removed the pricing page from the landing"
+          />
+          <Textarea
+            value={why}
+            onChange={(e) => setWhy(e.target.value)}
+            placeholder="Why? (optional)"
+            rows={2}
+          />
+          <div className="flex flex-wrap items-center gap-2">
+            {!repoId && repos.length > 1 ? (
+              <Select value={pickRepo} onChange={(e) => setPickRepo(e.target.value)}>
+                {repos.map((r) => (
+                  <option key={r.id} value={r.id}>
+                    {r.fullName}
+                  </option>
+                ))}
+              </Select>
+            ) : null}
+            <Button
+              onClick={() => record.mutate()}
+              disabled={!text.trim() || !targetRepo}
+              loading={record.isPending}
+            >
+              Record decision
+            </Button>
+          </div>
+        </div>
+      </Card>
+
+      <div className="mt-6">
+        {isLoading ? (
+          <Loading />
+        ) : decisions.length === 0 ? (
+          <EmptyState
+            title="No decisions yet"
+            description="Record one above, or use the cortex decision command from your repo."
+          />
+        ) : (
+          <ol className="relative space-y-4 border-l border-[var(--border)] pl-5">
+            {decisions.map((d) => (
+              <li key={d.id} className="relative">
+                <span className="absolute -left-[1.45rem] top-1.5 h-2.5 w-2.5 rounded-full bg-[var(--accent)]" />
+                <div className="flex flex-wrap items-center gap-2 text-xs text-[var(--muted)]">
+                  <StatusBadge status={d.status} />
+                  <span>{d.repoFullName}</span>
+                  <span title={new Date(d.createdAt).toLocaleString()}>· {timeAgo(d.createdAt)}</span>
+                </div>
+                <h3 className="mt-1 font-medium">{d.title}</h3>
+                {d.content && d.content !== d.title ? (
+                  <p className="mt-1 whitespace-pre-wrap text-sm text-[var(--muted)]">{d.content}</p>
+                ) : null}
+              </li>
+            ))}
+          </ol>
+        )}
+      </div>
     </div>
   );
 }
