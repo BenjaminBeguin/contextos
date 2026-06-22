@@ -113,12 +113,34 @@ export async function workspaceRoutes(app: FastifyInstance) {
       where: { userId: user.id },
       include: { workspace: true },
     });
+    const wsIds = memberships.map((m) => m.workspaceId);
+    const repos = await prisma.repo.findMany({
+      where: { workspaceId: { in: wsIds } },
+      select: { id: true, workspaceId: true },
+    });
+    const repoToWs = new Map(repos.map((r) => [r.id, r.workspaceId]));
+    const repoCount = new Map<string, number>();
+    for (const r of repos) repoCount.set(r.workspaceId, (repoCount.get(r.workspaceId) ?? 0) + 1);
+
+    const proposed = await prisma.memory.groupBy({
+      by: ["repoId"],
+      where: { status: "proposed", repoId: { in: repos.map((r) => r.id) } },
+      _count: true,
+    });
+    const pending = new Map<string, number>();
+    for (const g of proposed) {
+      const ws = repoToWs.get(g.repoId);
+      if (ws) pending.set(ws, (pending.get(ws) ?? 0) + g._count);
+    }
+
     return memberships.map((m) => ({
       id: m.workspace.id,
       name: m.workspace.name,
       slug: m.workspace.slug,
       joinCode: m.workspace.joinCode,
       role: m.role,
+      repoCount: repoCount.get(m.workspaceId) ?? 0,
+      pendingMemories: pending.get(m.workspaceId) ?? 0,
     }));
   });
 
@@ -273,9 +295,12 @@ export async function workspaceRoutes(app: FastifyInstance) {
       },
     });
     if (!workspace) return reply.code(404).send({ error: "Workspace not found" });
+    const pendingMemories = await prisma.memory.count({
+      where: { status: "proposed", repo: { workspaceId } },
+    });
     // Never return the (encrypted) key — just whether one is set.
     const { anthropicKey, ...rest } = workspace;
-    return { ...rest, hasAnthropicKey: Boolean(anthropicKey) };
+    return { ...rest, hasAnthropicKey: Boolean(anthropicKey), pendingMemories };
   });
 
   // Update workspace settings — name and/or auto-approve threshold (owners only).

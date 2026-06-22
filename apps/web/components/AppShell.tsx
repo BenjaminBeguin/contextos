@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useQuery } from "@tanstack/react-query";
-import { api, type Me } from "../lib/api";
+import { api, type Me, type Workspace } from "../lib/api";
 import { Button, cn, Spinner } from "./ui";
 import { WorkspaceSwitcher } from "./WorkspaceSwitcher";
 
@@ -21,6 +21,13 @@ export function AppShell({ children }: { children: React.ReactNode }) {
     queryFn: () => api<Me>("/me"),
     retry: false,
   });
+  const { data: workspaces } = useQuery({
+    queryKey: ["workspaces"],
+    queryFn: () => api<Workspace[]>("/workspaces"),
+    retry: false,
+    enabled: !!me,
+  });
+  const pendingTotal = (workspaces ?? []).reduce((n, w) => n + (w.pendingMemories ?? 0), 0);
 
   async function logout() {
     await api("/auth/logout", { method: "POST" });
@@ -44,13 +51,21 @@ export function AppShell({ children }: { children: React.ReactNode }) {
                     key={item.href}
                     href={item.href}
                     className={cn(
-                      "rounded-lg px-3 py-1.5 transition",
+                      "inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 transition",
                       active
                         ? "bg-[var(--surface-2)] text-white"
                         : "text-[var(--muted)] hover:bg-white/5 hover:text-white",
                     )}
                   >
                     {item.label}
+                    {item.label === "Projects" && pendingTotal > 0 ? (
+                      <span
+                        className="inline-flex h-4 min-w-4 items-center justify-center rounded-full bg-amber-500/20 px-1 text-[10px] font-semibold text-amber-300"
+                        title={`${pendingTotal} memories awaiting review`}
+                      >
+                        {pendingTotal}
+                      </span>
+                    ) : null}
                   </Link>
                 );
               })}

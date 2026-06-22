@@ -3,7 +3,7 @@
 import { useState } from "react";
 import Link from "next/link";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { api, type Me, type RepoSummary, type Workspace } from "../../lib/api";
+import { api, type Me, type Workspace } from "../../lib/api";
 import { AppShell } from "../../components/AppShell";
 import { useActiveWorkspace } from "../../lib/workspace";
 import { projectColor } from "../../lib/projectColor";
@@ -109,11 +109,13 @@ function ProjectGate() {
 }
 
 function ProjectsList({ me }: { me: Me }) {
-  const { data: repos } = useQuery({ queryKey: ["repos"], queryFn: () => api<RepoSummary[]>("/repos") });
+  const { data: workspaces } = useQuery({
+    queryKey: ["workspaces"],
+    queryFn: () => api<Workspace[]>("/workspaces"),
+  });
   const { setActiveId } = useActiveWorkspace();
   const [showForm, setShowForm] = useState(false);
-
-  const repoCount = (slug: string) => repos?.filter((r) => r.workspace?.slug === slug).length ?? 0;
+  const list = workspaces ?? me.workspaces;
 
   return (
     <div>
@@ -143,7 +145,7 @@ function ProjectsList({ me }: { me: Me }) {
       ) : null}
 
       <div className="mt-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-        {me.workspaces.map((w) => (
+        {list.map((w) => (
           <Link key={w.id} href={`/projects/${w.id}`} className="group" onClick={() => setActiveId(w.id)}>
             <Card hover className="h-full overflow-hidden p-5">
               <div
@@ -160,7 +162,14 @@ function ProjectsList({ me }: { me: Me }) {
                 </h3>
                 <span className="shrink-0 text-xs text-[var(--muted)]">{w.role}</span>
               </div>
-              <p className="mt-1 text-xs text-[var(--muted)]">{repoCount(w.slug)} repos</p>
+              <div className="mt-1 flex items-center gap-2 text-xs text-[var(--muted)]">
+                <span>{w.repoCount ?? 0} repos</span>
+                {(w.pendingMemories ?? 0) > 0 ? (
+                  <span className="rounded-full bg-amber-500/15 px-2 py-0.5 font-medium text-amber-300">
+                    {w.pendingMemories} to review
+                  </span>
+                ) : null}
+              </div>
             </Card>
           </Link>
         ))}

@@ -317,6 +317,7 @@ function AutoTriageCard({
       ),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["workspace", workspaceId] });
+      qc.invalidateQueries({ queryKey: ["workspaces"] });
       qc.invalidateQueries({ queryKey: ["memories"] });
       qc.invalidateQueries({ queryKey: ["workspace-memories"] });
     },

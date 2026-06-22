@@ -100,13 +100,21 @@ function Project({ workspaceId }: { workspaceId: string }) {
             key={t}
             onClick={() => setTab(t)}
             className={cn(
-              "-mb-px border-b-2 px-3 py-2 text-sm transition",
+              "-mb-px inline-flex items-center gap-1.5 border-b-2 px-3 py-2 text-sm transition",
               t === tab
                 ? "border-[var(--accent)] text-white"
                 : "border-transparent text-[var(--muted)] hover:text-white",
             )}
           >
             {t}
+            {t === "Memory" && (ws?.pendingMemories ?? 0) > 0 ? (
+              <span
+                className="inline-flex h-4 min-w-4 items-center justify-center rounded-full bg-amber-500/20 px-1 text-[10px] font-semibold text-amber-300"
+                title={`${ws?.pendingMemories} awaiting review`}
+              >
+                {ws?.pendingMemories}
+              </span>
+            ) : null}
           </button>
         ))}
       </div>

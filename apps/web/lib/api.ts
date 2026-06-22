@@ -27,6 +27,8 @@ export interface Workspace {
   slug: string;
   joinCode: string;
   role: string;
+  repoCount?: number;
+  pendingMemories?: number;
 }
 
 export interface Me {
@@ -47,6 +49,7 @@ export interface WorkspaceDetail {
   hasAnthropicKey?: boolean;
   autoApproveThreshold?: number | null;
   autoRejectThreshold?: number | null;
+  pendingMemories?: number;
   repos: { id: string; fullName: string; _count?: { memories: number } }[];
   memberships: {
     role: string;

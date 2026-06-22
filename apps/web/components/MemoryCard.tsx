@@ -17,6 +17,8 @@ export function MemoryCard({ memory }: { memory: Memory }) {
   const invalidate = () => {
     qc.invalidateQueries({ queryKey: ["memories"] });
     qc.invalidateQueries({ queryKey: ["workspace-memories"] });
+    qc.invalidateQueries({ queryKey: ["workspaces"] }); // pending-review badges
+    qc.invalidateQueries({ queryKey: ["workspace"] });
   };
 
   const setStatus = useMutation({
