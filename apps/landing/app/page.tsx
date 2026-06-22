@@ -46,42 +46,6 @@ const steps = [
   "Future sessions become smarter",
 ];
 
-const tiers = [
-  {
-    name: "Free",
-    price: "$0",
-    cadence: "forever",
-    blurb: "For solo developers trying it out.",
-    features: ["1 repo", "100 memories", "Claude Code via MCP", "Community support"],
-    cta: "Join waitlist",
-    highlight: false,
-  },
-  {
-    name: "Team",
-    price: "$20",
-    cadence: "/ user / mo",
-    blurb: "For engineering teams shipping with agents.",
-    features: [
-      "Unlimited repos & memories",
-      "Memory approval workflow",
-      "Usage analytics",
-      "GitHub integration",
-      "Priority support",
-    ],
-    cta: "Join waitlist",
-    highlight: true,
-  },
-  {
-    name: "Enterprise",
-    price: "Custom",
-    cadence: "",
-    blurb: "For orgs with security & compliance needs.",
-    features: ["SSO & SAML", "Audit logs", "Advanced permissions", "Private deployment", "SLA"],
-    cta: "Talk to us",
-    highlight: false,
-  },
-];
-
 function Terminal({ title, children }: { title: string; children: React.ReactNode }) {
   return (
     <div className="glow-ring overflow-hidden rounded-2xl border border-white/10 bg-black/60 text-left backdrop-blur">
@@ -311,56 +275,6 @@ cortex init
             </li>
           ))}
         </ul>
-      </Section>
-
-      {/* Pricing */}
-      <Section id="pricing">
-        <h2 className="text-center text-3xl font-semibold sm:text-4xl">
-          Simple pricing that scales with your team.
-        </h2>
-        <p className="mx-auto mt-3 max-w-xl text-center text-[var(--muted)]">
-          Start free. Upgrade when memory becomes mission-critical.
-        </p>
-        <div className="mt-12 grid gap-4 lg:grid-cols-3">
-          {tiers.map((t) => (
-            <div
-              key={t.name}
-              className={`glass rounded-2xl p-7 ${
-                t.highlight ? "conic-border lg:-translate-y-3" : ""
-              }`}
-            >
-              {t.highlight ? (
-                <span className="brand-gradient mb-3 inline-block rounded-full px-3 py-0.5 text-xs font-semibold text-white">
-                  Most popular
-                </span>
-              ) : null}
-              <h3 className="text-lg font-semibold">{t.name}</h3>
-              <div className="mt-2 flex items-baseline gap-1">
-                <span className="text-3xl font-semibold">{t.price}</span>
-                <span className="text-sm text-[var(--muted)]">{t.cadence}</span>
-              </div>
-              <p className="mt-2 text-sm text-[var(--muted)]">{t.blurb}</p>
-              <ul className="mt-5 space-y-2 text-sm">
-                {t.features.map((f) => (
-                  <li key={f} className="flex items-center gap-2">
-                    <span className="text-cyan-300">✓</span>
-                    {f}
-                  </li>
-                ))}
-              </ul>
-              <a
-                href={t.cta === "Talk to us" ? "mailto:founders@cortex.dev" : "#waitlist"}
-                className={`mt-6 block rounded-xl px-4 py-2.5 text-center text-sm font-semibold transition ${
-                  t.highlight
-                    ? "shine brand-gradient text-white hover:brightness-110"
-                    : "border border-white/15 hover:bg-white/5"
-                }`}
-              >
-                {t.cta}
-              </a>
-            </div>
-          ))}
-        </div>
       </Section>
 
       {/* Final CTA */}
