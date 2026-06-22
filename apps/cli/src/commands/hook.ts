@@ -48,14 +48,17 @@ function uniq(arr: string[]): string[] {
 }
 
 /** SessionStart: prime the agent with repo context (stack, risks, key commands). */
-async function sessionStart(env: { client: ApiClientOptions; config: ProjectConfig }) {
+async function sessionStart(
+  input: HookInput,
+  env: { client: ApiClientOptions; config: ProjectConfig },
+) {
   const ctx = await apiFetch<{
     repoContext: { stack: string[]; packageManager: string | null; notes: string | null };
     warnings: string[];
     recommendedCommands: string[];
   }>(env.client, "/mcp/get_repo_context", {
     method: "POST",
-    body: JSON.stringify({ repoId: env.config.repoId }),
+    body: JSON.stringify({ repoId: env.config.repoId, sessionId: input.session_id }),
   });
 
   const lines: string[] = [];
@@ -88,7 +91,7 @@ async function preEdit(input: HookInput, env: { client: ApiClientOptions; config
     warnings: { type: string; title: string; content: string }[];
   }>(env.client, "/mcp/get_relevant_warnings", {
     method: "POST",
-    body: JSON.stringify({ repoId: env.config.repoId, files: [file] }),
+    body: JSON.stringify({ repoId: env.config.repoId, files: [file], sessionId: input.session_id }),
   });
   if (!warnings.length) return;
 
@@ -166,6 +169,7 @@ async function sessionEnd(input: HookInput, env: { client: ApiClientOptions; con
     method: "POST",
     body: JSON.stringify({
       agent: "claude-code",
+      sessionId: input.session_id,
       task,
       summary,
       filesChanged: files,
@@ -188,7 +192,7 @@ export async function hookCommand(event: string) {
     const env = clientFromEnv(input.cwd);
     if (!env) process.exit(0); // not set up here — stay invisible
 
-    if (event === "session-start") await sessionStart(env);
+    if (event === "session-start") await sessionStart(input, env);
     else if (event === "pre-edit") await preEdit(input, env);
     else if (event === "session-end") await sessionEnd(input, env);
   } catch {

@@ -71,6 +71,7 @@ export async function mcpRoutes(app: FastifyInstance) {
     await recordUsage("mcp.get_repo_context", {
       workspaceId: repo.workspaceId,
       repoId: repo.id,
+      sessionId: body.sessionId,
     });
     return {
       repoContext: {
@@ -103,6 +104,7 @@ export async function mcpRoutes(app: FastifyInstance) {
     await recordUsage("mcp.get_relevant_warnings", {
       workspaceId: repo.workspaceId,
       repoId: repo.id,
+      sessionId: body.sessionId,
       metadata: { files: body.files.length, matched: matched.length },
     });
     return {

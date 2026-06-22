@@ -97,6 +97,42 @@ export async function metricsRoutes(app: FastifyInstance) {
     }
     const reposWithMemory = approvedByRepo.length;
 
+    // Measured with/without: compare error rates of sessions that used Cortex
+    // memory (a hook retrieval/warning carried their session id) vs those that didn't.
+    const [sessionList, memoryUseEvents] = await Promise.all([
+      prisma.agentSession.findMany({
+        where: { repoId: { in: repoIds }, createdAt: { gte: since30 } },
+        select: { externalId: true, errorCount: true },
+      }),
+      prisma.usageEvent.findMany({
+        where: {
+          workspaceId,
+          sessionId: { not: null },
+          type: { in: ["mcp.get_repo_context", "mcp.get_relevant_warnings", "mcp.search_memory"] },
+          createdAt: { gte: since30 },
+        },
+        select: { sessionId: true },
+      }),
+    ]);
+    const memorySessionIds = new Set(memoryUseEvents.map((e) => e.sessionId).filter(Boolean));
+    let withN = 0;
+    let withErr = 0;
+    let woN = 0;
+    let woErr = 0;
+    for (const s of sessionList) {
+      if (s.externalId && memorySessionIds.has(s.externalId)) {
+        withN++;
+        withErr += s.errorCount;
+      } else {
+        woN++;
+        woErr += s.errorCount;
+      }
+    }
+    const comparison = {
+      withMemory: { sessions: withN, avgErrors: withN ? +(withErr / withN).toFixed(2) : 0 },
+      withoutMemory: { sessions: woN, avgErrors: woN ? +(woErr / woN).toFixed(2) : 0 },
+    };
+
     // Bucket retrievals into the last 14 days.
     const buckets: Record<string, number> = {};
     for (let i = 13; i >= 0; i--) {
@@ -122,6 +158,7 @@ export async function metricsRoutes(app: FastifyInstance) {
       sessions30,
       approved30,
       reposWithMemory,
+      comparison,
       topRepos: repos
         .map((r) => ({ id: r.id, fullName: r.fullName, memories: r._count.memories }))
         .sort((a, b) => b.memories - a.memories)

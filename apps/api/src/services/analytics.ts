@@ -16,7 +16,12 @@ export type UsageType =
  */
 export async function recordUsage(
   type: UsageType,
-  opts: { workspaceId?: string; repoId?: string; metadata?: Prisma.InputJsonValue } = {},
+  opts: {
+    workspaceId?: string;
+    repoId?: string;
+    sessionId?: string;
+    metadata?: Prisma.InputJsonValue;
+  } = {},
 ): Promise<void> {
   try {
     await prisma.usageEvent.create({
@@ -24,6 +29,7 @@ export async function recordUsage(
         type,
         workspaceId: opts.workspaceId,
         repoId: opts.repoId,
+        sessionId: opts.sessionId,
         metadata: opts.metadata,
       },
     });

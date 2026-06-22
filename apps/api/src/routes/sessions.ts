@@ -42,6 +42,8 @@ export async function sessionRoutes(app: FastifyInstance) {
         task: body.task,
         summary: body.summary,
         status: "completed",
+        externalId: body.sessionId,
+        errorCount: body.errors?.length ?? 0,
         events: {
         create: events.map((e) => ({
           type: e.type,

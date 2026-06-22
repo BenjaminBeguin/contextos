@@ -98,13 +98,15 @@ model MemoryEvidence {
 }
 
 model AgentSession {
-  id        String   @id @default(cuid())
-  repoId    String
-  agent     String
-  task      String?
-  summary   String?
-  status    String   @default("completed")
-  createdAt DateTime @default(now())
+  id         String   @id @default(cuid())
+  repoId     String
+  agent      String
+  task       String?
+  summary    String?
+  status     String   @default("completed")
+  externalId String? // the agent's own session id (e.g. Claude Code session_id)
+  errorCount Int      @default(0) // errors hit during the session (outcome signal)
+  createdAt  DateTime @default(now())
 
   repo   Repo           @relation(fields: [repoId], references: [id], onDelete: Cascade)
   events SessionEvent[]
@@ -137,6 +139,7 @@ model UsageEvent {
   type        String
   workspaceId String?
   repoId      String?
+  sessionId   String? // agent session id, when the event came from a hook in a session
   metadata    Json?
   createdAt   DateTime @default(now())
 

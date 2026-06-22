@@ -78,6 +78,8 @@ function Usage() {
 
           <WithWithout metrics={metrics} />
 
+          <MeasuredComparison metrics={metrics} />
+
           <Card className="mt-6 p-6">
             <h2 className="font-semibold">Retrievals · last 14 days</h2>
             <RetrievalChart series={metrics.retrievalSeries} />
@@ -155,6 +157,54 @@ function WithWithout({ metrics }: { metrics: WorkspaceMetrics }) {
         </ul>
       </Card>
     </div>
+  );
+}
+
+function MeasuredComparison({ metrics }: { metrics: WorkspaceMetrics }) {
+  const { withMemory, withoutMemory } = metrics.comparison;
+  const total = withMemory.sessions + withoutMemory.sessions;
+  const delta =
+    withoutMemory.avgErrors > 0
+      ? Math.round((1 - withMemory.avgErrors / withoutMemory.avgErrors) * 100)
+      : null;
+
+  return (
+    <Card className="mt-6 p-6">
+      <div className="flex items-center justify-between">
+        <h2 className="font-semibold">Measured impact · errors per session (30d)</h2>
+        <span className="text-xs text-[var(--faint)]">{total} sessions</span>
+      </div>
+      <p className="mt-1 text-sm text-[var(--muted)]">
+        Comparing sessions where Cortex memory was retrieved against those where it wasn&apos;t.
+      </p>
+      <div className="mt-4 grid gap-4 sm:grid-cols-2">
+        <div className="rounded-xl border border-[var(--border)] bg-[var(--surface-2)] p-4">
+          <p className="text-xs text-[var(--muted)]">With memory</p>
+          <p className="mt-1 text-2xl font-semibold text-emerald-300">{withMemory.avgErrors}</p>
+          <p className="mt-1 text-xs text-[var(--faint)]">avg errors · {withMemory.sessions} sessions</p>
+        </div>
+        <div className="rounded-xl border border-[var(--border)] bg-[var(--surface-2)] p-4">
+          <p className="text-xs text-[var(--muted)]">Without memory</p>
+          <p className="mt-1 text-2xl font-semibold text-red-300">{withoutMemory.avgErrors}</p>
+          <p className="mt-1 text-xs text-[var(--faint)]">
+            avg errors · {withoutMemory.sessions} sessions
+          </p>
+        </div>
+      </div>
+      {delta !== null && withMemory.sessions > 0 && withoutMemory.sessions > 0 ? (
+        <p className="mt-3 text-sm">
+          <span className={delta >= 0 ? "text-emerald-300" : "text-red-300"}>
+            {delta >= 0 ? `${delta}% fewer` : `${Math.abs(delta)}% more`}
+          </span>{" "}
+          errors per session with memory.
+        </p>
+      ) : (
+        <p className="mt-3 text-xs text-[var(--faint)]">
+          Needs sessions both with and without memory to compute a delta — keep using Claude Code and
+          this fills in.
+        </p>
+      )}
+    </Card>
   );
 }
 

@@ -120,6 +120,10 @@ export interface WorkspaceMetrics {
   sessions30: number;
   approved30: number;
   reposWithMemory: number;
+  comparison: {
+    withMemory: { sessions: number; avgErrors: number };
+    withoutMemory: { sessions: number; avgErrors: number };
+  };
   topRepos: { id: string; fullName: string; memories: number }[];
 }
 

@@ -100,6 +100,7 @@ export const sessionEventSchema = z.object({
 
 export const recordSessionSchema = z.object({
   agent: z.string().default("claude-code"),
+  sessionId: z.string().optional(),
   task: z.string().optional(),
   summary: z.string().optional(),
   filesChanged: z.array(z.string()).optional(),
@@ -141,11 +142,13 @@ export const mcpSearchMemorySchema = z.object({
 
 export const mcpRepoContextSchema = z.object({
   repoId: z.string().min(1),
+  sessionId: z.string().optional(),
 });
 
 export const mcpRelevantWarningsSchema = z.object({
   repoId: z.string().min(1),
   files: z.array(z.string().min(1)).min(1).max(100),
+  sessionId: z.string().optional(),
 });
 
 export type RecordSessionInput = z.infer<typeof recordSessionSchema>;
