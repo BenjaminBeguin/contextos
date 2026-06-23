@@ -6,12 +6,19 @@ export interface ScanFile {
   content: string;
 }
 
+export interface ScanCommit {
+  sha: string;
+  /** Full commit message: subject line + optional body (the description). */
+  message: string;
+}
+
 export interface ScanInput {
   fullName: string;
   stack: string[];
   packageManager: string | null;
   structure: string;
   files: ScanFile[];
+  commits?: ScanCommit[];
 }
 
 // High-signal files to read, in priority order. `limit` caps matches per pattern.
@@ -116,6 +123,10 @@ Cover, where the material supports it:
 - Important dependencies and external services.
 - Testing and deployment practices.
 - Risks, gotchas, and "do not touch" areas.
+- Recurring themes, decisions, and past failures evident from the COMMIT HISTORY — e.g. "we
+  migrated X to Y", "fix: recurring bug in Z", conventions enforced over time. Treat commit
+  subjects AND descriptions as evidence of decisions (type "decision"), risks/failures
+  (type "failure"/"risk"), and conventions (type "project_rule").
 
 Rules:
 - Use ONLY the provided material (structure, file contents, stack). Do NOT invent or assume.
@@ -134,11 +145,34 @@ dependency, testing, deployment, business_context.
 Output ONLY a JSON array. Each item:
 {"type": <type>, "title": <short title>, "content": <the memory>, "confidence": <0..1>, "paths": <optional string[]>, "evidence": <optional short quote>}`;
 
+/** Render commit subjects + descriptions, bounded to a character budget. */
+function renderCommits(commits: ScanCommit[]): string {
+  const lines: string[] = [];
+  let budget = 12000;
+  for (const c of commits) {
+    const msg = c.message.trim();
+    const nl = msg.indexOf("\n");
+    const subject = nl === -1 ? msg : msg.slice(0, nl);
+    const body = nl === -1 ? "" : msg.slice(nl + 1).trim();
+    let entry = `* ${c.sha.slice(0, 7)} ${subject}`;
+    if (body) entry += `\n    ${body.replace(/\n/g, "\n    ")}`;
+    if (entry.length > budget) break;
+    budget -= entry.length;
+    lines.push(entry);
+  }
+  return lines.join("\n");
+}
+
 function render(input: ScanInput): string {
   const parts: string[] = [`Repository: ${input.fullName}`];
   if (input.stack.length) parts.push(`Stack: ${input.stack.join(", ")}`);
   if (input.packageManager) parts.push(`Package manager: ${input.packageManager}`);
   parts.push(`Structure: ${input.structure}`);
+  if (input.commits?.length) {
+    parts.push(
+      `Commit history (newest first, ${input.commits.length} commits):\n${renderCommits(input.commits)}`,
+    );
+  }
   for (const f of input.files) {
     parts.push(`--- ${f.path} ---\n${f.content.slice(0, 5000)}`);
   }
@@ -221,7 +255,7 @@ function heuristic(input: ScanInput): ExtractedMemory[] {
 }
 
 export async function scanRepo(input: ScanInput, apiKey?: string): Promise<ExtractedMemory[]> {
-  if (apiKey && input.files.length > 0) {
+  if (apiKey && (input.files.length > 0 || (input.commits?.length ?? 0) > 0)) {
     try {
       const raw = await complete(apiKey, SYSTEM, render(input), 4096);
       const parsed = extractedMemoriesSchema.safeParse(parseJsonArray(raw));

@@ -7,6 +7,7 @@ import { apiFetch, type ApiClientOptions } from "../api.js";
 interface ScanResult {
   proposedCount: number;
   filesRead?: number;
+  commitsRead?: number;
 }
 
 interface RepoDetail {
@@ -37,6 +38,8 @@ const AGENT_PROMPT = `You are onboarding onto THIS repository to build durable o
 
 Explore the codebase thoroughly first. Read the README, package manifests, config files, the data model / schema, entry points, routes/services/handlers, CI workflows, and a representative sample of the most important source files. Use Read, Glob, and Grep freely.
 
+Also review the COMMIT HISTORY and its descriptions: run \`git log --pretty=format:'%h %s%n%b' -n 500\` (and \`git log --oneline -n 500\` for a quick overview). Commit subjects and bodies are evidence of decisions, recurring failures, and conventions enforced over time.
+
 Then call the propose_memories MCP tool (mcp__cortex__propose_memories) to record a THOROUGH set of memories a new engineer/agent must know:
 - Overall architecture and how the major modules/areas fit together (one memory per significant area).
 - The data model / key entities (from schema/models).
@@ -46,6 +49,7 @@ Then call the propose_memories MCP tool (mcp__cortex__propose_memories) to recor
 - Important dependencies and external services.
 - Testing and deployment practices.
 - Risks, gotchas, and "do not touch" areas.
+- Recurring themes, decisions, and past failures evident from the commit history (type "decision"/"failure"/"project_rule").
 
 Rules:
 - Base every memory ONLY on what you actually read. Do not invent or assume.
@@ -99,6 +103,7 @@ async function agentScan(
     "Glob",
     "Grep",
     "LS",
+    "Bash(git log:*)",
     "mcp__cortex__get_repo_context",
     "mcp__cortex__search_memory",
     "mcp__cortex__propose_memories",
@@ -137,7 +142,11 @@ async function serverScan(client: ApiClientOptions, config: ProjectConfig): Prom
   const result = await apiFetch<ScanResult>(client, `/repos/${config.repoId}/scan`, {
     method: "POST",
   });
-  const from = result.filesRead != null ? ` (read ${result.filesRead} files)` : "";
+  const bits = [
+    result.filesRead != null ? `${result.filesRead} files` : null,
+    result.commitsRead != null ? `${result.commitsRead} commits` : null,
+  ].filter(Boolean);
+  const from = bits.length ? ` (read ${bits.join(", ")})` : "";
   console.log(
     `Proposed ${result.proposedCount} memory(ies)${from}. Review them in the Cortex inbox.`,
   );
