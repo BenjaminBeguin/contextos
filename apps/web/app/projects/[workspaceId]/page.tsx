@@ -16,6 +16,10 @@ import {
 import { AppShell } from "../../../components/AppShell";
 import { MemoryCard } from "../../../components/MemoryCard";
 import { ProjectSettings } from "../../../components/ProjectSettings";
+import { SearchTool } from "../../../components/tools/SearchTool";
+import { ChatTool } from "../../../components/tools/ChatTool";
+import { GraphTool } from "../../../components/tools/GraphTool";
+import { ImpactTool } from "../../../components/tools/ImpactTool";
 import { usePagination, Pagination } from "../../../components/Pagination";
 import { useActiveWorkspace } from "../../../lib/workspace";
 import { projectColor } from "../../../lib/projectColor";
@@ -172,7 +176,7 @@ function Project({ workspaceId }: { workspaceId: string }) {
         {tab === "Risks" ? <RisksTab workspaceId={workspaceId} repoId={repoFilter} /> : null}
         {tab === "Sessions" ? <SessionsTab workspaceId={workspaceId} repoId={repoFilter} /> : null}
         {tab === "Docs" ? <DocsTab workspaceId={workspaceId} repoId={repoFilter} /> : null}
-        {tab === "Tools" ? <ToolsTab /> : null}
+        {tab === "Tools" ? <ToolsTab workspaceId={workspaceId} /> : null}
         {tab === "Setup" ? <SetupTab /> : null}
         {tab === "Settings" ? <ProjectSettings workspaceId={workspaceId} isOwner={isOwner} /> : null}
       </div>
@@ -565,23 +569,25 @@ function DocsTab({ workspaceId, repoId }: { workspaceId: string; repoId: string 
   );
 }
 
-function ToolsTab() {
-  const tools = [
-    { href: "/search", title: "Search", desc: "Full-text search across every memory in the project." },
-    { href: "/chat", title: "Chat", desc: "Ask questions grounded in the project's approved memory." },
-    { href: "/graph", title: "Graph", desc: "Visualize repos, memories, and sessions as a network." },
-    { href: "/usage", title: "Impact", desc: "What Cortex is doing — context injected, risks flagged, knowledge captured." },
-  ];
+const TOOL_TABS = ["Search", "Chat", "Graph", "Impact"] as const;
+type ToolKey = (typeof TOOL_TABS)[number];
+
+function ToolsTab({ workspaceId }: { workspaceId: string }) {
+  const [sub, setSub] = useState<ToolKey>("Search");
   return (
-    <div className="grid gap-4 sm:grid-cols-2">
-      {tools.map((t) => (
-        <Link key={t.href} href={t.href} className="group">
-          <Card hover className="h-full p-5">
-            <h3 className="font-semibold transition group-hover:text-[var(--accent)]">{t.title}</h3>
-            <p className="mt-1 text-sm text-[var(--muted)]">{t.desc}</p>
-          </Card>
-        </Link>
-      ))}
+    <div>
+      {/* Tools submenu — same tab styling as the section header */}
+      <nav className="-mt-2 mb-6 flex items-stretch gap-1 overflow-x-auto border-b border-[var(--border)]">
+        {TOOL_TABS.map((t) => (
+          <button key={t} onClick={() => setSub(t)} className={cn(tabCls(sub === t), "py-2.5")}>
+            {t}
+          </button>
+        ))}
+      </nav>
+      {sub === "Search" ? <SearchTool workspaceId={workspaceId} /> : null}
+      {sub === "Chat" ? <ChatTool workspaceId={workspaceId} /> : null}
+      {sub === "Graph" ? <GraphTool workspaceId={workspaceId} /> : null}
+      {sub === "Impact" ? <ImpactTool workspaceId={workspaceId} /> : null}
     </div>
   );
 }
