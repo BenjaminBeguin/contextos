@@ -305,6 +305,57 @@ export function PageHeader({
   );
 }
 
+export function Modal({
+  open,
+  onClose,
+  title,
+  description,
+  children,
+  className = "",
+}: {
+  open: boolean;
+  onClose: () => void;
+  title?: string;
+  description?: ReactNode;
+  children: ReactNode;
+  className?: string;
+}) {
+  if (!open) return null;
+  return (
+    <div
+      className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-black/60 p-4 backdrop-blur-sm ctx-fade-in sm:p-8"
+      onClick={onClose}
+    >
+      <div
+        role="dialog"
+        aria-modal="true"
+        onClick={(e) => e.stopPropagation()}
+        className={cn(
+          "mt-8 w-full max-w-3xl rounded-2xl border border-[var(--border)] bg-[var(--surface)] p-6 shadow-2xl sm:mt-16",
+          className,
+        )}
+      >
+        <div className="mb-4 flex items-start justify-between gap-3">
+          <div>
+            {title ? <h2 className="text-lg font-semibold">{title}</h2> : null}
+            {description ? <p className="mt-1 text-sm text-[var(--muted)]">{description}</p> : null}
+          </div>
+          <button
+            onClick={onClose}
+            aria-label="Close"
+            className="rounded-lg p-1 text-[var(--muted)] transition hover:bg-white/5 hover:text-white"
+          >
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden>
+              <path d="M6 6l12 12M18 6L6 18" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
+            </svg>
+          </button>
+        </div>
+        {children}
+      </div>
+    </div>
+  );
+}
+
 export function Code({ children }: { children: ReactNode }) {
   return (
     <pre className="overflow-x-auto rounded-lg border border-[var(--border)] bg-black/40 p-4 text-sm text-[var(--text)]">

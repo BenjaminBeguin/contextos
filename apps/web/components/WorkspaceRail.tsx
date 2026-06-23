@@ -1,12 +1,14 @@
 "use client";
 
+import { useState } from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useQuery } from "@tanstack/react-query";
 import { api, type Me, type Workspace } from "../lib/api";
 import { useActiveWorkspace } from "../lib/workspace";
 import { projectColor } from "../lib/projectColor";
-import { cn } from "./ui";
+import { ProjectForms } from "./ProjectForms";
+import { cn, Modal } from "./ui";
 
 function initials(name: string): string {
   const parts = name.trim().split(/\s+/).filter(Boolean);
@@ -60,6 +62,7 @@ export function WorkspaceRail() {
   });
   const { activeId, setActiveId } = useActiveWorkspace();
   const list = workspaces ?? me?.workspaces ?? [];
+  const [newOpen, setNewOpen] = useState(false);
 
   function open(id: string) {
     setActiveId(id);
@@ -138,9 +141,9 @@ export function WorkspaceRail() {
           );
         })}
 
-        {/* New project */}
-        <Link
-          href="/dashboard"
+        {/* New project — opens a modal with the create/join form */}
+        <button
+          onClick={() => setNewOpen(true)}
           title="New project"
           aria-label="New project"
           className="flex h-10 w-10 items-center justify-center rounded-2xl border border-dashed border-[var(--border)] text-[var(--muted)] transition hover:rounded-xl hover:border-[var(--border-strong)] hover:text-white"
@@ -148,8 +151,25 @@ export function WorkspaceRail() {
           <svg width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden>
             <path d="M12 5v14M5 12h14" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
           </svg>
-        </Link>
+        </button>
       </nav>
+
+      <Modal
+        open={newOpen}
+        onClose={() => setNewOpen(false)}
+        title="New project"
+        description="Create a separate project for another team, or join one with its code."
+      >
+        <ProjectForms
+          onDone={(id) => {
+            setNewOpen(false);
+            if (id) {
+              setActiveId(id);
+              router.push(`/projects/${id}`);
+            }
+          }}
+        />
+      </Modal>
 
       {/* Bottom submenu: Documentation, Account, Log out */}
       <div className="flex flex-col items-center gap-1.5">
