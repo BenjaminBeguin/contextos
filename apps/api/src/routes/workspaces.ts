@@ -6,6 +6,8 @@ import {
   joinWorkspaceSchema,
   updateWorkspaceSchema,
   inviteMemberSchema,
+  reviewerSkillSchema,
+  updateReviewerSkillSchema,
 } from "@cortex/shared";
 import { prisma } from "../db.js";
 import { resolveUser, assertWorkspaceAccess, HttpError } from "../auth.js";
@@ -396,5 +398,78 @@ export async function workspaceRoutes(app: FastifyInstance) {
       data: { joinCode: generateJoinCode() },
     });
     return { joinCode: updated.joinCode };
+  });
+
+  // List reusable reviewer skills for a workspace.
+  app.get("/workspaces/:workspaceId/reviewer-skills", async (req, reply) => {
+    const user = await resolveUser(req);
+    if (!user) return reply.code(401).send({ error: "Unauthorized" });
+    const { workspaceId } = req.params as { workspaceId: string };
+    try {
+      await assertWorkspaceAccess(user.id, workspaceId);
+    } catch (e) {
+      if (e instanceof HttpError) return reply.code(e.statusCode).send({ error: e.message });
+      throw e;
+    }
+    return prisma.reviewerSkill.findMany({
+      where: { workspaceId },
+      orderBy: { createdAt: "asc" },
+    });
+  });
+
+  // Create a reusable reviewer skill (any member).
+  app.post("/workspaces/:workspaceId/reviewer-skills", async (req, reply) => {
+    const user = await resolveUser(req);
+    if (!user) return reply.code(401).send({ error: "Unauthorized" });
+    const { workspaceId } = req.params as { workspaceId: string };
+    try {
+      await assertWorkspaceAccess(user.id, workspaceId);
+    } catch (e) {
+      if (e instanceof HttpError) return reply.code(e.statusCode).send({ error: e.message });
+      throw e;
+    }
+    const body = reviewerSkillSchema.parse(req.body);
+    return prisma.reviewerSkill.create({
+      data: {
+        workspaceId,
+        name: body.name,
+        instructions: body.instructions,
+        paths: body.paths ?? [],
+      },
+    });
+  });
+
+  // Update a reviewer skill.
+  app.patch("/reviewer-skills/:skillId", async (req, reply) => {
+    const user = await resolveUser(req);
+    if (!user) return reply.code(401).send({ error: "Unauthorized" });
+    const { skillId } = req.params as { skillId: string };
+    const skill = await prisma.reviewerSkill.findUnique({ where: { id: skillId } });
+    if (!skill) return reply.code(404).send({ error: "Skill not found" });
+    try {
+      await assertWorkspaceAccess(user.id, skill.workspaceId);
+    } catch (e) {
+      if (e instanceof HttpError) return reply.code(e.statusCode).send({ error: e.message });
+      throw e;
+    }
+    const body = updateReviewerSkillSchema.parse(req.body);
+    return prisma.reviewerSkill.update({ where: { id: skillId }, data: body });
+  });
+
+  // Delete a reviewer skill (also detaches it from every repo).
+  app.delete("/reviewer-skills/:skillId", async (req, reply) => {
+    const user = await resolveUser(req);
+    if (!user) return reply.code(401).send({ error: "Unauthorized" });
+    const { skillId } = req.params as { skillId: string };
+    const skill = await prisma.reviewerSkill.findUnique({ where: { id: skillId } });
+    if (!skill) return reply.code(404).send({ error: "Skill not found" });
+    try {
+      await assertWorkspaceAccess(user.id, skill.workspaceId);
+    } catch (e) {
+      if (e instanceof HttpError) return reply.code(e.statusCode).send({ error: e.message });
+      throw e;
+    }
+    await prisma.reviewerSkill.delete({ where: { id: skillId } });
+    return { ok: true };
   });
 }

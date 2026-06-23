@@ -57,6 +57,43 @@ export interface WorkspaceDetail {
   }[];
 }
 
+export interface PullRequest {
+  number: number;
+  title: string;
+  url: string;
+  updatedAt: string;
+  draft: boolean;
+  author: string | null;
+}
+
+export interface ReviewFinding {
+  severity: "blocker" | "warning" | "nit" | "praise";
+  title: string;
+  detail: string;
+  path?: string;
+  memory?: string;
+}
+
+export interface PrReview {
+  summary: string;
+  findings: ReviewFinding[];
+}
+
+export interface ReviewResult {
+  review: PrReview;
+  posted: boolean;
+}
+
+export interface ReviewerSkill {
+  id: string;
+  workspaceId: string;
+  name: string;
+  instructions: string;
+  paths: string[];
+  createdAt: string;
+  updatedAt: string;
+}
+
 export interface ApiTokenInfo {
   id: string;
   name: string;

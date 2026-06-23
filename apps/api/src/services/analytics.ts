@@ -8,7 +8,8 @@ export type UsageType =
   | "memory.approved"
   | "memory.created"
   | "session.recorded"
-  | "repo.scanned";
+  | "repo.scanned"
+  | "repo.pr_reviewed";
 
 /**
  * Fire-and-forget usage telemetry. Never throws — analytics must not be able to

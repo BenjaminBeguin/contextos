@@ -11,6 +11,8 @@ import { uninstallCommand } from "./commands/uninstall.js";
 import { chatCommand } from "./commands/chat.js";
 import { decisionCommand } from "./commands/decision.js";
 import { syncCommand } from "./commands/sync.js";
+import { reviewCommand } from "./commands/review.js";
+import { ciCommand } from "./commands/ci.js";
 import { VERSION } from "./version.js";
 
 const program = new Command();
@@ -88,6 +90,22 @@ program
   .command("sync")
   .description("Write approved memories into a managed CLAUDE.md block")
   .action(() => run(() => syncCommand()));
+
+program
+  .command("review")
+  .description("Review the current PR's diff with Cortex and output a Markdown comment (for CI)")
+  .option("--base <ref>", "Base branch to diff against (default: $GITHUB_BASE_REF or main)")
+  .option("--title <title>", "PR title (default: from the GitHub event or last commit)")
+  .option("--body <body>", "PR description")
+  .option("--out <file>", "Write the review Markdown to a file (for `gh pr comment --body-file`)")
+  .option("--api <url>", "API base URL")
+  .action((opts) => run(() => reviewCommand(opts)));
+
+program
+  .command("ci")
+  .description("Generate a GitHub Actions workflow that runs the Cortex PR reviewer")
+  .option("-f, --force", "Overwrite an existing workflow file")
+  .action((opts) => run(() => ciCommand(opts)));
 
 const memory = program.command("memory").description("(coming soon) manage memories from the CLI");
 for (const stub of ["list", "propose"]) {

@@ -61,6 +61,30 @@ export const updateRepoSchema = z.object({
   packageManager: z.string().max(40).optional(),
   notes: z.string().max(5000).optional(),
   defaultBranch: z.string().max(120).optional(),
+  reviewerEnabled: z.boolean().optional(),
+  reviewerInstructions: z.string().max(4000).optional(),
+});
+
+export const reviewPrSchema = z.object({
+  prNumber: z.number().int().positive(),
+  post: z.boolean().optional(),
+});
+
+/** CI-native review: the caller (a CI job) supplies the diff; no GitHub access needed. */
+export const reviewDiffSchema = z.object({
+  prTitle: z.string().min(1).max(500),
+  prBody: z.string().max(20000).optional(),
+  diff: z.string().min(1).max(400000),
+});
+
+export const reviewerSkillSchema = z.object({
+  name: z.string().min(1).max(120),
+  instructions: z.string().min(1).max(8000),
+  paths: z.array(z.string().min(1)).max(40).optional(),
+});
+export const updateReviewerSkillSchema = reviewerSkillSchema.partial();
+export const setRepoSkillsSchema = z.object({
+  skillIds: z.array(z.string().min(1)).max(50),
 });
 
 export const memoryEvidenceSchema = z.object({

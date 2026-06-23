@@ -1,5 +1,11 @@
 import type { FastifyInstance } from "fastify";
-import { createRepoSchema, updateRepoSchema } from "@cortex/shared";
+import {
+  createRepoSchema,
+  updateRepoSchema,
+  reviewPrSchema,
+  reviewDiffSchema,
+  setRepoSkillsSchema,
+} from "@cortex/shared";
 import { prisma } from "../db.js";
 import { resolveUser, assertWorkspaceAccess, assertRepoAccess, HttpError } from "../auth.js";
 import { decryptToken } from "../crypto.js";
@@ -12,7 +18,8 @@ import {
 import { getWorkspaceKey } from "../services/llm.js";
 import { recordUsage } from "../services/analytics.js";
 import { loadDedupSet, partitionNew } from "../services/dedup.js";
-import { getAutoThresholds, statusFor } from "../services/memory.js";
+import { getAutoThresholds, statusFor, searchMemories } from "../services/memory.js";
+import { reviewPullRequest, formatReviewComment } from "../services/review.js";
 
 /** Decode a GitHub contents/readme API payload (base64) to UTF-8 text. */
 function decodeGhContent(json: unknown): string | null {
@@ -107,6 +114,7 @@ export async function repoRoutes(app: FastifyInstance) {
       where: { id: repoId },
       include: {
         workspace: { select: { name: true, slug: true } },
+        reviewerSkills: { select: { skillId: true } },
         _count: { select: { memories: true, sessions: true } },
       },
     });
@@ -120,7 +128,12 @@ export async function repoRoutes(app: FastifyInstance) {
           where: { userId_workspaceId: { userId: user.id, workspaceId: repo.workspaceId } },
         })
       : null;
-    return { ...repo, memoryCounts: counts, viewerRole: membership?.role ?? "member" };
+    return {
+      ...repo,
+      reviewerSkillIds: repo?.reviewerSkills.map((s) => s.skillId) ?? [],
+      memoryCounts: counts,
+      viewerRole: membership?.role ?? "member",
+    };
   });
 
   // Update repo context (any member).
@@ -214,6 +227,19 @@ export async function repoRoutes(app: FastifyInstance) {
       )
     ).filter((f): f is { path: string; content: string } => f !== null);
 
+    // Read commit history (subjects + descriptions) as extra signal for memory extraction.
+    const commits: { sha: string; message: string }[] = [];
+    for (let page = 1; page <= 5; page++) {
+      const cRes = await fetch(
+        `${base}/commits?sha=${encodeURIComponent(branch)}&per_page=100&page=${page}`,
+        { headers },
+      );
+      if (!cRes.ok) break;
+      const batch = (await cRes.json()) as { sha: string; commit: { message: string } }[];
+      for (const c of batch) commits.push({ sha: c.sha, message: c.commit.message });
+      if (batch.length < 100) break;
+    }
+
     const apiKey = await getWorkspaceKey(repo.workspaceId);
     const drafts = await scanRepo(
       {
@@ -222,6 +248,7 @@ export async function repoRoutes(app: FastifyInstance) {
         packageManager: repo.packageManager,
         structure: summarizeStructure(filePaths),
         files,
+        commits,
       },
       apiKey,
     );
@@ -253,10 +280,15 @@ export async function repoRoutes(app: FastifyInstance) {
     await recordUsage("repo.scanned", {
       workspaceId: repo.workspaceId,
       repoId,
-      metadata: { proposed: freshDrafts.length, filesRead: files.length, totalFiles: filePaths.length },
+      metadata: {
+        proposed: freshDrafts.length,
+        filesRead: files.length,
+        totalFiles: filePaths.length,
+        commitsRead: commits.length,
+      },
     });
 
-    return { ok: true, proposedCount: freshDrafts.length, filesRead: files.length };
+    return { ok: true, proposedCount: freshDrafts.length, filesRead: files.length, commitsRead: commits.length };
   });
 
   // Resync repo context (stack, default branch, description) from GitHub.
@@ -325,5 +357,220 @@ export async function repoRoutes(app: FastifyInstance) {
       repo: updated,
       synced: { stack, defaultBranch: info.default_branch, packageManager: packageManager ?? null },
     };
+  });
+
+  // List open pull requests for the reviewer UI.
+  app.get("/repos/:repoId/pulls", async (req, reply) => {
+    const user = await resolveUser(req);
+    if (!user) return reply.code(401).send({ error: "Unauthorized" });
+    const { repoId } = req.params as { repoId: string };
+    let repo;
+    try {
+      repo = await assertRepoAccess(user.id, repoId);
+    } catch (e) {
+      if (e instanceof HttpError) return reply.code(e.statusCode).send({ error: e.message });
+      throw e;
+    }
+    if (repo.provider !== "github" || !repo.fullName.includes("/")) {
+      return reply.code(400).send({ error: "Only GitHub repos (owner/name) have pull requests." });
+    }
+    const account = await prisma.user.findUnique({ where: { id: user.id } });
+    const token = account?.githubAccessToken ? decryptToken(account.githubAccessToken) : null;
+    if (!token) return reply.code(409).send({ error: "github_not_connected" });
+
+    const headers = {
+      authorization: `Bearer ${token}`,
+      accept: "application/vnd.github+json",
+      "user-agent": "cortex",
+    };
+    const r = await fetch(
+      `https://api.github.com/repos/${repo.fullName}/pulls?state=open&per_page=30&sort=updated&direction=desc`,
+      { headers },
+    );
+    if (r.status === 401) return reply.code(409).send({ error: "github_not_connected" });
+    if (!r.ok) return reply.code(502).send({ error: "Failed to reach GitHub." });
+    const pulls = (await r.json()) as {
+      number: number;
+      title: string;
+      html_url: string;
+      updated_at: string;
+      draft: boolean;
+      user: { login: string } | null;
+    }[];
+    return pulls.map((p) => ({
+      number: p.number,
+      title: p.title,
+      url: p.html_url,
+      updatedAt: p.updated_at,
+      draft: p.draft,
+      author: p.user?.login ?? null,
+    }));
+  });
+
+  // Set which reviewer skills are attached to this repo (replaces the full set).
+  app.put("/repos/:repoId/reviewer-skills", async (req, reply) => {
+    const user = await resolveUser(req);
+    if (!user) return reply.code(401).send({ error: "Unauthorized" });
+    const { repoId } = req.params as { repoId: string };
+    let repo;
+    try {
+      repo = await assertRepoAccess(user.id, repoId);
+    } catch (e) {
+      if (e instanceof HttpError) return reply.code(e.statusCode).send({ error: e.message });
+      throw e;
+    }
+    const { skillIds } = setRepoSkillsSchema.parse(req.body);
+    // Only allow skills that belong to this repo's workspace.
+    const valid = await prisma.reviewerSkill.findMany({
+      where: { id: { in: skillIds }, workspaceId: repo.workspaceId },
+      select: { id: true },
+    });
+    const validIds = valid.map((s) => s.id);
+    await prisma.$transaction([
+      prisma.repoReviewerSkill.deleteMany({ where: { repoId } }),
+      prisma.repoReviewerSkill.createMany({
+        data: validIds.map((skillId) => ({ repoId, skillId })),
+        skipDuplicates: true,
+      }),
+    ]);
+    return { ok: true, skillIds: validIds };
+  });
+
+  // Review a pull request, grounded in this repo's approved memories. Optionally post the
+  // review back to the PR as a comment.
+  app.post("/repos/:repoId/review", async (req, reply) => {
+    const user = await resolveUser(req);
+    if (!user) return reply.code(401).send({ error: "Unauthorized" });
+    const { repoId } = req.params as { repoId: string };
+    let repo;
+    try {
+      repo = await assertRepoAccess(user.id, repoId);
+    } catch (e) {
+      if (e instanceof HttpError) return reply.code(e.statusCode).send({ error: e.message });
+      throw e;
+    }
+    if (repo.provider !== "github" || !repo.fullName.includes("/")) {
+      return reply.code(400).send({ error: "Only GitHub repos (owner/name) can be reviewed." });
+    }
+    const body = reviewPrSchema.parse(req.body);
+
+    const account = await prisma.user.findUnique({ where: { id: user.id } });
+    const token = account?.githubAccessToken ? decryptToken(account.githubAccessToken) : null;
+    if (!token) return reply.code(409).send({ error: "github_not_connected" });
+
+    const apiKey = await getWorkspaceKey(repo.workspaceId);
+    if (!apiKey) return reply.code(409).send({ error: "llm_not_configured" });
+
+    const headers = {
+      authorization: `Bearer ${token}`,
+      accept: "application/vnd.github+json",
+      "user-agent": "cortex",
+    };
+    const base = `https://api.github.com/repos/${repo.fullName}`;
+
+    const prRes = await fetch(`${base}/pulls/${body.prNumber}`, { headers });
+    if (prRes.status === 401) return reply.code(409).send({ error: "github_not_connected" });
+    if (prRes.status === 404) return reply.code(404).send({ error: "Pull request not found." });
+    if (!prRes.ok) return reply.code(502).send({ error: "Failed to reach GitHub." });
+    const pr = (await prRes.json()) as { title: string; body: string | null };
+
+    const diffRes = await fetch(`${base}/pulls/${body.prNumber}`, {
+      headers: { ...headers, accept: "application/vnd.github.v3.diff" },
+    });
+    const diff = diffRes.ok ? await diffRes.text() : "";
+
+    const memories = await searchMemories({ repoId, query: "", limit: 40, approvedOnly: true });
+    const skills = await prisma.reviewerSkill.findMany({
+      where: { repos: { some: { repoId } } },
+      orderBy: { createdAt: "asc" },
+    });
+    const review = await reviewPullRequest(
+      {
+        fullName: repo.fullName,
+        prTitle: pr.title,
+        prBody: pr.body,
+        diff,
+        memories: memories.map((m) => ({
+          type: m.type,
+          title: m.title,
+          content: m.content,
+          paths: m.paths,
+        })),
+        instructions: repo.reviewerInstructions,
+        skills: skills.map((s) => ({ name: s.name, instructions: s.instructions, paths: s.paths })),
+      },
+      apiKey,
+    );
+
+    let posted = false;
+    if (body.post) {
+      const cRes = await fetch(`${base}/issues/${body.prNumber}/comments`, {
+        method: "POST",
+        headers,
+        body: JSON.stringify({ body: formatReviewComment(review) }),
+      });
+      posted = cRes.ok;
+    }
+
+    await recordUsage("repo.pr_reviewed", {
+      workspaceId: repo.workspaceId,
+      repoId,
+      metadata: { prNumber: body.prNumber, findings: review.findings.length, posted },
+    });
+
+    return { review, posted };
+  });
+
+  // CI-native review: the caller supplies the diff (computed in CI), we return the review +
+  // a ready-to-post Markdown comment. No GitHub access here — the CI job posts the comment.
+  app.post("/repos/:repoId/review-diff", async (req, reply) => {
+    const user = await resolveUser(req);
+    if (!user) return reply.code(401).send({ error: "Unauthorized" });
+    const { repoId } = req.params as { repoId: string };
+    let repo;
+    try {
+      repo = await assertRepoAccess(user.id, repoId);
+    } catch (e) {
+      if (e instanceof HttpError) return reply.code(e.statusCode).send({ error: e.message });
+      throw e;
+    }
+    const body = reviewDiffSchema.parse(req.body);
+
+    // The UI toggle is the CI kill-switch: skip cleanly when the reviewer is disabled.
+    if (!repo.reviewerEnabled) return { skipped: true, reason: "reviewer_disabled" };
+
+    const apiKey = await getWorkspaceKey(repo.workspaceId);
+    if (!apiKey) return reply.code(409).send({ error: "llm_not_configured" });
+
+    const memories = await searchMemories({ repoId, query: "", limit: 40, approvedOnly: true });
+    const skills = await prisma.reviewerSkill.findMany({
+      where: { repos: { some: { repoId } } },
+      orderBy: { createdAt: "asc" },
+    });
+    const review = await reviewPullRequest(
+      {
+        fullName: repo.fullName,
+        prTitle: body.prTitle,
+        prBody: body.prBody ?? null,
+        diff: body.diff,
+        memories: memories.map((m) => ({
+          type: m.type,
+          title: m.title,
+          content: m.content,
+          paths: m.paths,
+        })),
+        instructions: repo.reviewerInstructions,
+        skills: skills.map((s) => ({ name: s.name, instructions: s.instructions, paths: s.paths })),
+      },
+      apiKey,
+    );
+
+    await recordUsage("repo.pr_reviewed", {
+      workspaceId: repo.workspaceId,
+      repoId,
+      metadata: { findings: review.findings.length, source: "ci" },
+    });
+
+    return { review, comment: formatReviewComment(review), skipped: false };
   });
 }

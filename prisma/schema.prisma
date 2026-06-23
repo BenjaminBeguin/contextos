@@ -30,9 +30,10 @@ model Workspace {
   autoRejectThreshold  Float? // if set, proposed memories with confidence < this are auto-rejected
   createdAt    DateTime @default(now())
 
-  memberships Membership[]
-  repos       Repo[]
-  auditLogs   AuditLog[]
+  memberships    Membership[]
+  repos          Repo[]
+  auditLogs      AuditLog[]
+  reviewerSkills ReviewerSkill[]
 }
 
 model Membership {
@@ -48,21 +49,53 @@ model Membership {
 }
 
 model Repo {
-  id             String   @id @default(cuid())
-  workspaceId    String
-  provider       String   @default("github")
-  name           String
-  fullName       String
-  defaultBranch  String?
-  stack          String[] @default([])
-  packageManager String?
-  notes          String?
-  createdAt      DateTime @default(now())
+  id                   String   @id @default(cuid())
+  workspaceId          String
+  provider             String   @default("github")
+  name                 String
+  fullName             String
+  defaultBranch        String?
+  stack                String[] @default([])
+  packageManager       String?
+  notes                String?
+  reviewerEnabled      Boolean  @default(false)
+  reviewerInstructions String?
+  createdAt            DateTime @default(now())
 
-  workspace Workspace      @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
-  memories  Memory[]
-  sessions  AgentSession[]
-  docs      GeneratedDoc[]
+  workspace      Workspace           @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  memories       Memory[]
+  sessions       AgentSession[]
+  docs           GeneratedDoc[]
+  reviewerSkills RepoReviewerSkill[]
+}
+
+/** A named, reusable reviewer "skill" (instructions + optional path scope) owned by a
+    workspace and attachable to any number of its repos. */
+model ReviewerSkill {
+  id           String   @id @default(cuid())
+  workspaceId  String
+  name         String
+  instructions String
+  paths        String[] @default([])
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  workspace Workspace           @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  repos     RepoReviewerSkill[]
+
+  @@index([workspaceId])
+}
+
+/** Join table attaching reviewer skills to repos (many-to-many). */
+model RepoReviewerSkill {
+  repoId  String
+  skillId String
+
+  repo  Repo          @relation(fields: [repoId], references: [id], onDelete: Cascade)
+  skill ReviewerSkill @relation(fields: [skillId], references: [id], onDelete: Cascade)
+
+  @@id([repoId, skillId])
+  @@index([skillId])
 }
 
 model Memory {
