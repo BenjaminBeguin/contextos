@@ -31,6 +31,8 @@ const findingSchema = z.object({
   title: z.string().min(1),
   detail: z.string().min(1),
   path: z.string().optional(),
+  /** Line number in the NEW version of the file (right side of the diff) for inline comments. */
+  line: z.number().int().positive().optional(),
   memory: z.string().optional(),
 });
 
@@ -57,9 +59,13 @@ Rules:
 - Ground findings in the diff and the memories. When a finding relates to a memory, set "memory"
   to that memory's exact title. Do NOT invent project rules that aren't in the memories.
 - Be specific: reference the file path and what to change. Prefer a few high-signal findings over noise.
+- For each finding, set "path" to the file and "line" to the line number in the NEW version of the
+  file (the right/"+" side of the diff — read it from the @@ -old,+new @@ hunk headers). Pick a line
+  that actually appears as an added or context line in the diff so the comment can be placed inline.
+  Omit "line" only for findings that aren't tied to a specific line.
 - severity: "blocker" (must fix), "warning" (should fix), "nit" (minor/style), "praise" (notably good).
 - If the diff looks clean, return an empty findings array and say so in the summary.
-- Output ONLY a JSON object: {"summary": <1-3 sentence overview>, "findings": [{"severity","title","detail","path"?,"memory"?}]}`;
+- Output ONLY a JSON object: {"summary": <1-3 sentence overview>, "findings": [{"severity","title","detail","path"?,"line"?,"memory"?}]}`;
 
 function renderMemories(memories: ReviewMemory[]): string {
   if (memories.length === 0) return "(no approved memories for this repo yet)";
@@ -126,7 +132,7 @@ export function formatReviewComment(review: PrReview): string {
   if (review.findings.length > 0) {
     lines.push("");
     for (const f of review.findings) {
-      const where = f.path ? ` \`${f.path}\`` : "";
+      const where = f.path ? ` \`${f.path}${f.line ? `:${f.line}` : ""}\`` : "";
       const mem = f.memory ? ` _(memory: ${f.memory})_` : "";
       lines.push(`- **${SEVERITY_LABEL[f.severity]}**${where}: ${f.title}${mem}`);
       if (f.detail) lines.push(`  ${f.detail}`);

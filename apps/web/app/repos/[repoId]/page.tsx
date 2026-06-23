@@ -481,6 +481,7 @@ function ReviewResultView({
                 {f.path ? (
                   <code className="rounded bg-black/30 px-1.5 py-0.5 font-mono text-[10px] text-cyan-200">
                     {f.path}
+                    {f.line ? `:${f.line}` : ""}
                   </code>
                 ) : null}
               </span>

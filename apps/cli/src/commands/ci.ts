@@ -19,15 +19,11 @@ jobs:
         with:
           node-version: 20
       - run: npm install -g @mxbenjaminbeguin/cortex
-      - name: Generate review
-        run: cortex review --base "\${{ github.event.pull_request.base.ref }}" --out cortex-review.md
+      - name: Cortex review
+        run: cortex review --base "\${{ github.event.pull_request.base.ref }}" --post
         env:
           CORTEX_TOKEN: \${{ secrets.CORTEX_TOKEN }}
           CORTEX_API_URL: \${{ vars.CORTEX_API_URL }}
-      - name: Post review comment
-        if: \${{ hashFiles('cortex-review.md') != '' }}
-        run: gh pr comment "\${{ github.event.pull_request.number }}" --body-file cortex-review.md
-        env:
           GH_TOKEN: \${{ github.token }}
 `;
 

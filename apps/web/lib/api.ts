@@ -71,6 +71,7 @@ export interface ReviewFinding {
   title: string;
   detail: string;
   path?: string;
+  line?: number;
   memory?: string;
 }
 

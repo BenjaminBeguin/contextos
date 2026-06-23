@@ -93,11 +93,12 @@ program
 
 program
   .command("review")
-  .description("Review the current PR's diff with Cortex and output a Markdown comment (for CI)")
+  .description("Review the current PR's diff with Cortex (inline comments in CI, or Markdown output)")
   .option("--base <ref>", "Base branch to diff against (default: $GITHUB_BASE_REF or main)")
   .option("--title <title>", "PR title (default: from the GitHub event or last commit)")
   .option("--body <body>", "PR description")
-  .option("--out <file>", "Write the review Markdown to a file (for `gh pr comment --body-file`)")
+  .option("--post", "Post a PR review with inline comments using GH_TOKEN (for CI)")
+  .option("--out <file>", "Write the review Markdown to a file instead of posting")
   .option("--api <url>", "API base URL")
   .action((opts) => run(() => reviewCommand(opts)));
 
