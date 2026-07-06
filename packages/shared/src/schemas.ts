@@ -77,6 +77,21 @@ export const reviewDiffSchema = z.object({
   diff: z.string().min(1).max(400000),
 });
 
+export const reviewFeedbackValueSchema = z.enum(["pending", "accepted", "dismissed"]);
+
+/** Feedback on a single persisted finding (web app). */
+export const reviewFeedbackSchema = z.object({
+  feedback: reviewFeedbackValueSchema,
+});
+
+/** Bulk feedback keyed by finding dedup key (CLI `review-sync` from GitHub reactions). */
+export const reviewFeedbackBulkSchema = z.object({
+  items: z
+    .array(z.object({ key: z.string().min(1), feedback: reviewFeedbackValueSchema }))
+    .min(1)
+    .max(200),
+});
+
 export const reviewerSkillSchema = z.object({
   name: z.string().min(1).max(120),
   instructions: z.string().min(1).max(8000),
