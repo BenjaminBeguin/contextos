@@ -24,10 +24,11 @@
     "agents"
   ],
   "scripts": {
-    "build": "tsc -p tsconfig.json",
+    "build": "node esbuild.mjs",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
     "dev": "tsx src/index.ts",
     "start": "node dist/index.js",
-    "prepublishOnly": "pnpm build"
+    "prepublishOnly": "pnpm typecheck && pnpm build"
   },
   "publishConfig": {
     "access": "public"
@@ -39,7 +40,9 @@
     "zod": "^3.24.1"
   },
   "devDependencies": {
+    "@cortex/shared": "workspace:*",
     "@types/node": "^22.10.5",
+    "esbuild": "^0.21.5",
     "tsx": "^4.19.2",
     "typescript": "^5.7.3"
   }

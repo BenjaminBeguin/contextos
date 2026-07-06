@@ -12,6 +12,7 @@ import { chatCommand } from "./commands/chat.js";
 import { decisionCommand } from "./commands/decision.js";
 import { syncCommand } from "./commands/sync.js";
 import { reviewCommand } from "./commands/review.js";
+import { reviewSyncCommand } from "./commands/review-sync.js";
 import { ciCommand } from "./commands/ci.js";
 import { VERSION } from "./version.js";
 
@@ -101,6 +102,12 @@ program
   .option("--out <file>", "Write the review Markdown to a file instead of posting")
   .option("--api <url>", "API base URL")
   .action((opts) => run(() => reviewCommand(opts)));
+
+program
+  .command("review-sync")
+  .description("Sync GitHub 👍/👎 reactions on Cortex review comments back as finding feedback")
+  .option("--api <url>", "API base URL")
+  .action((opts) => run(() => reviewSyncCommand(opts)));
 
 program
   .command("ci")

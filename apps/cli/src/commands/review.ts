@@ -1,5 +1,5 @@
 import { execFileSync } from "node:child_process";
-import { readFileSync, writeFileSync, existsSync } from "node:fs";
+import { writeFileSync } from "node:fs";
 import { loadCredentials, loadProjectConfig } from "../config.js";
 import { apiFetch, type ApiClientOptions } from "../api.js";
 import {
@@ -8,6 +8,7 @@ import {
   extractMarkers,
   type Finding,
 } from "../github-review.js";
+import { readEvent, ghContext, gh, type GhContext } from "../github.js";
 
 interface ReviewDiffResult {
   skipped?: boolean;
@@ -44,57 +45,6 @@ function computeDiff(base: string): string {
   } catch {
     return "";
   }
-}
-
-function readEvent(): { title?: string; body?: string; prNumber?: number } {
-  const p = process.env.GITHUB_EVENT_PATH;
-  if (!p || !existsSync(p)) return {};
-  try {
-    const ev = JSON.parse(readFileSync(p, "utf8")) as {
-      pull_request?: { title?: string; body?: string | null; number?: number };
-      number?: number;
-    };
-    return {
-      title: ev.pull_request?.title,
-      body: ev.pull_request?.body ?? undefined,
-      prNumber: ev.pull_request?.number ?? ev.number,
-    };
-  } catch {
-    return {};
-  }
-}
-
-interface GhContext {
-  repo: string;
-  pr: number;
-  token: string;
-}
-
-function ghContext(prFromEvent?: number): GhContext | null {
-  const repo = process.env.GITHUB_REPOSITORY;
-  const token = process.env.GH_TOKEN ?? process.env.GITHUB_TOKEN;
-  let pr = prFromEvent;
-  if (!pr) {
-    const m = (process.env.GITHUB_REF ?? "").match(/refs\/pull\/(\d+)\//);
-    if (m) pr = parseInt(m[1]!, 10);
-  }
-  if (!repo || !token || !pr) return null;
-  return { repo, pr, token };
-}
-
-async function gh<T>(ctx: GhContext, path: string, init: RequestInit = {}): Promise<T> {
-  const res = await fetch(`https://api.github.com${path}`, {
-    ...init,
-    headers: {
-      authorization: `Bearer ${ctx.token}`,
-      accept: "application/vnd.github+json",
-      "user-agent": "cortex",
-      ...(init.body ? { "content-type": "application/json" } : {}),
-    },
-  });
-  const text = await res.text();
-  if (!res.ok) throw new Error(`GitHub ${res.status}: ${text.slice(0, 300)}`);
-  return (text ? JSON.parse(text) : null) as T;
 }
 
 /** Post a PR review with inline comments, deduping against findings already posted. */

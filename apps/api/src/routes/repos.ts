@@ -20,6 +20,7 @@ import { recordUsage } from "../services/analytics.js";
 import { loadDedupSet, partitionNew } from "../services/dedup.js";
 import { getAutoThresholds, statusFor, searchMemories } from "../services/memory.js";
 import { reviewPullRequest, formatReviewComment } from "../services/review.js";
+import { persistReview } from "../services/feedback.js";
 
 /** Decode a GitHub contents/readme API payload (base64) to UTF-8 text. */
 function decodeGhContent(json: unknown): string | null {
@@ -518,7 +519,27 @@ export async function repoRoutes(app: FastifyInstance) {
       metadata: { prNumber: body.prNumber, findings: review.findings.length, posted },
     });
 
-    return { review, posted };
+    // Persist the review + findings so humans can give feedback. Non-fatal.
+    let persisted: Awaited<ReturnType<typeof persistReview>> | null = null;
+    try {
+      persisted = await persistReview({
+        repoId,
+        source: "github",
+        prTitle: pr.title,
+        prNumber: body.prNumber,
+        summary: review.summary,
+        findings: review.findings,
+      });
+    } catch (e) {
+      req.log.error(e, "failed to persist review");
+    }
+
+    return {
+      review,
+      posted,
+      reviewId: persisted?.id ?? null,
+      findings: persisted?.findings.map((f) => ({ id: f.id, key: f.key })) ?? [],
+    };
   });
 
   // CI-native review: the caller supplies the diff (computed in CI), we return the review +
@@ -571,6 +592,26 @@ export async function repoRoutes(app: FastifyInstance) {
       metadata: { findings: review.findings.length, source: "ci" },
     });
 
-    return { review, comment: formatReviewComment(review), skipped: false };
+    // Persist the review + findings so humans can give feedback. Non-fatal.
+    let persisted: Awaited<ReturnType<typeof persistReview>> | null = null;
+    try {
+      persisted = await persistReview({
+        repoId,
+        source: "ci",
+        prTitle: body.prTitle,
+        summary: review.summary,
+        findings: review.findings,
+      });
+    } catch (e) {
+      req.log.error(e, "failed to persist review");
+    }
+
+    return {
+      review,
+      comment: formatReviewComment(review),
+      skipped: false,
+      reviewId: persisted?.id ?? null,
+      findings: persisted?.findings.map((f) => ({ id: f.id, key: f.key })) ?? [],
+    };
   });
 }

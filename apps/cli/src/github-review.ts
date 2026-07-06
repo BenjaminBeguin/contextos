@@ -2,15 +2,9 @@
  * Pure helpers for turning Cortex review findings into a GitHub pull-request review
  * with inline comments — plus diff parsing and dedup so re-runs stay quiet.
  */
+import { type Finding, type ReviewSeverity, findingKey } from "@cortex/shared";
 
-export interface Finding {
-  severity: "blocker" | "warning" | "nit" | "praise";
-  title: string;
-  detail: string;
-  path?: string;
-  line?: number;
-  memory?: string;
-}
+export { type Finding, type ReviewSeverity, findingKey };
 
 export interface InlineComment {
   path: string;
@@ -63,15 +57,6 @@ export function parseDiffNewLines(diff: string): Map<string, Set<number>> {
     }
   }
   return out;
-}
-
-function slug(s: string): string {
-  return s.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "").slice(0, 60);
-}
-
-/** Stable dedup key for a finding (path + line + normalized title). */
-export function findingKey(f: Finding): string {
-  return `${f.path ?? ""}:${f.line ?? ""}:${slug(f.title)}`;
 }
 
 const MARKER_RE = /<!-- cortex-review:(.+?) -->/g;
