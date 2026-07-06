@@ -1,21 +1,44 @@
 @import "tailwindcss";
 
 :root {
-  --background: #07070a;
-  --surface: #0e0e14;
-  --surface-2: #15151d;
-  --border: #23232e;
-  --text: #e7e7ee;
-  --muted: #9b9bab;
-  --accent: #6d5efc;
+  /* Warm plum-ink base — synaptic warmth on deep ink (see DESIGN.md). */
+  --background: #0a0711;
+  --surface: #120e1c;
+  --surface-2: #1a1526;
+  --border: #2a2338;
+  --text: #ece9f3;
+  --muted: #a49fb5;
+
+  /* Violet core */
+  --accent: #8b5cff;
+  --accent-hover: #a17dff;
+  --accent-soft: rgba(139, 92, 255, 0.14);
+
+  /* Amber — the signature "a synapse firing" signal */
+  --signal: #ffb454;
+  --signal-hover: #ffc47a;
+  --signal-soft: rgba(255, 180, 84, 0.14);
+
+  /* Semantic states */
+  --verify: #34d399; /* jade — approved / verified / accepted */
+  --alert: #fb7185; /* rose — blocker / dismissed / risk */
+
+  --ring: rgba(139, 92, 255, 0.6);
+
+  /* Identity gradient: violet → magenta → amber (a warm neural sunrise). */
+  --brand-grad: linear-gradient(100deg, #7c3aed 0%, #b5179e 52%, #ff9e3f 100%);
 }
 
 html,
 body {
   background: var(--background);
   color: var(--text);
-  font-family: ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
+  font-family: var(--font-sans), ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
   -webkit-font-smoothing: antialiased;
+}
+
+.font-display {
+  font-family: var(--font-display), ui-sans-serif, system-ui, sans-serif;
 }
 
 a {
@@ -40,9 +63,9 @@ a {
   height: 600px;
   pointer-events: none;
   background:
-    radial-gradient(40% 50% at 20% 20%, rgba(109, 94, 252, 0.35), transparent 70%),
-    radial-gradient(40% 50% at 80% 10%, rgba(34, 211, 238, 0.28), transparent 70%),
-    radial-gradient(50% 60% at 50% 30%, rgba(217, 70, 239, 0.18), transparent 70%);
+    radial-gradient(40% 50% at 20% 20%, rgba(139, 92, 255, 0.36), transparent 70%),
+    radial-gradient(42% 52% at 80% 12%, rgba(255, 180, 84, 0.26), transparent 70%),
+    radial-gradient(50% 60% at 50% 30%, rgba(181, 23, 158, 0.22), transparent 70%);
   filter: blur(40px);
   animation: aurora-drift 16s ease-in-out infinite alternate;
 }
@@ -59,7 +82,7 @@ a {
 }
 
 .gradient-text {
-  background: linear-gradient(110deg, #e7e7ee 10%, #a78bfa 35%, #22d3ee 60%, #e7e7ee 90%);
+  background: linear-gradient(110deg, #ece9f3 8%, #a78bfa 34%, #e879f9 55%, #ffb454 78%, #ece9f3 96%);
   background-size: 200% auto;
   -webkit-background-clip: text;
   background-clip: text;
@@ -73,9 +96,9 @@ a {
   }
 }
 
-/* Readable brand button gradient (violet → cyan), shared with the product app. */
+/* Brand button gradient — violet → magenta → amber, shared with the product app. */
 .brand-gradient {
-  background-image: linear-gradient(100deg, #7c3aed, #0e8aa8);
+  background-image: var(--brand-grad);
 }
 
 .glass {
@@ -85,15 +108,15 @@ a {
   transition: border-color 0.25s ease, transform 0.25s ease, box-shadow 0.25s ease;
 }
 .glass:hover {
-  border-color: rgba(167, 139, 250, 0.45);
+  border-color: rgba(139, 92, 255, 0.45);
   transform: translateY(-3px);
-  box-shadow: 0 20px 60px -25px rgba(109, 94, 252, 0.55);
+  box-shadow: 0 20px 60px -25px rgba(255, 180, 84, 0.4);
 }
 
 .glow-ring {
   box-shadow:
     0 0 0 1px rgba(255, 255, 255, 0.06),
-    0 0 80px -20px rgba(34, 211, 238, 0.35);
+    0 0 80px -20px rgba(255, 180, 84, 0.34);
 }
 
 @keyframes float-slow {
@@ -131,7 +154,7 @@ a {
   pointer-events: none;
   background: radial-gradient(
     480px circle at var(--mx, 50%) var(--my, 18%),
-    rgba(124, 112, 255, 0.14),
+    rgba(255, 180, 84, 0.14),
     transparent 55%
   );
   transition: background 0.15s ease-out;
@@ -153,7 +176,7 @@ a {
   inset: -1.5px;
   border-radius: inherit;
   padding: 1.5px;
-  background: conic-gradient(from var(--angle), #6d5efc, #22d3ee, #d946ef, #6d5efc);
+  background: conic-gradient(from var(--angle), #8b5cff, #b5179e, #ffb454, #8b5cff);
   -webkit-mask:
     linear-gradient(#000 0 0) content-box,
     linear-gradient(#000 0 0);

@@ -7,6 +7,7 @@ import * as THREE from "three";
 const CYAN = "#22d3ee";
 const BLUE = "#38bdf8";
 const VIOLET = "#a78bfa";
+const SIGNAL = "#ffb454"; // amber — a memory firing (the signature)
 
 function circleGeometry(radius: number, segments = 160): THREE.BufferGeometry {
   const pts = new Float32Array(segments * 3);
@@ -157,7 +158,7 @@ function Signals({ count = 28 }: { count?: number }) {
       <points ref={inward} geometry={inGeom}>
         <pointsMaterial
           size={0.1}
-          color={CYAN}
+          color={SIGNAL}
           transparent
           opacity={0.95}
           depthWrite={false}
@@ -281,13 +282,13 @@ export function BrainHero() {
 
   return (
     <div className="relative mx-auto h-[480px] w-full max-w-5xl sm:h-[620px]">
-      <div className="pointer-events-none absolute inset-0 -z-10 mx-auto h-2/5 w-2/5 self-center rounded-full bg-[radial-gradient(circle,rgba(34,211,238,0.15),transparent_70%)] blur-3xl" />
+      <div className="pointer-events-none absolute inset-0 -z-10 mx-auto h-2/5 w-2/5 self-center rounded-full bg-[radial-gradient(circle,rgba(255,180,84,0.15),transparent_70%)] blur-3xl" />
       {mounted ? (
         <Canvas dpr={[1, 2]} camera={{ position: [0, 0.3, 6.4], fov: 45 }} gl={{ antialias: true, alpha: true }}>
           <Scene />
         </Canvas>
       ) : null}
-      <div className="pointer-events-none absolute bottom-2 left-0 right-0 text-center font-mono text-[11px] uppercase tracking-[0.3em] text-cyan-300/70">
+      <div className="pointer-events-none absolute bottom-2 left-0 right-0 text-center font-mono text-[11px] uppercase tracking-[0.3em] text-[color:var(--signal)]/70">
         memory core · online
       </div>
     </div>
