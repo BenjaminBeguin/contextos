@@ -1,3 +1,5 @@
+import type { PrReviewDTO, PrReviewFindingDTO, ReviewFeedback } from "@cortex/shared";
+
 export const API_BASE_URL =
   process.env.NEXT_PUBLIC_API_BASE_URL ?? "http://localhost:3008";
 
@@ -73,6 +75,37 @@ export interface ReviewFinding {
   path?: string;
   line?: number;
   memory?: string;
+}
+
+/** Persisted reviews for a repo, newest first. */
+export function getReviews(
+  repoId: string,
+  params?: { limit?: number; offset?: number },
+): Promise<{ reviews: PrReviewDTO[]; total: number }> {
+  const query = new URLSearchParams();
+  if (params?.limit != null) query.set("limit", String(params.limit));
+  if (params?.offset != null) query.set("offset", String(params.offset));
+  const qs = query.toString();
+  return api<{ reviews: PrReviewDTO[]; total: number }>(
+    `/repos/${repoId}/reviews${qs ? `?${qs}` : ""}`,
+  );
+}
+
+/** Result of marking a finding accepted / dismissed / pending. */
+export interface FindingFeedbackResult {
+  finding: PrReviewFindingDTO;
+  memory?: { id: string; confidence: number; previousConfidence: number };
+}
+
+/** Mark a single finding's feedback; may move the grounding memory's confidence. */
+export function sendFindingFeedback(
+  findingId: string,
+  feedback: ReviewFeedback,
+): Promise<FindingFeedbackResult> {
+  return api<FindingFeedbackResult>(`/findings/${findingId}/feedback`, {
+    method: "POST",
+    body: JSON.stringify({ feedback }),
+  });
 }
 
 export interface PrReview {

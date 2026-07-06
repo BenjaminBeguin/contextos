@@ -1,35 +1,53 @@
 @import "tailwindcss";
 
 :root {
-  --background: #07070a;
-  --surface: #0e0e14;
-  --surface-2: #15151d;
-  --surface-3: #1c1c26;
-  --border: #23232e;
-  --border-strong: #34343f;
-  --text: #e7e7ee;
-  --muted: #9b9bab;
-  --faint: #6a6a78;
-  --accent: #6d5efc;
-  --accent-hover: #8073ff;
-  --accent-soft: rgba(109, 94, 252, 0.14);
-  --accent-cyan: #22d3ee;
-  --ring: rgba(125, 112, 255, 0.6);
+  /* Synaptic warmth on deep ink — warm plum-ink base. */
+  --background: #0a0711;
+  --surface: #120e1c;
+  --surface-2: #1a1526;
+  --surface-3: #221c30;
+  --border: #2a2338;
+  --border-strong: #3a3350;
+  --text: #ece9f3;
+  --muted: #a49fb5;
+  --faint: #6f6982;
+
+  /* Violet — the core. */
+  --accent: #8b5cff;
+  --accent-hover: #a17dff;
+  --accent-soft: rgba(139, 92, 255, 0.14);
+
+  /* Amber — the SIGNATURE (a synapse firing). */
+  --signal: #ffb454;
+  --signal-hover: #ffc47a;
+  --signal-soft: rgba(255, 180, 84, 0.14);
+
+  /* Semantic accents. */
+  --verify: #34d399; /* jade — approved / verified / accepted */
+  --alert: #fb7185; /* rose — blocker / dismissed / risk */
+  --accent-cyan: #22d3ee; /* tertiary — data / graph only */
+
+  --ring: rgba(139, 92, 255, 0.6);
   --radius: 0.75rem;
-  /* Brand gradient (violet → cyan), kept deep enough for readable white text. */
-  --brand-grad: linear-gradient(100deg, #7c3aed, #0e8aa8);
+  /* The identity gradient: violet → magenta → amber (a warm neural sunrise). */
+  --brand-grad: linear-gradient(100deg, #7c3aed 0%, #b5179e 52%, #ff9e3f 100%);
 }
 
 html,
 body {
   background: var(--background);
   color: var(--text);
-  font-family: ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
+  font-family: var(--font-sans), ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
   -webkit-font-smoothing: antialiased;
   text-rendering: optimizeLegibility;
 }
 
-/* Subtle brand glow at the top of the app, echoing the landing aurora. */
+/* Display / heading face — Space Grotesk. */
+.font-display {
+  font-family: var(--font-display), ui-sans-serif, system-ui, sans-serif;
+}
+
+/* Subtle brand glow at the top of the app — violet + amber synapse (no cyan). */
 body::before {
   content: "";
   position: fixed;
@@ -38,8 +56,19 @@ body::before {
   pointer-events: none;
   z-index: -1;
   background:
-    radial-gradient(50% 60% at 18% 0%, rgba(139, 92, 246, 0.12), transparent 70%),
-    radial-gradient(45% 55% at 85% 0%, rgba(34, 211, 238, 0.1), transparent 70%);
+    radial-gradient(50% 60% at 16% 0%, rgba(139, 92, 255, 0.14), transparent 70%),
+    radial-gradient(50% 55% at 55% 0%, rgba(181, 23, 158, 0.09), transparent 72%),
+    radial-gradient(45% 55% at 88% 0%, rgba(255, 180, 84, 0.1), transparent 70%);
+}
+
+/* Grain: a faint tiled noise overlay so large dark areas feel like a surface. */
+.grain {
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  z-index: -1;
+  opacity: 0.03;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='140' height='140'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.8' numOctaves='2' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
 }
 
 /* Shared brand treatments (match the landing identity). */
@@ -47,7 +76,7 @@ body::before {
   background-image: var(--brand-grad);
 }
 .gradient-text {
-  background: linear-gradient(100deg, #e7e7ee 10%, #a78bfa 40%, #22d3ee 65%, #e7e7ee 95%);
+  background: linear-gradient(110deg, #ece9f3 8%, #a78bfa 34%, #e879f9 55%, #ffb454 78%, #ece9f3 96%);
   -webkit-background-clip: text;
   background-clip: text;
   color: transparent;

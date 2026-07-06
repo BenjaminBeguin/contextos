@@ -89,7 +89,7 @@ export function WorkspaceRail() {
         aria-label="Cortex home"
         className="mb-1 flex h-10 w-10 items-center justify-center"
       >
-        <span className="inline-block h-5 w-5 rotate-45 rounded-sm bg-gradient-to-br from-violet-400 to-cyan-400 shadow-[0_0_14px_rgba(34,211,238,0.45)]" />
+        <span className="inline-block h-5 w-5 rotate-45 rounded-sm bg-gradient-to-br from-[var(--accent)] via-[#b5179e] to-[var(--signal)] shadow-[0_0_14px_rgba(255,180,84,0.45)]" />
       </Link>
       <div className="h-px w-7 bg-[var(--border)]" />
 

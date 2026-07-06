@@ -52,11 +52,11 @@ export function Badge({ label }: { label: string }) {
 }
 
 const STATUS_COLORS: Record<string, string> = {
-  approved: "bg-emerald-500/15 text-emerald-300 border-emerald-500/30",
-  proposed: "bg-violet-500/15 text-violet-300 border-violet-500/30",
-  rejected: "bg-red-500/15 text-red-300 border-red-500/30",
+  approved: "bg-[var(--verify)]/12 text-[var(--verify)] border-[var(--verify)]/30",
+  proposed: "bg-[var(--accent)]/14 text-[var(--accent-hover)] border-[var(--accent)]/30",
+  rejected: "bg-[var(--alert)]/14 text-[var(--alert)] border-[var(--alert)]/30",
   archived: "bg-zinc-500/15 text-zinc-300 border-zinc-500/30",
-  stale: "bg-yellow-500/15 text-yellow-300 border-yellow-500/30",
+  stale: "bg-[var(--signal)]/14 text-[var(--signal)] border-[var(--signal)]/30",
 };
 
 export function StatusBadge({ status }: { status: string }) {
@@ -217,7 +217,7 @@ export function EmptyState({
   return (
     <div className="flex flex-col items-center justify-center rounded-xl border border-dashed border-[var(--border)] bg-[var(--surface)]/50 px-6 py-14 text-center">
       {icon ? <div className="mb-3 text-[var(--faint)]">{icon}</div> : null}
-      <h3 className="text-sm font-semibold text-[var(--text)]">{title}</h3>
+      <h3 className="font-display text-sm font-semibold text-[var(--text)]">{title}</h3>
       {description ? (
         <p className="mt-1 max-w-sm text-sm text-[var(--muted)]">{description}</p>
       ) : null}
@@ -288,7 +288,7 @@ export function PageHeader({
   return (
     <div className="mb-6 flex flex-wrap items-start justify-between gap-3">
       <div>
-        <h1 className="flex items-center gap-2.5 text-2xl font-semibold tracking-tight">
+        <h1 className="font-display flex items-center gap-2.5 text-2xl font-semibold tracking-tight">
           {accent ? (
             <span
               className="inline-block h-3 w-3 shrink-0 rounded-full"
@@ -337,7 +337,7 @@ export function Modal({
       >
         <div className="mb-4 flex items-start justify-between gap-3">
           <div>
-            {title ? <h2 className="text-lg font-semibold">{title}</h2> : null}
+            {title ? <h2 className="font-display text-lg font-semibold">{title}</h2> : null}
             {description ? <p className="mt-1 text-sm text-[var(--muted)]">{description}</p> : null}
           </div>
           <button

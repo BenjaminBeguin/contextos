@@ -32,6 +32,7 @@ export function RepoNav({ repoId }: { repoId: string }) {
     { href: `/repos/${repoId}/memories`, label: "Memory library" },
     { href: `/repos/${repoId}/inbox`, label: "Inbox" },
     { href: `/repos/${repoId}/risks`, label: "Risks" },
+    { href: `/repos/${repoId}/reviews`, label: "Reviews" },
     { href: `/repos/${repoId}/sessions`, label: "Sessions" },
     { href: `/repos/${repoId}/docs`, label: "Docs" },
     { href: `/repos/${repoId}/setup`, label: "Claude Code setup" },
