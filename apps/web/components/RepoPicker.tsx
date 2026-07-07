@@ -8,9 +8,12 @@ import { Button } from "./ui";
 export function RepoPicker({
   workspaceId,
   onCreated,
+  existingFullNames = [],
 }: {
   workspaceId: string;
   onCreated: () => void;
+  /** Repos already linked to this project — hidden from the pick list. */
+  existingFullNames?: string[];
 }) {
   const qc = useQueryClient();
   const [search, setSearch] = useState("");
@@ -39,10 +42,11 @@ export function RepoPicker({
   });
 
   const filtered = useMemo(() => {
-    const list = reposQuery.data ?? [];
+    const already = new Set(existingFullNames.map((n) => n.toLowerCase()));
+    const list = (reposQuery.data ?? []).filter((r) => !already.has(r.fullName.toLowerCase()));
     const q = search.trim().toLowerCase();
     return q ? list.filter((r) => r.fullName.toLowerCase().includes(q)) : list;
-  }, [reposQuery.data, search]);
+  }, [reposQuery.data, search, existingFullNames]);
 
   if (notConnected) {
     return (

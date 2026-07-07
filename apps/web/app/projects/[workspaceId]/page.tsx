@@ -992,7 +992,11 @@ function SetupTab({
 
         {adding ? (
           <div className="mt-4 border-t border-[var(--border)] pt-4">
-            <RepoPicker workspaceId={workspaceId} onCreated={() => setAdding(false)} />
+            <RepoPicker
+              workspaceId={workspaceId}
+              existingFullNames={repos.map((r) => r.fullName)}
+              onCreated={() => setAdding(false)}
+            />
           </div>
         ) : null}
 
