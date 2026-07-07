@@ -27,14 +27,9 @@ export function RepoNav({ repoId }: { repoId: string }) {
     if (repo?.workspaceId) setActiveWorkspaceId(repo.workspaceId);
   }, [repo?.workspaceId]);
 
-  // Kept intentionally lean — a repo just shows its own artifacts. Inbox, risk
-  // creation, sessions, and Claude Code setup live at the project (top) level.
-  const tabs = [
-    { href: `/repos/${repoId}`, label: "Overview" },
-    { href: `/repos/${repoId}/memories`, label: "Memory library" },
-    { href: `/repos/${repoId}/reviews`, label: "Reviews" },
-    { href: `/repos/${repoId}/docs`, label: "Docs" },
-  ];
+  // A repo is just a setup/config target now — everything else is managed at the
+  // project level (Knowledge, Reviews, Docs) or via the Setup drawer.
+  const tabs = [{ href: `/repos/${repoId}`, label: "Setup" }];
   return (
     <div className="mb-6">
       <Breadcrumb

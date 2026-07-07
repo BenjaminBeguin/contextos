@@ -169,6 +169,16 @@ select option {
   }
 }
 
+/* Right-side drawer entrance. */
+@keyframes ctx-slide-in {
+  from {
+    transform: translateX(100%);
+  }
+  to {
+    transform: translateX(0);
+  }
+}
+
 /* Markdown rendering (chat answers, living docs) */
 .ctx-md {
   font-size: 0.875rem;

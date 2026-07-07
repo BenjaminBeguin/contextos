@@ -6,6 +6,7 @@ import { useSearchParams } from "next/navigation";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { MEMORY_TYPES, MEMORY_STATUSES } from "@cortex/shared";
 import { RepoPicker } from "../../../components/RepoPicker";
+import { RepoSetupDrawer } from "../../../components/RepoSetupDrawer";
 import {
   api,
   getWorkspaceReviews,
@@ -957,9 +958,8 @@ function SetupTab({
   repos: WorkspaceDetail["repos"];
 }) {
   const [adding, setAdding] = useState(false);
-  const [initRepo, setInitRepo] = useState(repos[0]?.id ?? "");
+  const [drawerRepo, setDrawerRepo] = useState<string | null>(null);
   const connected = repos.length > 0;
-  const selectedRepo = repos.find((r) => r.id === initRepo) ?? repos[0];
 
   return (
     <div className="max-w-3xl space-y-6">
@@ -999,10 +999,10 @@ function SetupTab({
         {connected ? (
           <div className="mt-4 divide-y divide-[var(--border)] border-t border-[var(--border)]">
             {repos.map((r) => (
-              <Link
+              <button
                 key={r.id}
-                href={`/repos/${r.id}`}
-                className="group flex items-center justify-between py-2.5"
+                onClick={() => setDrawerRepo(r.id)}
+                className="group flex w-full items-center justify-between py-2.5 text-left"
               >
                 <span className="flex items-center gap-2 text-sm">
                   <span
@@ -1011,10 +1011,10 @@ function SetupTab({
                   />
                   <span className="transition group-hover:text-[var(--accent)]">{r.fullName}</span>
                 </span>
-                <span className="text-xs text-[var(--faint)]">
-                  {r._count?.memories ?? 0} memories →
+                <span className="text-xs text-[var(--faint)] transition group-hover:text-[var(--muted)]">
+                  {r._count?.memories ?? 0} memories · set up →
                 </span>
-              </Link>
+              </button>
             ))}
           </div>
         ) : null}
@@ -1024,8 +1024,8 @@ function SetupTab({
       <Card className="p-6">
         <h2 className="font-display font-semibold">Connect Claude Code</h2>
         <p className="mt-1 text-sm text-[var(--muted)]">
-          Install the CLI once, then run <code className="text-[var(--text)]">cortex init</code> inside
-          each repo. Full reference in{" "}
+          Install the CLI once, then open a repo above to get its <code className="text-[var(--text)]">cortex init</code>{" "}
+          command. Full reference in{" "}
           <Link href="/docs" className="text-[var(--accent)] hover:underline">
             Documentation
           </Link>
@@ -1036,34 +1036,14 @@ function SetupTab({
 cortex login
 cortex status    # verify the connection`}</Code>
         </div>
-
-        {connected ? (
-          <div className="mt-5">
-            <div className="mb-2 flex items-center gap-2 text-sm text-[var(--muted)]">
-              <span>Connect a specific repo:</span>
-              {repos.length > 1 ? (
-                <Select value={initRepo} onChange={(e) => setInitRepo(e.target.value)}>
-                  {repos.map((r) => (
-                    <option key={r.id} value={r.id}>
-                      {r.fullName}
-                    </option>
-                  ))}
-                </Select>
-              ) : (
-                <span className="text-[var(--text)]">{selectedRepo?.fullName}</span>
-              )}
-            </div>
-            <Code label={selectedRepo?.fullName ?? "repo"}>
-              {`cd your/local/checkout\ncortex init --repo ${selectedRepo?.id ?? "<repo-id>"}`}
-            </Code>
-          </div>
-        ) : null}
-
         <p className="mt-3 text-xs text-[var(--faint)]">
-          To turn on the PR reviewer for a repo, run <code>cortex ci</code> and enable it on the
-          repo&apos;s page.
+          Select a repo above to connect it and toggle its PR reviewer — right in a drawer.
         </p>
       </Card>
+
+      {drawerRepo ? (
+        <RepoSetupDrawer repoId={drawerRepo} onClose={() => setDrawerRepo(null)} />
+      ) : null}
     </div>
   );
 }
