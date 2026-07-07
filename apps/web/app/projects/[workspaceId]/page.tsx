@@ -2,6 +2,7 @@
 
 import { use, useEffect, useState } from "react";
 import Link from "next/link";
+import { useSearchParams } from "next/navigation";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { MEMORY_TYPES, MEMORY_STATUSES } from "@cortex/shared";
 import { RepoPicker } from "../../../components/RepoPicker";
@@ -67,7 +68,9 @@ export default function ProjectPage({ params }: { params: Promise<{ workspaceId:
 }
 
 function Project({ workspaceId }: { workspaceId: string }) {
-  const [tab, setTab] = useState<Tab>("Overview");
+  const searchParams = useSearchParams();
+  const initialTab = TABS.find((t) => t === searchParams.get("tab")) ?? "Overview";
+  const [tab, setTab] = useState<Tab>(initialTab);
   const [repoFilter, setRepoFilter] = useState("");
   const { workspaces, setActiveId } = useActiveWorkspace();
   const role = workspaces.find((w) => w.id === workspaceId)?.role;
