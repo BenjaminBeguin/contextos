@@ -157,7 +157,7 @@ function Project({ workspaceId }: { workspaceId: string }) {
           <Overview ws={ws} workspaceId={workspaceId} onGoto={setTab} />
         ) : null}
         {tab === "Knowledge" ? (
-          <KnowledgeTab workspaceId={workspaceId} repoId={repoFilter} repos={repos} />
+          <KnowledgeTab workspaceId={workspaceId} repoId={repoFilter} repos={repos} pending={pending} />
         ) : null}
         {tab === "Reviews" ? <ReviewsTab workspaceId={workspaceId} /> : null}
         {tab === "Docs" ? <DocsTab workspaceId={workspaceId} repoId={repoFilter} /> : null}
@@ -341,34 +341,68 @@ function ActivityDot({ kind }: { kind: ActivityItem["kind"] }) {
 
 /* ------------------------------- Knowledge ------------------------------- */
 
-const KNOWLEDGE_TABS = ["Memory", "Decisions", "Risks", "Sessions"] as const;
+const KNOWLEDGE_TABS = ["Inbox", "Memory", "Decisions", "Risks", "Sessions"] as const;
 type KnowledgeKey = (typeof KNOWLEDGE_TABS)[number];
 
 function KnowledgeTab({
   workspaceId,
   repoId,
   repos,
+  pending,
 }: {
   workspaceId: string;
   repoId: string;
   repos: WorkspaceDetail["repos"];
+  pending: number;
 }) {
-  const [sub, setSub] = useState<KnowledgeKey>("Memory");
+  const [sub, setSub] = useState<KnowledgeKey>(pending > 0 ? "Inbox" : "Memory");
   return (
     <div>
       <nav className="-mt-2 mb-6 flex items-stretch gap-1 overflow-x-auto border-b border-[var(--border)]">
         {KNOWLEDGE_TABS.map((t) => (
           <button key={t} onClick={() => setSub(t)} className={cn(tabCls(sub === t), "py-2.5")}>
             {t}
+            {t === "Inbox" && pending > 0 ? (
+              <span className="inline-flex h-4 min-w-4 items-center justify-center rounded-full bg-[var(--signal-soft)] px-1 text-[10px] font-semibold text-[var(--signal)]">
+                {pending}
+              </span>
+            ) : null}
           </button>
         ))}
       </nav>
+      {sub === "Inbox" ? <InboxTab workspaceId={workspaceId} repoId={repoId} /> : null}
       {sub === "Memory" ? <MemoryTab workspaceId={workspaceId} repoId={repoId} /> : null}
       {sub === "Decisions" ? (
         <DecisionsTab workspaceId={workspaceId} repoId={repoId} repos={repos} />
       ) : null}
-      {sub === "Risks" ? <RisksTab workspaceId={workspaceId} repoId={repoId} /> : null}
+      {sub === "Risks" ? <RisksTab workspaceId={workspaceId} repoId={repoId} repos={repos} /> : null}
       {sub === "Sessions" ? <SessionsTab workspaceId={workspaceId} repoId={repoId} /> : null}
+    </div>
+  );
+}
+
+/** The review queue — proposed memories across the project, approve/reject inline. */
+function InboxTab({ workspaceId, repoId }: { workspaceId: string; repoId: string }) {
+  const { data, isLoading } = useQuery({
+    queryKey: ["workspace-memories", workspaceId, "", "proposed", ""],
+    queryFn: () => api<WorkspaceMemory[]>(`/workspaces/${workspaceId}/memories?status=proposed`),
+  });
+  const memories = sortMemories(
+    (data ?? []).filter((m) => !repoId || m.repoId === repoId),
+    "confidence",
+  );
+  const { pageItems, page, setPage, totalPages, total } = usePagination(memories);
+  return (
+    <div>
+      <p className="mb-4 text-sm text-[var(--muted)]">
+        Proposed memories awaiting review. Approve to make them retrievable by agents, or reject.
+      </p>
+      <MemoryList
+        memories={pageItems}
+        isLoading={isLoading}
+        empty="Inbox zero — nothing awaiting review."
+      />
+      <Pagination page={page} totalPages={totalPages} total={total} onPage={setPage} label="proposed" />
     </div>
   );
 }
@@ -562,8 +596,23 @@ function DecisionsTab({
   );
 }
 
-function RisksTab({ workspaceId, repoId }: { workspaceId: string; repoId: string }) {
+function RisksTab({
+  workspaceId,
+  repoId,
+  repos,
+}: {
+  workspaceId: string;
+  repoId: string;
+  repos: WorkspaceDetail["repos"];
+}) {
+  const qc = useQueryClient();
   const [sort, setSort] = useState<MemorySort>("recent");
+  const [adding, setAdding] = useState(false);
+  const [title, setTitle] = useState("");
+  const [detail, setDetail] = useState("");
+  const [pickRepo, setPickRepo] = useState(repos[0]?.id ?? "");
+  const targetRepo = repoId || pickRepo;
+
   const { data, isLoading } = useQuery({
     queryKey: ["workspace-memories", workspaceId, "risks"],
     queryFn: () => api<WorkspaceMemory[]>(`/workspaces/${workspaceId}/memories?status=approved`),
@@ -575,15 +624,81 @@ function RisksTab({ workspaceId, repoId }: { workspaceId: string; repoId: string
     sort,
   );
   const { pageItems, page, setPage, totalPages, total } = usePagination(memories);
+
+  const record = useMutation({
+    mutationFn: () =>
+      api(`/repos/${targetRepo}/memories`, {
+        method: "POST",
+        body: JSON.stringify({
+          type: "risk",
+          title: title.trim().slice(0, 140),
+          content: detail.trim() || title.trim(),
+          status: "approved",
+          source: "manual",
+          confidence: 0.8,
+        }),
+      }),
+    onSuccess: () => {
+      setTitle("");
+      setDetail("");
+      setAdding(false);
+      qc.invalidateQueries({ queryKey: ["workspace-memories"] });
+    },
+  });
+
   return (
     <div>
-      <div className="mb-2 flex justify-end">
+      <div className="mb-3 flex items-center justify-between gap-2">
+        <Button variant={adding ? "ghost" : "primary"} size="sm" onClick={() => setAdding((v) => !v)}>
+          {adding ? "Cancel" : "Record a risk"}
+        </Button>
         <Select value={sort} onChange={(e) => setSort(e.target.value as MemorySort)} title="Sort">
           <option value="recent">Newest</option>
           <option value="oldest">Oldest</option>
           <option value="confidence">Confidence</option>
         </Select>
       </div>
+
+      {adding ? (
+        <Card className="mb-4 p-5">
+          <h3 className="font-semibold">Record a risk</h3>
+          <p className="mt-1 text-sm text-[var(--muted)]">
+            A known danger or past failure agents should be warned about before touching related code.
+          </p>
+          <div className="mt-3 space-y-3">
+            <Input
+              value={title}
+              onChange={(e) => setTitle(e.target.value)}
+              placeholder="e.g. Webhook handler must stay idempotent — double-charges otherwise"
+            />
+            <Textarea
+              value={detail}
+              onChange={(e) => setDetail(e.target.value)}
+              placeholder="Details / how to avoid it (optional)"
+              rows={2}
+            />
+            <div className="flex flex-wrap items-center gap-2">
+              {!repoId && repos.length > 1 ? (
+                <Select value={pickRepo} onChange={(e) => setPickRepo(e.target.value)}>
+                  {repos.map((r) => (
+                    <option key={r.id} value={r.id}>
+                      {r.fullName}
+                    </option>
+                  ))}
+                </Select>
+              ) : null}
+              <Button
+                onClick={() => record.mutate()}
+                disabled={!title.trim() || !targetRepo}
+                loading={record.isPending}
+              >
+                Save risk
+              </Button>
+            </div>
+          </div>
+        </Card>
+      ) : null}
+
       <MemoryList
         memories={pageItems}
         isLoading={isLoading}
@@ -839,7 +954,9 @@ function SetupTab({
   repos: WorkspaceDetail["repos"];
 }) {
   const [adding, setAdding] = useState(false);
+  const [initRepo, setInitRepo] = useState(repos[0]?.id ?? "");
   const connected = repos.length > 0;
+  const selectedRepo = repos.find((r) => r.id === initRepo) ?? repos[0];
 
   return (
     <div className="max-w-3xl space-y-6">
@@ -912,11 +1029,33 @@ function SetupTab({
           .
         </p>
         <div className="mt-4">
-          <Code>{`npm install -g @mxbenjaminbeguin/cortex
+          <Code label="shell">{`npm install -g @mxbenjaminbeguin/cortex
 cortex login
-cortex init      # in your repo — writes CLAUDE.md, .mcp.json, hooks
 cortex status    # verify the connection`}</Code>
         </div>
+
+        {connected ? (
+          <div className="mt-5">
+            <div className="mb-2 flex items-center gap-2 text-sm text-[var(--muted)]">
+              <span>Connect a specific repo:</span>
+              {repos.length > 1 ? (
+                <Select value={initRepo} onChange={(e) => setInitRepo(e.target.value)}>
+                  {repos.map((r) => (
+                    <option key={r.id} value={r.id}>
+                      {r.fullName}
+                    </option>
+                  ))}
+                </Select>
+              ) : (
+                <span className="text-[var(--text)]">{selectedRepo?.fullName}</span>
+              )}
+            </div>
+            <Code label={selectedRepo?.fullName ?? "repo"}>
+              {`cd your/local/checkout\ncortex init --repo ${selectedRepo?.id ?? "<repo-id>"}`}
+            </Code>
+          </div>
+        ) : null}
+
         <p className="mt-3 text-xs text-[var(--faint)]">
           To turn on the PR reviewer for a repo, run <code>cortex ci</code> and enable it on the
           repo&apos;s page.
