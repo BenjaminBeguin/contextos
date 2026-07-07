@@ -191,15 +191,13 @@ export function MemoryCard({ memory }: { memory: Memory }) {
               maintenance actions — keep them as quiet text links, not big buttons. */}
           {memory.status === "approved" ? (
             <>
-              {memory.status !== "archived" ? (
-                <button
-                  onClick={() => setStatus.mutate("archive")}
-                  disabled={setStatus.isPending}
-                  className="text-[var(--muted)] transition hover:text-white disabled:opacity-50"
-                >
-                  Archive
-                </button>
-              ) : null}
+              <button
+                onClick={() => setStatus.mutate("archive")}
+                disabled={setStatus.isPending}
+                className="text-[var(--muted)] transition hover:text-white disabled:opacity-50"
+              >
+                Archive
+              </button>
               <button
                 onClick={() => setStatus.mutate("reject")}
                 disabled={setStatus.isPending}

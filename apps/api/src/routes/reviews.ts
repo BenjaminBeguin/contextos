@@ -1,10 +1,40 @@
 import type { FastifyInstance } from "fastify";
 import { reviewFeedbackSchema, reviewFeedbackBulkSchema } from "@cortex/shared";
 import { prisma } from "../db.js";
-import { resolveUser, assertRepoAccess, HttpError } from "../auth.js";
+import { resolveUser, assertRepoAccess, assertWorkspaceAccess, HttpError } from "../auth.js";
 import { applyFindingFeedback, applyBulkFeedbackByKey, toReviewDTO } from "../services/feedback.js";
 
 export async function reviewRoutes(app: FastifyInstance) {
+  // All persisted reviews across a workspace's repos (newest first) — powers the
+  // project-level Reviews tab so reviews aren't buried per-repo.
+  app.get("/workspaces/:workspaceId/reviews", async (req, reply) => {
+    const user = await resolveUser(req);
+    if (!user) return reply.code(401).send({ error: "Unauthorized" });
+    const { workspaceId } = req.params as { workspaceId: string };
+    try {
+      await assertWorkspaceAccess(user.id, workspaceId);
+    } catch (e) {
+      if (e instanceof HttpError) return reply.code(e.statusCode).send({ error: e.message });
+      throw e;
+    }
+    const repos = await prisma.repo.findMany({
+      where: { workspaceId },
+      select: { id: true, fullName: true },
+    });
+    const repoName = new Map(repos.map((r) => [r.id, r.fullName]));
+    const reviews = await prisma.prReview.findMany({
+      where: { repoId: { in: repos.map((r) => r.id) } },
+      orderBy: { createdAt: "desc" },
+      take: 50,
+      include: { findings: { orderBy: { createdAt: "asc" } } },
+    });
+    return reviews.map((r) => ({
+      ...toReviewDTO(r),
+      repoId: r.repoId,
+      repoFullName: repoName.get(r.repoId) ?? "",
+    }));
+  });
+
   // List a repo's persisted reviews (newest first), each with its findings.
   app.get("/repos/:repoId/reviews", async (req, reply) => {
     const user = await resolveUser(req);

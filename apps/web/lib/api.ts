@@ -91,6 +91,14 @@ export function getReviews(
   );
 }
 
+/** A persisted review annotated with its repo (workspace-level Reviews tab). */
+export type WorkspaceReview = PrReviewDTO & { repoId: string; repoFullName: string };
+
+/** All persisted reviews across a workspace's repos, newest first. */
+export function getWorkspaceReviews(workspaceId: string): Promise<WorkspaceReview[]> {
+  return api<WorkspaceReview[]>(`/workspaces/${workspaceId}/reviews`);
+}
+
 /** Result of marking a finding accepted / dismissed / pending. */
 export interface FindingFeedbackResult {
   finding: PrReviewFindingDTO;

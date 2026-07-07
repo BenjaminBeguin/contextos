@@ -7,9 +7,11 @@ import { MEMORY_TYPES, MEMORY_STATUSES } from "@cortex/shared";
 import { RepoPicker } from "../../../components/RepoPicker";
 import {
   api,
+  getWorkspaceReviews,
   timeAgo,
   type WorkspaceDetail,
   type WorkspaceMemory,
+  type WorkspaceReview,
   type AgentSessionSummary,
   type GeneratedDoc,
 } from "../../../lib/api";
@@ -40,21 +42,11 @@ import {
 type WsSession = AgentSessionSummary & { repoId: string; repoFullName: string };
 type WsDoc = GeneratedDoc & { repoFullName: string };
 
-const TABS = [
-  "Overview",
-  "Repos",
-  "Memory",
-  "Decisions",
-  "Risks",
-  "Sessions",
-  "Docs",
-  "Tools",
-  "Setup",
-  "Settings",
-] as const;
+// Top-level sections. Memory / Decisions / Risks / Sessions live together under
+// "Knowledge"; repo connection lives under "Setup" — so the top row stays short.
+const TABS = ["Overview", "Knowledge", "Reviews", "Docs", "Tools", "Setup", "Settings"] as const;
 type Tab = (typeof TABS)[number];
 
-/** Section tabs shown in the header row; Settings is pinned separately at the end. */
 const SECTION_TABS = TABS.filter((t) => t !== "Settings");
 
 const tabCls = (active: boolean) =>
@@ -81,7 +73,6 @@ function Project({ workspaceId }: { workspaceId: string }) {
   const role = workspaces.find((w) => w.id === workspaceId)?.role;
   const isOwner = role === "owner";
 
-  // Keep the header switcher in sync with the project you're viewing.
   useEffect(() => setActiveId(workspaceId), [workspaceId, setActiveId]);
 
   const { data: ws } = useQuery({
@@ -90,25 +81,23 @@ function Project({ workspaceId }: { workspaceId: string }) {
   });
 
   const repos = ws?.repos ?? [];
-  const showRepoFilter =
-    ["Memory", "Decisions", "Risks", "Sessions", "Docs"].includes(tab) && repos.length > 1;
+  // The cross-repo filter lives on the sections that actually span repos.
+  const showRepoFilter = ["Knowledge", "Docs"].includes(tab) && repos.length > 1;
 
   const color = projectColor(workspaceId).color;
   const pending = ws?.pendingMemories ?? 0;
 
   return (
     <div>
-      {/* Workspace header — one row: project identity · section tabs · settings */}
       <header className="sticky top-0 z-20 -mx-8 -mt-8 mb-6 border-b border-[var(--border)] bg-[var(--background)]/90 px-8 backdrop-blur">
         <div className="flex items-stretch gap-6">
-          {/* Identity */}
           <div className="flex shrink-0 items-center gap-2.5 py-3.5">
             <span
               className="inline-block h-3 w-3 shrink-0 rounded-full"
               style={{ background: color, boxShadow: `0 0 12px ${color}` }}
               aria-hidden
             />
-            <h1 className="whitespace-nowrap text-base font-semibold tracking-tight">
+            <h1 className="font-display whitespace-nowrap text-base font-semibold tracking-tight">
               {ws?.name ?? "Project"}
             </h1>
             <span className="hidden whitespace-nowrap text-xs text-[var(--muted)] sm:inline">
@@ -116,14 +105,13 @@ function Project({ workspaceId }: { workspaceId: string }) {
             </span>
           </div>
 
-          {/* Section tabs */}
           <nav className="flex min-w-0 flex-1 items-stretch gap-1 overflow-x-auto">
             {SECTION_TABS.map((t) => (
               <button key={t} onClick={() => setTab(t)} className={tabCls(t === tab)}>
                 {t}
-                {t === "Memory" && pending > 0 ? (
+                {t === "Knowledge" && pending > 0 ? (
                   <span
-                    className="inline-flex h-4 min-w-4 items-center justify-center rounded-full bg-amber-500/20 px-1 text-[10px] font-semibold text-amber-300"
+                    className="inline-flex h-4 min-w-4 items-center justify-center rounded-full bg-[var(--signal-soft)] px-1 text-[10px] font-semibold text-[var(--signal)]"
                     title={`${pending} awaiting review`}
                   >
                     {pending}
@@ -133,7 +121,6 @@ function Project({ workspaceId }: { workspaceId: string }) {
             ))}
           </nav>
 
-          {/* Settings pinned to the end of the row */}
           <div className="flex shrink-0 items-stretch">
             <button onClick={() => setTab("Settings")} className={tabCls(tab === "Settings")}>
               <svg width="15" height="15" viewBox="0 0 24 24" fill="none" aria-hidden>
@@ -151,7 +138,6 @@ function Project({ workspaceId }: { workspaceId: string }) {
         </div>
       </header>
 
-      {/* Repo filter (sections that span repos) */}
       {showRepoFilter ? (
         <div className="mt-4 flex items-center gap-2 text-sm text-[var(--muted)]">
           <span>Repo:</span>
@@ -167,79 +153,222 @@ function Project({ workspaceId }: { workspaceId: string }) {
       ) : null}
 
       <div className="mt-6">
-        {tab === "Overview" ? <Overview ws={ws} /> : null}
-        {tab === "Repos" ? <ReposTab repos={repos} workspaceId={workspaceId} /> : null}
-        {tab === "Memory" ? <MemoryTab workspaceId={workspaceId} repoId={repoFilter} /> : null}
-        {tab === "Decisions" ? (
-          <DecisionsTab workspaceId={workspaceId} repoId={repoFilter} repos={repos} />
+        {tab === "Overview" ? (
+          <Overview ws={ws} workspaceId={workspaceId} onGoto={setTab} />
         ) : null}
-        {tab === "Risks" ? <RisksTab workspaceId={workspaceId} repoId={repoFilter} /> : null}
-        {tab === "Sessions" ? <SessionsTab workspaceId={workspaceId} repoId={repoFilter} /> : null}
+        {tab === "Knowledge" ? (
+          <KnowledgeTab workspaceId={workspaceId} repoId={repoFilter} repos={repos} />
+        ) : null}
+        {tab === "Reviews" ? <ReviewsTab workspaceId={workspaceId} /> : null}
         {tab === "Docs" ? <DocsTab workspaceId={workspaceId} repoId={repoFilter} /> : null}
         {tab === "Tools" ? <ToolsTab workspaceId={workspaceId} /> : null}
-        {tab === "Setup" ? <SetupTab /> : null}
+        {tab === "Setup" ? <SetupTab workspaceId={workspaceId} repos={repos} /> : null}
         {tab === "Settings" ? <ProjectSettings workspaceId={workspaceId} isOwner={isOwner} /> : null}
       </div>
     </div>
   );
 }
 
-function Overview({ ws }: { ws?: WorkspaceDetail }) {
+/* ------------------------------- Overview -------------------------------- */
+
+function Overview({
+  ws,
+  workspaceId,
+  onGoto,
+}: {
+  ws?: WorkspaceDetail;
+  workspaceId: string;
+  onGoto: (t: Tab) => void;
+}) {
   if (!ws) return <Loading />;
   const totalMemories = ws.repos.reduce((n, r) => n + (r._count?.memories ?? 0), 0);
-  const stats = [
-    { label: "Repos", value: ws.repos.length },
-    { label: "Memories", value: totalMemories },
-    { label: "Members", value: ws.memberships.length },
+  const pending = ws.pendingMemories ?? 0;
+  const stats: { label: string; value: number; hint?: string; tab?: Tab }[] = [
+    { label: "Repos", value: ws.repos.length, tab: "Setup" },
+    { label: "Memories", value: totalMemories, tab: "Knowledge" },
+    { label: "Awaiting review", value: pending, hint: "in the inbox", tab: "Knowledge" },
+    { label: "Members", value: ws.memberships.length, tab: "Settings" },
   ];
+
   return (
-    <div className="grid gap-4 sm:grid-cols-3">
-      {stats.map((s) => (
-        <Card key={s.label} className="p-6">
-          <p className="text-sm text-[var(--muted)]">{s.label}</p>
-          <p className="mt-1 text-3xl font-semibold">{s.value}</p>
-        </Card>
-      ))}
+    <div className="space-y-6">
+      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+        {stats.map((s) => (
+          <button
+            key={s.label}
+            onClick={() => s.tab && onGoto(s.tab)}
+            className="text-left"
+          >
+            <Card hover className="p-5">
+              <p className="text-sm text-[var(--muted)]">{s.label}</p>
+              <p className="mt-1 text-3xl font-semibold">
+                {s.value}
+                {s.label === "Awaiting review" && s.value > 0 ? (
+                  <span className="ml-2 align-middle text-xs font-normal text-[var(--signal)]">
+                    needs you
+                  </span>
+                ) : null}
+              </p>
+            </Card>
+          </button>
+        ))}
+      </div>
+
+      {ws.repos.length === 0 ? (
+        <EmptyState
+          title="No repos connected yet"
+          description="Connect a repo to start capturing memory, reviews, and docs."
+          action={<Button onClick={() => onGoto("Setup")}>Go to Setup</Button>}
+        />
+      ) : (
+        <ActivityFeed workspaceId={workspaceId} onGoto={onGoto} />
+      )}
     </div>
   );
 }
 
-function ReposTab({
-  repos,
+type ActivityItem = {
+  id: string;
+  kind: "memory" | "risk" | "session" | "review";
+  title: string;
+  meta: string;
+  repo: string;
+  at: string;
+};
+
+function ActivityFeed({ workspaceId, onGoto }: { workspaceId: string; onGoto: (t: Tab) => void }) {
+  const memories = useQuery({
+    queryKey: ["workspace-memories", workspaceId],
+    queryFn: () => api<WorkspaceMemory[]>(`/workspaces/${workspaceId}/memories`),
+  });
+  const sessions = useQuery({
+    queryKey: ["workspace-sessions", workspaceId],
+    queryFn: () => api<WsSession[]>(`/workspaces/${workspaceId}/sessions`),
+  });
+  const reviews = useQuery({
+    queryKey: ["workspace-reviews", workspaceId],
+    queryFn: () => getWorkspaceReviews(workspaceId),
+  });
+
+  const loading = memories.isLoading || sessions.isLoading || reviews.isLoading;
+
+  const items: ActivityItem[] = [
+    ...(memories.data ?? []).map((m) => ({
+      id: `m-${m.id}`,
+      kind: (m.type === "risk" || m.type === "failure" ? "risk" : "memory") as ActivityItem["kind"],
+      title: m.title,
+      meta: `${m.type} · ${m.status}`,
+      repo: m.repoFullName,
+      at: m.createdAt,
+    })),
+    ...(sessions.data ?? []).map((s) => ({
+      id: `s-${s.id}`,
+      kind: "session" as const,
+      title: s.task ?? "Agent session",
+      meta: s.agent,
+      repo: s.repoFullName,
+      at: s.createdAt,
+    })),
+    ...(reviews.data ?? []).map((r) => ({
+      id: `r-${r.id}`,
+      kind: "review" as const,
+      title: r.prTitle,
+      meta: `${r.findingCount} finding${r.findingCount === 1 ? "" : "s"}`,
+      repo: r.repoFullName,
+      at: r.createdAt,
+    })),
+  ]
+    .sort((a, b) => +new Date(b.at) - +new Date(a.at))
+    .slice(0, 14);
+
+  return (
+    <Card className="p-5">
+      <div className="mb-3 flex items-center justify-between">
+        <h2 className="font-display text-sm font-semibold">Recent activity</h2>
+        <button
+          onClick={() => onGoto("Knowledge")}
+          className="text-xs text-[var(--muted)] transition hover:text-white"
+        >
+          View knowledge →
+        </button>
+      </div>
+      {loading ? (
+        <Loading />
+      ) : items.length === 0 ? (
+        <p className="py-6 text-center text-sm text-[var(--muted)]">
+          Nothing yet — activity from memory, reviews, and agent sessions shows up here.
+        </p>
+      ) : (
+        <ul className="divide-y divide-[var(--border)]">
+          {items.map((it) => (
+            <li key={it.id} className="flex items-start gap-3 py-2.5">
+              <ActivityDot kind={it.kind} />
+              <div className="min-w-0 flex-1">
+                <p className="truncate text-sm">{it.title}</p>
+                <p className="text-xs text-[var(--faint)]">
+                  {it.meta}
+                  {it.repo ? ` · ${it.repo}` : ""}
+                </p>
+              </div>
+              <span className="shrink-0 text-xs text-[var(--faint)]" title={new Date(it.at).toLocaleString()}>
+                {timeAgo(it.at)}
+              </span>
+            </li>
+          ))}
+        </ul>
+      )}
+    </Card>
+  );
+}
+
+const ACTIVITY_COLOR: Record<ActivityItem["kind"], string> = {
+  memory: "var(--accent)",
+  risk: "var(--alert)",
+  session: "var(--accent-cyan)",
+  review: "var(--signal)",
+};
+
+function ActivityDot({ kind }: { kind: ActivityItem["kind"] }) {
+  return (
+    <span
+      className="mt-1.5 inline-block h-2 w-2 shrink-0 rounded-full"
+      style={{ background: ACTIVITY_COLOR[kind], boxShadow: `0 0 8px ${ACTIVITY_COLOR[kind]}` }}
+      title={kind}
+      aria-hidden
+    />
+  );
+}
+
+/* ------------------------------- Knowledge ------------------------------- */
+
+const KNOWLEDGE_TABS = ["Memory", "Decisions", "Risks", "Sessions"] as const;
+type KnowledgeKey = (typeof KNOWLEDGE_TABS)[number];
+
+function KnowledgeTab({
   workspaceId,
+  repoId,
+  repos,
 }: {
-  repos: WorkspaceDetail["repos"];
   workspaceId: string;
+  repoId: string;
+  repos: WorkspaceDetail["repos"];
 }) {
-  const [adding, setAdding] = useState(false);
+  const [sub, setSub] = useState<KnowledgeKey>("Memory");
   return (
     <div>
-      <div className="mb-4 flex justify-end">
-        <Button variant="ghost" onClick={() => setAdding((v) => !v)}>
-          {adding ? "Cancel" : "Add repo"}
-        </Button>
-      </div>
-      {adding ? (
-        <Card className="mb-4 p-6">
-          <RepoPicker workspaceId={workspaceId} onCreated={() => setAdding(false)} />
-        </Card>
+      <nav className="-mt-2 mb-6 flex items-stretch gap-1 overflow-x-auto border-b border-[var(--border)]">
+        {KNOWLEDGE_TABS.map((t) => (
+          <button key={t} onClick={() => setSub(t)} className={cn(tabCls(sub === t), "py-2.5")}>
+            {t}
+          </button>
+        ))}
+      </nav>
+      {sub === "Memory" ? <MemoryTab workspaceId={workspaceId} repoId={repoId} /> : null}
+      {sub === "Decisions" ? (
+        <DecisionsTab workspaceId={workspaceId} repoId={repoId} repos={repos} />
       ) : null}
-      {repos.length === 0 ? (
-        <EmptyState title="No repos connected" description="Add a repo to start capturing memory." />
-      ) : (
-        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-          {repos.map((r) => (
-            <Link key={r.id} href={`/repos/${r.id}`} className="group">
-              <Card hover className="h-full p-5">
-                <h3 className="font-semibold transition group-hover:text-[var(--accent)]">
-                  {r.fullName}
-                </h3>
-                <p className="mt-1 text-xs text-[var(--muted)]">{r._count?.memories ?? 0} memories</p>
-              </Card>
-            </Link>
-          ))}
-        </div>
-      )}
+      {sub === "Risks" ? <RisksTab workspaceId={workspaceId} repoId={repoId} /> : null}
+      {sub === "Sessions" ? <SessionsTab workspaceId={workspaceId} repoId={repoId} /> : null}
     </div>
   );
 }
@@ -537,6 +666,96 @@ function SessionsTab({ workspaceId, repoId }: { workspaceId: string; repoId: str
   );
 }
 
+/* -------------------------------- Reviews -------------------------------- */
+
+const REVIEW_SEVERITY_COLOR: Record<string, string> = {
+  blocker: "var(--alert)",
+  warning: "var(--signal)",
+  nit: "var(--accent)",
+  praise: "var(--verify)",
+};
+
+function ReviewsTab({ workspaceId }: { workspaceId: string }) {
+  const { data, isLoading, isError, error } = useQuery({
+    queryKey: ["workspace-reviews", workspaceId],
+    queryFn: () => getWorkspaceReviews(workspaceId),
+  });
+
+  if (isLoading) return <Loading />;
+  if (isError)
+    return (
+      <Card className="border-[var(--alert)]/40 p-4">
+        <p className="text-sm text-[var(--alert)]">
+          Couldn&apos;t load reviews: {(error as Error).message}
+        </p>
+      </Card>
+    );
+
+  const reviews = data ?? [];
+  if (reviews.length === 0)
+    return (
+      <EmptyState
+        title="No PR reviews yet"
+        description="When the memory-grounded reviewer runs on a pull request, its reviews land here. Enable it per repo in Setup, then open a PR."
+      />
+    );
+
+  return (
+    <div className="space-y-3">
+      <p className="text-sm text-[var(--muted)]">
+        Memory-grounded PR reviews across every repo. Open one to accept or dismiss findings — your
+        feedback tunes the confidence of the memory that grounded it.
+      </p>
+      {reviews.map((r) => {
+        const pending = r.findings.filter((f) => f.feedback === "pending").length;
+        return (
+          <Link key={r.id} href={`/repos/${r.repoId}/reviews`}>
+            <Card hover className="p-4">
+              <div className="flex items-center justify-between gap-3">
+                <h3 className="min-w-0 truncate font-medium">
+                  {r.prNumber ? <span className="text-[var(--faint)]">#{r.prNumber} </span> : null}
+                  {r.prTitle}
+                </h3>
+                <span className="shrink-0 text-xs text-[var(--faint)]">{timeAgo(r.createdAt)}</span>
+              </div>
+              <div className="mt-2 flex flex-wrap items-center gap-2 text-xs text-[var(--muted)]">
+                <span>{r.repoFullName}</span>
+                <span>·</span>
+                <span className="flex items-center gap-1.5">
+                  {(["blocker", "warning", "nit", "praise"] as const).map((sev) => {
+                    const n = r.findings.filter((f) => f.severity === sev).length;
+                    if (!n) return null;
+                    return (
+                      <span key={sev} className="inline-flex items-center gap-1">
+                        <span
+                          className="inline-block h-1.5 w-1.5 rounded-full"
+                          style={{ background: REVIEW_SEVERITY_COLOR[sev] }}
+                        />
+                        {n}
+                      </span>
+                    );
+                  })}
+                  {r.findingCount === 0 ? "clean" : null}
+                </span>
+                {pending > 0 ? (
+                  <span
+                    className="rounded-full px-2 py-0.5 font-medium"
+                    style={{ background: "var(--signal-soft)", color: "var(--signal)" }}
+                  >
+                    {pending} to review
+                  </span>
+                ) : null}
+              </div>
+            </Card>
+          </Link>
+        );
+      })}
+    </div>
+  );
+}
+
+/* --------------------------------- Docs ---------------------------------- */
+
 function DocsTab({ workspaceId, repoId }: { workspaceId: string; repoId: string }) {
   const { data, isLoading } = useQuery({
     queryKey: ["workspace-docs", workspaceId],
@@ -546,7 +765,24 @@ function DocsTab({ workspaceId, repoId }: { workspaceId: string; repoId: string 
   const { pageItems, page, setPage, totalPages, total } = usePagination(docs);
   if (isLoading) return <Loading />;
   if (docs.length === 0)
-    return <EmptyState title="No docs yet" description="Generated docs for the project's repos show up here." />;
+    return (
+      <Card className="max-w-2xl p-6">
+        <h2 className="font-display font-semibold">No docs yet</h2>
+        <p className="mt-1 text-sm text-[var(--muted)]">
+          Living docs — Overview, Commands, Risks, and Onboarding — are generated from a repo&apos;s
+          approved memories. Once a repo has approved memories, generate them from the repo&apos;s{" "}
+          <span className="text-[var(--text)]">Docs</span> tab, or from the CLI:
+        </p>
+        <div className="mt-4">
+          <Code>{`cortex scan          # propose starter memories from the repo
+# approve a few in the inbox, then in the repo's Docs tab:
+#   Generate living docs`}</Code>
+        </div>
+        <p className="mt-3 text-xs text-[var(--faint)]">
+          Approved memories in → structured, always-current docs out.
+        </p>
+      </Card>
+    );
   return (
     <div>
       <div className="space-y-3">
@@ -569,6 +805,8 @@ function DocsTab({ workspaceId, repoId }: { workspaceId: string; repoId: string 
   );
 }
 
+/* --------------------------------- Tools --------------------------------- */
+
 const TOOL_TABS = ["Search", "Chat", "Graph", "Impact"] as const;
 type ToolKey = (typeof TOOL_TABS)[number];
 
@@ -576,7 +814,6 @@ function ToolsTab({ workspaceId }: { workspaceId: string }) {
   const [sub, setSub] = useState<ToolKey>("Search");
   return (
     <div>
-      {/* Tools submenu — same tab styling as the section header */}
       <nav className="-mt-2 mb-6 flex items-stretch gap-1 overflow-x-auto border-b border-[var(--border)]">
         {TOOL_TABS.map((t) => (
           <button key={t} onClick={() => setSub(t)} className={cn(tabCls(sub === t), "py-2.5")}>
@@ -592,24 +829,100 @@ function ToolsTab({ workspaceId }: { workspaceId: string }) {
   );
 }
 
-function SetupTab() {
+/* --------------------------------- Setup --------------------------------- */
+
+function SetupTab({
+  workspaceId,
+  repos,
+}: {
+  workspaceId: string;
+  repos: WorkspaceDetail["repos"];
+}) {
+  const [adding, setAdding] = useState(false);
+  const connected = repos.length > 0;
+
   return (
-    <Card className="max-w-2xl p-6">
-      <h2 className="font-semibold">Connect Claude Code</h2>
-      <p className="mt-1 text-sm text-[var(--muted)]">
-        Install the CLI and connect each repo. See the full reference in{" "}
-        <Link href="/docs" className="text-[var(--accent)]">
-          Documentation
-        </Link>
-        .
-      </p>
-      <div className="mt-4">
-        <Code>{`npm install -g @mxbenjaminbeguin/cortex
+    <div className="max-w-3xl space-y-6">
+      {/* Connection status — surfaced first so an operator sees state at a glance. */}
+      <Card className="p-6">
+        <div className="flex items-start justify-between gap-3">
+          <div>
+            <div className="flex items-center gap-2">
+              <span
+                className="inline-block h-2.5 w-2.5 rounded-full"
+                style={{
+                  background: connected ? "var(--verify)" : "var(--faint)",
+                  boxShadow: connected ? "0 0 10px var(--verify)" : "none",
+                }}
+              />
+              <h2 className="font-display font-semibold">
+                {connected ? "Connected" : "Not connected yet"}
+              </h2>
+            </div>
+            <p className="mt-1 text-sm text-[var(--muted)]">
+              {connected
+                ? `${repos.length} repo${repos.length === 1 ? "" : "s"} linked to this project.`
+                : "Link your first repo to start capturing memory and reviews."}
+            </p>
+          </div>
+          <Button variant={connected ? "ghost" : "primary"} onClick={() => setAdding((v) => !v)}>
+            {adding ? "Cancel" : "Add repo"}
+          </Button>
+        </div>
+
+        {adding ? (
+          <div className="mt-4 border-t border-[var(--border)] pt-4">
+            <RepoPicker workspaceId={workspaceId} onCreated={() => setAdding(false)} />
+          </div>
+        ) : null}
+
+        {connected ? (
+          <div className="mt-4 divide-y divide-[var(--border)] border-t border-[var(--border)]">
+            {repos.map((r) => (
+              <Link
+                key={r.id}
+                href={`/repos/${r.id}`}
+                className="group flex items-center justify-between py-2.5"
+              >
+                <span className="flex items-center gap-2 text-sm">
+                  <span
+                    className="inline-block h-1.5 w-1.5 rounded-full"
+                    style={{ background: "var(--verify)" }}
+                  />
+                  <span className="transition group-hover:text-[var(--accent)]">{r.fullName}</span>
+                </span>
+                <span className="text-xs text-[var(--faint)]">
+                  {r._count?.memories ?? 0} memories →
+                </span>
+              </Link>
+            ))}
+          </div>
+        ) : null}
+      </Card>
+
+      {/* Install / connect instructions. */}
+      <Card className="p-6">
+        <h2 className="font-display font-semibold">Connect Claude Code</h2>
+        <p className="mt-1 text-sm text-[var(--muted)]">
+          Install the CLI once, then run <code className="text-[var(--text)]">cortex init</code> inside
+          each repo. Full reference in{" "}
+          <Link href="/docs" className="text-[var(--accent)] hover:underline">
+            Documentation
+          </Link>
+          .
+        </p>
+        <div className="mt-4">
+          <Code>{`npm install -g @mxbenjaminbeguin/cortex
 cortex login
-cortex init      # in your repo
-cortex status`}</Code>
-      </div>
-    </Card>
+cortex init      # in your repo — writes CLAUDE.md, .mcp.json, hooks
+cortex status    # verify the connection`}</Code>
+        </div>
+        <p className="mt-3 text-xs text-[var(--faint)]">
+          To turn on the PR reviewer for a repo, run <code>cortex ci</code> and enable it on the
+          repo&apos;s page.
+        </p>
+      </Card>
+    </div>
   );
 }
 
