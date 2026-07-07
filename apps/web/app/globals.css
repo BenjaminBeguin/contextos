@@ -61,6 +61,21 @@ body::before {
     radial-gradient(45% 55% at 88% 0%, rgba(255, 180, 84, 0.1), transparent 70%);
 }
 
+/* Squared grid (reused from the landing) so empty areas read as a surface, not a
+   void. Masked to fade toward the edges/bottom and kept very subtle. */
+.app-grid {
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  z-index: -1;
+  background-image:
+    linear-gradient(to right, rgba(255, 255, 255, 0.045) 1px, transparent 1px),
+    linear-gradient(to bottom, rgba(255, 255, 255, 0.045) 1px, transparent 1px);
+  background-size: 46px 46px;
+  mask-image: radial-gradient(135% 105% at 50% -4%, #000 42%, transparent 92%);
+  -webkit-mask-image: radial-gradient(135% 105% at 50% -4%, #000 42%, transparent 92%);
+}
+
 /* Grain: a faint tiled noise overlay so large dark areas feel like a surface. */
 .grain {
   position: fixed;
@@ -82,9 +97,14 @@ body::before {
   color: transparent;
 }
 
-a {
-  color: inherit;
-  text-decoration: none;
+/* Base anchor styling lives in @layer base so Tailwind text-color utilities
+   (@layer utilities, which cascades later) still win — otherwise an unlayered
+   `a { color: inherit }` silently overrides every `text-*` class on links. */
+@layer base {
+  a {
+    color: inherit;
+    text-decoration: none;
+  }
 }
 
 /* Consistent, accessible focus ring across all interactive elements. */

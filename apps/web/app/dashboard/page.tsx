@@ -78,25 +78,42 @@ function ProjectsList({ me }: { me: Me }) {
       <div className="mt-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
         {list.map((w) => (
           <Link key={w.id} href={`/projects/${w.id}`} className="group" onClick={() => setActiveId(w.id)}>
-            <Card hover className="h-full overflow-hidden p-5">
+            <Card hover className="relative h-full overflow-hidden p-5 transition-shadow duration-300">
+              {/* project-tinted top edge that fades out, + a soft glow on hover */}
               <div
-                className="-mx-5 -mt-5 mb-4 h-1.5"
+                className="-mx-5 -mt-5 mb-4 h-1"
+                style={{
+                  background: `linear-gradient(90deg, ${projectColor(w.id).color}, transparent 85%)`,
+                }}
+              />
+              <div
+                className="pointer-events-none absolute -right-16 -top-16 h-40 w-40 rounded-full opacity-0 blur-2xl transition-opacity duration-300 group-hover:opacity-25"
                 style={{ background: projectColor(w.id).color }}
+                aria-hidden
               />
               <div className="flex items-center justify-between gap-2">
                 <h3 className="flex items-center gap-2 font-semibold transition group-hover:text-[var(--accent)]">
                   <span
                     className="inline-block h-2.5 w-2.5 shrink-0 rounded-full"
-                    style={{ background: projectColor(w.id).color }}
+                    style={{ background: projectColor(w.id).color, boxShadow: `0 0 10px ${projectColor(w.id).color}` }}
                   />
                   {w.name}
                 </h3>
-                <span className="shrink-0 text-xs text-[var(--muted)]">{w.role}</span>
+                <span className="shrink-0 rounded-full border border-[var(--border)] px-2 py-0.5 text-[10px] uppercase tracking-wide text-[var(--muted)]">
+                  {w.role}
+                </span>
               </div>
-              <div className="mt-1 flex items-center gap-2 text-xs text-[var(--muted)]">
+              <div className="mt-2 flex items-center gap-2 text-xs text-[var(--muted)]">
                 <span>{w.repoCount ?? 0} repos</span>
                 {(w.pendingMemories ?? 0) > 0 ? (
-                  <span className="rounded-full bg-amber-500/15 px-2 py-0.5 font-medium text-amber-300">
+                  <span
+                    className="inline-flex items-center gap-1 rounded-full px-2 py-0.5 font-medium"
+                    style={{
+                      background: "var(--signal-soft)",
+                      color: "var(--signal)",
+                    }}
+                  >
+                    <span className="inline-block h-1.5 w-1.5 rounded-full bg-[var(--signal)]" />
                     {w.pendingMemories} to review
                   </span>
                 ) : null}
