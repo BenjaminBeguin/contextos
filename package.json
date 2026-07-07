@@ -4,13 +4,14 @@
   "private": true,
   "description": "Operational memory for AI coding agents",
   "scripts": {
-    "dev": "pnpm --parallel --filter ./apps/landing --filter ./apps/web --filter ./apps/api dev",
+    "postinstall": "prisma generate",
+    "dev": "prisma generate && pnpm --parallel --filter ./apps/landing --filter ./apps/web --filter ./apps/api dev",
     "build": "pnpm -r build",
     "db:generate": "prisma generate",
     "db:migrate": "prisma migrate dev",
     "db:deploy": "prisma migrate deploy",
     "db:seed": "tsx prisma/seed.ts",
-    "start:api": "tsx apps/api/src/server.ts",
+    "start:api": "prisma generate && tsx apps/api/src/server.ts",
     "cli": "pnpm --filter @mxbenjaminbeguin/cortex exec cortex",
     "test": "vitest run",
     "test:watch": "vitest"
