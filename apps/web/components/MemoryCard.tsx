@@ -176,39 +176,72 @@ export function MemoryCard({ memory }: { memory: Memory }) {
               onClick={() => split.mutate()}
               disabled={split.isPending}
               title="Break this long memory into atomic, concise memories (proposed for review)"
-              className="text-[var(--muted)] hover:text-white disabled:opacity-50"
+              className="text-[var(--muted)] transition hover:text-white disabled:opacity-50"
             >
               {split.isPending ? "Splitting…" : "Split"}
             </button>
           ) : null}
           <button
             onClick={() => setEditing(true)}
-            className="text-[var(--muted)] hover:text-white"
+            className="text-[var(--muted)] transition hover:text-white"
           >
             Edit
           </button>
+          {/* Once a memory is settled (approved etc.), Reject/Archive are rare
+              maintenance actions — keep them as quiet text links, not big buttons. */}
+          {memory.status === "approved" ? (
+            <>
+              {memory.status !== "archived" ? (
+                <button
+                  onClick={() => setStatus.mutate("archive")}
+                  disabled={setStatus.isPending}
+                  className="text-[var(--muted)] transition hover:text-white disabled:opacity-50"
+                >
+                  Archive
+                </button>
+              ) : null}
+              <button
+                onClick={() => setStatus.mutate("reject")}
+                disabled={setStatus.isPending}
+                className="text-[var(--faint)] transition hover:text-[var(--alert)] disabled:opacity-50"
+              >
+                Reject
+              </button>
+            </>
+          ) : null}
         </div>
       </div>
       {split.isError ? (
         <p className="mt-2 text-xs text-red-400">{(split.error as Error).message}</p>
       ) : null}
-      <div className="mt-4 flex gap-2">
-        {memory.status !== "approved" ? (
+      {/* Prominent workflow actions only while a memory is still under review. */}
+      {memory.status !== "approved" ? (
+        <div className="mt-4 flex gap-2">
           <Button onClick={() => setStatus.mutate("approve")} disabled={setStatus.isPending}>
             Approve
           </Button>
-        ) : null}
-        {memory.status !== "rejected" ? (
-          <Button variant="danger" onClick={() => setStatus.mutate("reject")} disabled={setStatus.isPending}>
-            Reject
-          </Button>
-        ) : null}
-        {memory.status !== "archived" ? (
-          <Button variant="ghost" onClick={() => setStatus.mutate("archive")} disabled={setStatus.isPending}>
-            Archive
-          </Button>
-        ) : null}
-      </div>
+          {memory.status !== "rejected" ? (
+            <Button
+              variant="danger"
+              size="sm"
+              onClick={() => setStatus.mutate("reject")}
+              disabled={setStatus.isPending}
+            >
+              Reject
+            </Button>
+          ) : null}
+          {memory.status !== "archived" ? (
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => setStatus.mutate("archive")}
+              disabled={setStatus.isPending}
+            >
+              Archive
+            </Button>
+          ) : null}
+        </div>
+      ) : null}
     </Card>
   );
 }
