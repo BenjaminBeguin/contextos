@@ -1042,7 +1042,11 @@ cortex status    # verify the connection`}</Code>
       </Card>
 
       {drawerRepo ? (
-        <RepoSetupDrawer repoId={drawerRepo} onClose={() => setDrawerRepo(null)} />
+        <RepoSetupDrawer
+          repoId={drawerRepo}
+          fullName={repos.find((r) => r.id === drawerRepo)?.fullName}
+          onClose={() => setDrawerRepo(null)}
+        />
       ) : null}
     </div>
   );

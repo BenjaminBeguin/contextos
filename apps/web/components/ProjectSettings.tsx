@@ -1,7 +1,6 @@
 "use client";
 
 import { useState } from "react";
-import Link from "next/link";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { api, type Me, type WorkspaceDetail } from "../lib/api";
 import { CopyButton } from "./CopyButton";
@@ -83,24 +82,6 @@ export function ProjectSettings({ workspaceId, isOwner }: { workspaceId: string;
       />
 
       <MembersCard workspaceId={workspaceId} memberships={ws.memberships} isOwner={isOwner} />
-
-      <Card className="p-6">
-        <h2 className="font-semibold">Repositories</h2>
-        {ws.repos.length === 0 ? (
-          <p className="mt-3 text-sm text-[var(--muted)]">No repos yet.</p>
-        ) : (
-          <ul className="mt-3 space-y-2">
-            {ws.repos.map((r) => (
-              <li key={r.id} className="flex items-center justify-between text-sm">
-                <Link href={`/repos/${r.id}`} className="hover:text-white">
-                  {r.fullName}
-                </Link>
-                <span className="text-xs text-[var(--muted)]">{r._count?.memories ?? 0} memories</span>
-              </li>
-            ))}
-          </ul>
-        )}
-      </Card>
     </div>
   );
 }
