@@ -1,7 +1,13 @@
 import type { FastifyInstance, FastifyRequest, FastifyReply } from "fastify";
+import { z } from "zod";
 import { setPlanSchema, PLANS } from "@cortex/shared";
 import { prisma } from "../db.js";
 import { resolveUser, isSuperAdmin } from "../auth.js";
+
+const addMemberSchema = z.object({
+  email: z.string().email(),
+  role: z.enum(["owner", "admin", "member", "viewer"]).default("member"),
+});
 
 /** Resolve the caller and require superadmin; returns the user or sends 401/403. */
 async function requireAdmin(req: FastifyRequest, reply: FastifyReply) {
@@ -129,6 +135,91 @@ export async function adminRoutes(app: FastifyInstance) {
       planNote: updated.planNote,
       planUpdatedAt: updated.planUpdatedAt,
     };
+  });
+
+  // Full detail for one workspace — members, repos, plan — for admin management.
+  app.get("/admin/workspaces/:workspaceId", async (req, reply) => {
+    const admin = await requireAdmin(req, reply);
+    if (!admin) return;
+    const { workspaceId } = req.params as { workspaceId: string };
+    const w = await prisma.workspace.findUnique({
+      where: { id: workspaceId },
+      include: {
+        memberships: {
+          orderBy: { role: "asc" },
+          include: { user: { select: { id: true, email: true, name: true, avatarUrl: true } } },
+        },
+        repos: { select: { id: true, fullName: true, _count: { select: { memories: true } } } },
+      },
+    });
+    if (!w) return reply.code(404).send({ error: "Workspace not found" });
+    return {
+      id: w.id,
+      name: w.name,
+      slug: w.slug,
+      joinCode: w.joinCode,
+      plan: w.plan,
+      planSource: w.planSource,
+      planStatus: w.planStatus,
+      planNote: w.planNote,
+      createdAt: w.createdAt,
+      members: w.memberships.map((m) => ({
+        userId: m.userId,
+        role: m.role,
+        email: m.user.email,
+        name: m.user.name,
+        avatarUrl: m.user.avatarUrl,
+      })),
+      repos: w.repos.map((r) => ({ id: r.id, fullName: r.fullName, memories: r._count.memories })),
+    };
+  });
+
+  // Add a member to a workspace by email (the user must already have an account).
+  app.post("/admin/workspaces/:workspaceId/members", async (req, reply) => {
+    const admin = await requireAdmin(req, reply);
+    if (!admin) return;
+    const { workspaceId } = req.params as { workspaceId: string };
+    const body = addMemberSchema.parse(req.body);
+    const ws = await prisma.workspace.findUnique({ where: { id: workspaceId }, select: { id: true } });
+    if (!ws) return reply.code(404).send({ error: "Workspace not found" });
+    const target = await prisma.user.findFirst({
+      where: { email: { equals: body.email, mode: "insensitive" } },
+    });
+    if (!target) return reply.code(404).send({ error: "No Cortex account with that email." });
+    const existing = await prisma.membership.findUnique({
+      where: { userId_workspaceId: { userId: target.id, workspaceId } },
+    });
+    if (existing) return reply.code(409).send({ error: "Already a member." });
+    await prisma.membership.create({ data: { userId: target.id, workspaceId, role: body.role } });
+    return reply.code(201).send({ ok: true });
+  });
+
+  // Remove a member (blocked if they're the last owner — keeps the workspace reachable).
+  app.delete("/admin/workspaces/:workspaceId/members/:userId", async (req, reply) => {
+    const admin = await requireAdmin(req, reply);
+    if (!admin) return;
+    const { workspaceId, userId } = req.params as { workspaceId: string; userId: string };
+    const membership = await prisma.membership.findUnique({
+      where: { userId_workspaceId: { userId, workspaceId } },
+    });
+    if (!membership) return reply.code(404).send({ error: "Not a member." });
+    if (membership.role === "owner") {
+      const owners = await prisma.membership.count({ where: { workspaceId, role: "owner" } });
+      if (owners <= 1) return reply.code(409).send({ error: "Can't remove the last owner." });
+    }
+    await prisma.membership.delete({ where: { userId_workspaceId: { userId, workspaceId } } });
+    return { ok: true };
+  });
+
+  // Delete a workspace entirely (cascades to repos, memory, sessions, reviews…).
+  app.delete("/admin/workspaces/:workspaceId", async (req, reply) => {
+    const admin = await requireAdmin(req, reply);
+    if (!admin) return;
+    const { workspaceId } = req.params as { workspaceId: string };
+    const ws = await prisma.workspace.findUnique({ where: { id: workspaceId }, select: { name: true } });
+    if (!ws) return reply.code(404).send({ error: "Workspace not found" });
+    await prisma.workspace.delete({ where: { id: workspaceId } });
+    return { ok: true };
   });
 
   // The billing / payment log (plan grants now, Stripe invoices once wired).

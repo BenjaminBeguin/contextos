@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import Link from "next/link";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import {
   getAdminWhoami,
@@ -125,7 +126,9 @@ function Workspaces() {
     <Card className="mt-6 p-0">
       <div className="border-b border-[var(--border)] px-5 py-4">
         <h2 className="font-display font-semibold">Workspaces</h2>
-        <p className="text-xs text-[var(--muted)]">Manage each workspace&apos;s plan — comp, upgrade, or cancel.</p>
+        <p className="text-xs text-[var(--muted)]">
+          Open one to manage members, plan, and deletion — or change plan inline.
+        </p>
       </div>
       {isLoading ? (
         <p className="p-5 text-sm text-[var(--muted)]">Loading…</p>
@@ -143,10 +146,12 @@ function Workspaces() {
             </thead>
             <tbody>
               {(data ?? []).map((w) => (
-                <tr key={w.id} className="border-b border-[var(--border)] last:border-0">
+                <tr key={w.id} className="border-b border-[var(--border)] last:border-0 hover:bg-white/[0.02]">
                   <td className="px-5 py-3">
-                    <div className="font-medium">{w.name}</div>
-                    <div className="text-xs text-[var(--faint)]">{w.slug}</div>
+                    <Link href={`/admin/workspaces/${w.id}`} className="block">
+                      <div className="font-medium transition hover:text-[var(--accent)]">{w.name}</div>
+                      <div className="text-xs text-[var(--faint)]">{w.slug}</div>
+                    </Link>
                   </td>
                   <td className="px-3 py-3 text-[var(--muted)]">{w.owner?.email ?? "—"}</td>
                   <td className="px-3 py-3">
@@ -167,9 +172,17 @@ function Workspaces() {
                     {w.repoCount === 1 ? "" : "s"}
                   </td>
                   <td className="px-5 py-3 text-right">
-                    <Button size="sm" variant="ghost" onClick={() => setEditing(w)}>
-                      Change plan
-                    </Button>
+                    <div className="inline-flex items-center gap-1.5">
+                      <Button size="sm" variant="ghost" onClick={() => setEditing(w)}>
+                        Change plan
+                      </Button>
+                      <Link
+                        href={`/admin/workspaces/${w.id}`}
+                        className="rounded-lg border border-[var(--border)] px-2.5 py-1 text-xs transition hover:border-[var(--border-strong)] hover:bg-white/5"
+                      >
+                        Manage →
+                      </Link>
+                    </div>
                   </td>
                 </tr>
               ))}

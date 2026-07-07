@@ -181,6 +181,46 @@ export function getBillingEvents(): Promise<BillingEventRow[]> {
   return api<BillingEventRow[]>("/admin/billing-events");
 }
 
+export interface AdminWorkspaceDetail {
+  id: string;
+  name: string;
+  slug: string;
+  joinCode: string;
+  plan: Plan;
+  planSource: string;
+  planStatus: string;
+  planNote: string | null;
+  createdAt: string;
+  members: {
+    userId: string;
+    role: string;
+    email: string;
+    name: string | null;
+    avatarUrl: string | null;
+  }[];
+  repos: { id: string; fullName: string; memories: number }[];
+}
+
+export function getAdminWorkspace(id: string): Promise<AdminWorkspaceDetail> {
+  return api<AdminWorkspaceDetail>(`/admin/workspaces/${id}`);
+}
+export function adminAddMember(
+  id: string,
+  email: string,
+  role = "member",
+): Promise<{ ok: boolean }> {
+  return api(`/admin/workspaces/${id}/members`, {
+    method: "POST",
+    body: JSON.stringify({ email, role }),
+  });
+}
+export function adminRemoveMember(id: string, userId: string): Promise<{ ok: boolean }> {
+  return api(`/admin/workspaces/${id}/members/${userId}`, { method: "DELETE" });
+}
+export function adminDeleteWorkspace(id: string): Promise<{ ok: boolean }> {
+  return api(`/admin/workspaces/${id}`, { method: "DELETE" });
+}
+
 /** Result of marking a finding accepted / dismissed / pending. */
 export interface FindingFeedbackResult {
   finding: PrReviewFindingDTO;

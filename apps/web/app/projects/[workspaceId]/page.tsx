@@ -7,6 +7,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { MEMORY_TYPES, MEMORY_STATUSES } from "@cortex/shared";
 import { RepoPicker } from "../../../components/RepoPicker";
 import { RepoSetupDrawer } from "../../../components/RepoSetupDrawer";
+import { PlanCard } from "../../../components/PlanCard";
 import {
   api,
   getWorkspaceReviews,
@@ -46,7 +47,7 @@ type WsDoc = GeneratedDoc & { repoFullName: string };
 
 // Top-level sections. Memory / Decisions / Risks / Sessions live together under
 // "Knowledge"; repo connection lives under "Setup" — so the top row stays short.
-const TABS = ["Overview", "Knowledge", "Reviews", "Docs", "Tools", "Setup", "Settings"] as const;
+const TABS = ["Overview", "Knowledge", "Reviews", "Docs", "Tools", "Billing", "Setup", "Settings"] as const;
 type Tab = (typeof TABS)[number];
 
 const SECTION_TABS = TABS.filter((t) => t !== "Settings");
@@ -107,6 +108,15 @@ function Project({ workspaceId }: { workspaceId: string }) {
             <span className="hidden whitespace-nowrap text-xs text-[var(--muted)] sm:inline">
               {repos.length} repo{repos.length === 1 ? "" : "s"} · {role ?? "member"}
             </span>
+            {ws?.plan ? (
+              <button
+                onClick={() => setTab("Billing")}
+                title="View plan & usage"
+                className="hidden rounded-full border border-[var(--border)] px-2 py-0.5 text-[10px] uppercase tracking-wide text-[var(--muted)] transition hover:border-[var(--border-strong)] hover:text-white sm:inline"
+              >
+                {ws.plan}
+              </button>
+            ) : null}
           </div>
 
           <nav className="flex min-w-0 flex-1 items-stretch gap-1 overflow-x-auto">
@@ -166,6 +176,15 @@ function Project({ workspaceId }: { workspaceId: string }) {
         {tab === "Reviews" ? <ReviewsTab workspaceId={workspaceId} /> : null}
         {tab === "Docs" ? <DocsTab workspaceId={workspaceId} repoId={repoFilter} /> : null}
         {tab === "Tools" ? <ToolsTab workspaceId={workspaceId} /> : null}
+        {tab === "Billing" ? (
+          ws ? (
+            <div className="max-w-4xl">
+              <PlanCard workspaceId={workspaceId} ws={ws} isOwner={isOwner} />
+            </div>
+          ) : (
+            <Loading />
+          )
+        ) : null}
         {tab === "Setup" ? <SetupTab workspaceId={workspaceId} repos={repos} /> : null}
         {tab === "Settings" ? <ProjectSettings workspaceId={workspaceId} isOwner={isOwner} /> : null}
       </div>
