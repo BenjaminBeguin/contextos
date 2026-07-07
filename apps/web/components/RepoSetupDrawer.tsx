@@ -47,12 +47,6 @@ export function RepoSetupDrawer({ repoId, onClose }: { repoId: string; onClose: 
     return () => window.removeEventListener("keydown", onKey);
   }, [onClose]);
 
-  const links = [
-    { href: `/repos/${repoId}/memories`, label: "Memory library" },
-    { href: `/repos/${repoId}/reviews`, label: "Reviews" },
-    { href: `/repos/${repoId}/docs`, label: "Docs" },
-  ];
-
   return (
     <div className="fixed inset-0 z-50 flex justify-end" role="dialog" aria-modal="true">
       <div className="absolute inset-0 bg-black/50 backdrop-blur-sm ctx-fade-in" onClick={onClose} />
@@ -120,26 +114,12 @@ export function RepoSetupDrawer({ repoId, onClose }: { repoId: string; onClose: 
               </div>
             </section>
 
-            <section>
-              <h3 className="mb-2 text-sm font-semibold">This repo</h3>
-              <div className="grid grid-cols-3 gap-2">
-                {links.map((l) => (
-                  <Link
-                    key={l.href}
-                    href={l.href}
-                    className="rounded-lg border border-[var(--border)] px-3 py-2 text-center text-xs transition hover:border-[var(--border-strong)] hover:bg-white/5"
-                  >
-                    {l.label}
-                  </Link>
-                ))}
-              </div>
-              <Link
-                href={`/repos/${repoId}`}
-                className="mt-3 inline-block text-xs text-[var(--accent)] hover:underline"
-              >
-                Open full repo settings →
-              </Link>
-            </section>
+            <Link
+              href={`/repos/${repoId}`}
+              className="inline-block text-xs text-[var(--accent)] hover:underline"
+            >
+              Open full repo settings →
+            </Link>
           </div>
         )}
       </aside>
