@@ -139,6 +139,7 @@ export interface ReviewerSkill {
 export interface ApiTokenInfo {
   id: string;
   name: string;
+  scope: "cli" | "mcp" | "both";
   lastUsedAt: string | null;
   createdAt: string;
 }

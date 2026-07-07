@@ -15,8 +15,13 @@ export const waitlistSchema = z.object({
   source: z.string().max(120).optional(),
 });
 
+export const TOKEN_SCOPES = ["cli", "mcp", "both"] as const;
+export const tokenScopeSchema = z.enum(TOKEN_SCOPES);
+export type TokenScope = (typeof TOKEN_SCOPES)[number];
+
 export const createTokenSchema = z.object({
-  name: z.string().min(1).default("cli"),
+  name: z.string().min(1).max(80).default("cli"),
+  scope: tokenScopeSchema.default("both"),
 });
 
 export const createWorkspaceSchema = z.object({

@@ -197,7 +197,7 @@ export async function authRoutes(app: FastifyInstance) {
     return prisma.apiToken.findMany({
       where: { userId: user.id },
       orderBy: { createdAt: "desc" },
-      select: { id: true, name: true, lastUsedAt: true, createdAt: true },
+      select: { id: true, name: true, scope: true, lastUsedAt: true, createdAt: true },
     });
   });
 
@@ -208,9 +208,9 @@ export async function authRoutes(app: FastifyInstance) {
     const body = createTokenSchema.parse(req.body ?? {});
     const raw = generateToken();
     await prisma.apiToken.create({
-      data: { userId: user.id, name: body.name, hashedToken: hashToken(raw) },
+      data: { userId: user.id, name: body.name, scope: body.scope, hashedToken: hashToken(raw) },
     });
-    return { token: raw, name: body.name };
+    return { token: raw, name: body.name, scope: body.scope };
   });
 
   // Revoke an API token.
