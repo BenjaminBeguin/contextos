@@ -6,6 +6,7 @@ import type {
   TextareaHTMLAttributes,
 } from "react";
 import Link from "next/link";
+import { CopyButton } from "./CopyButton";
 
 /** Tiny class joiner. */
 export function cn(...parts: (string | false | null | undefined)[]): string {
@@ -356,10 +357,45 @@ export function Modal({
   );
 }
 
-export function Code({ children }: { children: ReactNode }) {
+/** One line of a shell snippet: whole-line and trailing `#` comments are dimmed. */
+function CodeLine({ line }: { line: string }) {
+  if (line.trimStart().startsWith("#")) {
+    return <span className="block text-[var(--faint)]">{line || " "}</span>;
+  }
+  const i = line.indexOf(" #");
+  if (i !== -1) {
+    return (
+      <span className="block">
+        {line.slice(0, i)}
+        <span className="text-[var(--faint)]">{line.slice(i)}</span>
+      </span>
+    );
+  }
+  return <span className="block">{line || " "}</span>;
+}
+
+/**
+ * Terminal-style code block: window chrome, an optional label, a copy button, and
+ * dimmed shell comments. Falls back to plain rendering for non-string children.
+ */
+export function Code({ children, label }: { children: ReactNode; label?: string }) {
+  const raw = typeof children === "string" ? children : null;
   return (
-    <pre className="overflow-x-auto rounded-lg border border-[var(--border)] bg-black/40 p-4 text-sm text-[var(--text)]">
-      <code>{children}</code>
-    </pre>
+    <div className="overflow-hidden rounded-xl border border-[var(--border)] bg-[#0b0812] shadow-[inset_0_1px_0_rgba(255,255,255,0.04)]">
+      <div className="flex items-center justify-between border-b border-[var(--border)] bg-white/[0.02] px-3 py-2">
+        <div className="flex items-center gap-1.5">
+          <span className="h-2.5 w-2.5 rounded-full" style={{ background: "var(--alert)" }} aria-hidden />
+          <span className="h-2.5 w-2.5 rounded-full" style={{ background: "var(--signal)" }} aria-hidden />
+          <span className="h-2.5 w-2.5 rounded-full" style={{ background: "var(--verify)" }} aria-hidden />
+          <span className="ml-2 font-mono text-xs text-[var(--faint)]">{label ?? "shell"}</span>
+        </div>
+        {raw ? <CopyButton value={raw} className="border-none px-1.5 py-0.5 hover:bg-white/5" /> : null}
+      </div>
+      <pre className="overflow-x-auto p-4 text-sm leading-relaxed text-[var(--text)]">
+        <code className="font-mono">
+          {raw ? raw.split("\n").map((line, idx) => <CodeLine key={idx} line={line} />) : children}
+        </code>
+      </pre>
+    </div>
   );
 }
