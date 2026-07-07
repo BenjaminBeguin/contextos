@@ -1,10 +1,15 @@
-import type {
-  ChangeEvent,
-  InputHTMLAttributes,
-  ReactNode,
-  SelectHTMLAttributes,
-  TextareaHTMLAttributes,
+"use client";
+
+import {
+  useEffect,
+  useState,
+  type ChangeEvent,
+  type InputHTMLAttributes,
+  type ReactNode,
+  type SelectHTMLAttributes,
+  type TextareaHTMLAttributes,
 } from "react";
+import { createPortal } from "react-dom";
 import Link from "next/link";
 import { CopyButton } from "./CopyButton";
 
@@ -321,8 +326,12 @@ export function Modal({
   children: ReactNode;
   className?: string;
 }) {
-  if (!open) return null;
-  return (
+  // Render into <body> so the overlay escapes any transformed/backdrop-blurred
+  // ancestor (e.g. the workspace rail), which would otherwise trap position:fixed.
+  const [mounted, setMounted] = useState(false);
+  useEffect(() => setMounted(true), []);
+  if (!open || !mounted) return null;
+  return createPortal(
     <div
       className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-black/60 p-4 backdrop-blur-sm ctx-fade-in sm:p-8"
       onClick={onClose}
@@ -353,7 +362,8 @@ export function Modal({
         </div>
         {children}
       </div>
-    </div>
+    </div>,
+    document.body,
   );
 }
 
