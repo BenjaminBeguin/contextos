@@ -34,14 +34,20 @@
 }
 
 /* The squared grid is painted on <html> (behind the transparent <body>) so it
-   shows through the whole app — a z-index:-1 layer would hide behind body's bg. */
+   shows through the whole app — a z-index:-1 layer would hide behind body's bg.
+   Intensity is per-route via --grid-alpha (see GridScope): a touch stronger on
+   the dashboard, very discreet inside a project. */
 html {
+  --grid-alpha: 0.01; /* default: discreet (inside a project / app pages) */
   background-color: var(--background);
   background-image:
-    linear-gradient(to right, rgba(255, 255, 255, 0.022) 1px, transparent 1px),
-    linear-gradient(to bottom, rgba(255, 255, 255, 0.022) 1px, transparent 1px);
+    linear-gradient(to right, rgba(255, 255, 255, var(--grid-alpha)) 1px, transparent 1px),
+    linear-gradient(to bottom, rgba(255, 255, 255, var(--grid-alpha)) 1px, transparent 1px);
   background-size: 52px 52px;
   background-attachment: fixed;
+}
+html[data-grid="dashboard"] {
+  --grid-alpha: 0.022;
 }
 body {
   background: transparent;
