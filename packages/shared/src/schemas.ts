@@ -82,6 +82,21 @@ export const reviewDiffSchema = z.object({
   diff: z.string().min(1).max(400000),
 });
 
+export const PLANS = ["free", "team", "business", "enterprise"] as const;
+export const planSchema = z.enum(PLANS);
+export type Plan = (typeof PLANS)[number];
+
+export const PLAN_SOURCES = ["none", "stripe", "comp", "manual"] as const;
+export const planSourceSchema = z.enum(PLAN_SOURCES);
+
+/** Superadmin: set a workspace's plan (e.g. comp / promote-for-free). */
+export const setPlanSchema = z.object({
+  plan: planSchema,
+  source: planSourceSchema.default("manual"),
+  status: z.enum(["active", "past_due", "canceled"]).default("active"),
+  note: z.string().max(500).optional(),
+});
+
 export const reviewFeedbackValueSchema = z.enum(["pending", "accepted", "dismissed"]);
 
 /** Feedback on a single persisted finding (web app). */

@@ -17,6 +17,7 @@ import { mcpRoutes } from "./routes/mcp.js";
 import { metricsRoutes } from "./routes/metrics.js";
 import { graphRoutes } from "./routes/graph.js";
 import { chatRoutes } from "./routes/chat.js";
+import { adminRoutes } from "./routes/admin.js";
 
 // trustProxy so req.ip reflects the real client behind Railway's proxy (used by rate limiting).
 const app = Fastify({ logger: true, trustProxy: true });
@@ -50,6 +51,7 @@ await app.register(mcpRoutes);
 await app.register(metricsRoutes);
 await app.register(graphRoutes);
 await app.register(chatRoutes);
+await app.register(adminRoutes);
 
 app
   .listen({ port: env.port, host: "0.0.0.0" })

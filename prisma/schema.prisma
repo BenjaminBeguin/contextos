@@ -28,12 +28,42 @@ model Workspace {
   anthropicKey String? // encrypted; BYOK for this workspace's AI features
   autoApproveThreshold Float? // if set, proposed memories with confidence >= this are auto-approved
   autoRejectThreshold  Float? // if set, proposed memories with confidence < this are auto-rejected
+  // Billing / plan (managed from the superadmin dashboard; Stripe fields reserved).
+  plan             String    @default("free") // free | team | business | enterprise
+  planSource       String    @default("none") // none | stripe | comp | manual
+  planStatus       String    @default("active") // active | past_due | canceled
+  planNote         String?
+  planUpdatedAt    DateTime?
+  stripeCustomerId String?
   createdAt    DateTime @default(now())
 
   memberships    Membership[]
   repos          Repo[]
   auditLogs      AuditLog[]
   reviewerSkills ReviewerSkill[]
+  billingEvents  BillingEvent[]
+}
+
+/** Append-only log of billing/subscription activity — plan grants and changes
+    now, real Stripe payments/invoices once billing is wired. Powers the admin
+    payment log. */
+model BillingEvent {
+  id          String   @id @default(cuid())
+  workspaceId String?
+  type        String // plan.granted | plan.changed | plan.canceled | invoice.paid | payment.failed
+  plan        String?
+  amountCents Int?
+  currency    String? // e.g. "usd"
+  status      String? // paid | failed | comp
+  note        String?
+  actorEmail  String? // the admin who performed the action, when applicable
+  metadata    Json?
+  createdAt   DateTime @default(now())
+
+  workspace Workspace? @relation(fields: [workspaceId], references: [id], onDelete: SetNull)
+
+  @@index([createdAt])
+  @@index([workspaceId, createdAt])
 }
 
 model Membership {

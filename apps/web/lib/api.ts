@@ -99,6 +99,68 @@ export function getWorkspaceReviews(workspaceId: string): Promise<WorkspaceRevie
   return api<WorkspaceReview[]>(`/workspaces/${workspaceId}/reviews`);
 }
 
+// ---- Admin (superadmin) ------------------------------------------------------
+
+export type Plan = "free" | "team" | "business" | "enterprise";
+
+export interface AdminOverview {
+  totals: { users: number; workspaces: number; repos: number; memories: number };
+  plans: Record<string, number>;
+  mrrCents: number;
+  recentEvents: BillingEventRow[];
+}
+
+export interface AdminWorkspace {
+  id: string;
+  name: string;
+  slug: string;
+  plan: Plan;
+  planSource: string;
+  planStatus: string;
+  planNote: string | null;
+  planUpdatedAt: string | null;
+  createdAt: string;
+  repoCount: number;
+  memberCount: number;
+  owner: { email: string; name: string | null } | null;
+}
+
+export interface BillingEventRow {
+  id: string;
+  workspaceId: string | null;
+  type: string;
+  plan: string | null;
+  amountCents: number | null;
+  currency: string | null;
+  status: string | null;
+  note: string | null;
+  actorEmail: string | null;
+  createdAt: string;
+  workspace?: { name: string; slug: string } | null;
+}
+
+export function getAdminWhoami(): Promise<{ isSuperAdmin: boolean }> {
+  return api<{ isSuperAdmin: boolean }>("/admin/whoami");
+}
+export function getAdminOverview(): Promise<AdminOverview> {
+  return api<AdminOverview>("/admin/overview");
+}
+export function getAdminWorkspaces(): Promise<AdminWorkspace[]> {
+  return api<AdminWorkspace[]>("/admin/workspaces");
+}
+export function setWorkspacePlan(
+  workspaceId: string,
+  body: { plan: Plan; source?: string; status?: string; note?: string },
+): Promise<AdminWorkspace> {
+  return api<AdminWorkspace>(`/admin/workspaces/${workspaceId}/plan`, {
+    method: "POST",
+    body: JSON.stringify(body),
+  });
+}
+export function getBillingEvents(): Promise<BillingEventRow[]> {
+  return api<BillingEventRow[]>("/admin/billing-events");
+}
+
 /** Result of marking a finding accepted / dismissed / pending. */
 export interface FindingFeedbackResult {
   finding: PrReviewFindingDTO;

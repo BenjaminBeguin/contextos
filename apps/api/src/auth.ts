@@ -62,6 +62,11 @@ export async function resolveUser(req: FastifyRequest): Promise<AuthedUser | nul
   return null;
 }
 
+/** Whether a user is a platform superadmin (SUPERADMIN_EMAILS). */
+export function isSuperAdmin(user: { email: string } | null | undefined): boolean {
+  return !!user && env.superAdminEmails.includes(user.email.toLowerCase());
+}
+
 export class HttpError extends Error {
   constructor(public statusCode: number, message: string) {
     super(message);

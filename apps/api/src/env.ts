@@ -33,4 +33,10 @@ export const env = {
 
   // Email-only dev login. On by default outside production; never in production.
   allowDevLogin: bool(process.env.ALLOW_DEV_LOGIN, !isProd) && !isProd,
+
+  // Platform superadmins (comma-separated emails) — can access the admin dashboard.
+  superAdminEmails: (process.env.SUPERADMIN_EMAILS ?? "")
+    .split(",")
+    .map((s) => s.trim().toLowerCase())
+    .filter(Boolean),
 };

@@ -60,6 +60,12 @@ export function WorkspaceRail() {
     retry: false,
     enabled: !!me,
   });
+  const { data: admin } = useQuery({
+    queryKey: ["admin-whoami"],
+    queryFn: () => api<{ isSuperAdmin: boolean }>("/admin/whoami"),
+    retry: false,
+    enabled: !!me,
+  });
   const { activeId, setActiveId } = useActiveWorkspace();
   const list = workspaces ?? me?.workspaces ?? [];
   const [newOpen, setNewOpen] = useState(false);
@@ -184,6 +190,19 @@ export function WorkspaceRail() {
             />
           </svg>
         </RailLink>
+        {admin?.isSuperAdmin ? (
+          <RailLink href="/admin" label="Admin" active={pathname.startsWith("/admin")}>
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden>
+              <path
+                d="M12 3l7 3v5c0 4.4-3 8.2-7 9-4-.8-7-4.6-7-9V6l7-3Z"
+                stroke="currentColor"
+                strokeWidth="1.6"
+                strokeLinejoin="round"
+              />
+              <path d="M9 12l2 2 4-4" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" />
+            </svg>
+          </RailLink>
+        ) : null}
         <RailLink href="/account" label="Account" active={pathname.startsWith("/account")}>
           {me?.avatarUrl ? (
             // eslint-disable-next-line @next/next/no-img-element
