@@ -8,10 +8,14 @@ import {
   inviteMemberSchema,
   reviewerSkillSchema,
   updateReviewerSkillSchema,
+  billingCheckoutSchema,
+  planLimits,
+  withinLimit,
 } from "@cortex/shared";
 import { prisma } from "../db.js";
 import { resolveUser, assertWorkspaceAccess, HttpError } from "../auth.js";
 import { encryptToken } from "../crypto.js";
+import { env } from "../env.js";
 import { getAutoThresholds } from "../services/memory.js";
 
 function generateJoinCode(): string {
@@ -245,6 +249,17 @@ export async function workspaceRoutes(app: FastifyInstance) {
       where: { userId_workspaceId: { userId: target.id, workspaceId } },
     });
     if (existing) return reply.code(409).send({ error: "Already a member." });
+    // Plan enforcement: cap seats by the workspace's plan.
+    const ws = await prisma.workspace.findUnique({ where: { id: workspaceId }, select: { plan: true } });
+    const limits = planLimits(ws?.plan ?? "free");
+    const seats = await prisma.membership.count({ where: { workspaceId } });
+    if (!withinLimit(seats, limits.maxSeats)) {
+      return reply.code(402).send({
+        error: "plan_limit_seats",
+        limit: limits.maxSeats,
+        message: `Your plan allows ${limits.maxSeats} members. Upgrade to add more.`,
+      });
+    }
     await prisma.membership.create({
       data: { userId: target.id, workspaceId, role: "member" },
     });
@@ -302,7 +317,39 @@ export async function workspaceRoutes(app: FastifyInstance) {
     });
     // Never return the (encrypted) key — just whether one is set.
     const { anthropicKey, ...rest } = workspace;
-    return { ...rest, hasAnthropicKey: Boolean(anthropicKey), pendingMemories };
+    const limits = planLimits(workspace.plan);
+    return {
+      ...rest,
+      hasAnthropicKey: Boolean(anthropicKey),
+      pendingMemories,
+      limits,
+      usage: { repos: workspace.repos.length, seats: workspace.memberships.length },
+    };
+  });
+
+  // Start a self-serve upgrade (owners only). Returns a Stripe Checkout URL once
+  // billing is configured; until then reports that self-serve billing is off.
+  app.post("/workspaces/:workspaceId/billing/checkout", async (req, reply) => {
+    const user = await resolveUser(req);
+    if (!user) return reply.code(401).send({ error: "Unauthorized" });
+    const { workspaceId } = req.params as { workspaceId: string };
+    try {
+      const membership = await assertWorkspaceAccess(user.id, workspaceId);
+      if (membership.role !== "owner") throw new HttpError(403, "Only owners can manage billing");
+    } catch (e) {
+      if (e instanceof HttpError) return reply.code(e.statusCode).send({ error: e.message });
+      throw e;
+    }
+    billingCheckoutSchema.parse(req.body);
+    if (!env.stripe.enabled) {
+      return reply.code(501).send({
+        error: "billing_not_configured",
+        message:
+          "Self-serve billing isn't enabled yet. An admin can comp your plan, or set STRIPE_SECRET_KEY to turn on checkout.",
+      });
+    }
+    // TODO: create a Stripe Checkout session for body.plan and return { url }.
+    return reply.code(501).send({ error: "billing_not_configured" });
   });
 
   // Update workspace settings — name and/or auto-approve threshold (owners only).

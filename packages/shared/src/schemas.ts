@@ -86,8 +86,44 @@ export const PLANS = ["free", "team", "business", "enterprise"] as const;
 export const planSchema = z.enum(PLANS);
 export type Plan = (typeof PLANS)[number];
 
+/** What each plan is allowed. `null` = unlimited. Single source of truth for
+    entitlements — enforced in the API and shown in the app. */
+export interface PlanLimits {
+  maxRepos: number | null;
+  maxSeats: number | null;
+  reviewer: boolean; // memory-grounded PR reviewer
+}
+
+export const PLAN_LIMITS: Record<Plan, PlanLimits> = {
+  free: { maxRepos: 3, maxSeats: 2, reviewer: false },
+  team: { maxRepos: 20, maxSeats: 10, reviewer: true },
+  business: { maxRepos: 100, maxSeats: 50, reviewer: true },
+  enterprise: { maxRepos: null, maxSeats: null, reviewer: true },
+};
+
+export const PLAN_LABELS: Record<Plan, string> = {
+  free: "Free",
+  team: "Team",
+  business: "Business",
+  enterprise: "Enterprise",
+};
+
+export function planLimits(plan: string): PlanLimits {
+  return PLAN_LIMITS[(plan as Plan) in PLAN_LIMITS ? (plan as Plan) : "free"];
+}
+
+/** True if `used` is still under `max` (null = unlimited). Use before adding one. */
+export function withinLimit(used: number, max: number | null): boolean {
+  return max === null || used < max;
+}
+
 export const PLAN_SOURCES = ["none", "stripe", "comp", "manual"] as const;
 export const planSourceSchema = z.enum(PLAN_SOURCES);
+
+/** Owner starts a self-serve upgrade to a paid plan. */
+export const billingCheckoutSchema = z.object({
+  plan: planSchema,
+});
 
 /** Superadmin: set a workspace's plan (e.g. comp / promote-for-free). */
 export const setPlanSchema = z.object({

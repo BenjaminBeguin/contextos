@@ -39,4 +39,12 @@ export const env = {
     .split(",")
     .map((s) => s.trim().toLowerCase())
     .filter(Boolean),
+
+  // Stripe (self-serve billing). Self-serve checkout is enabled once a secret key is set.
+  stripe: {
+    secretKey: process.env.STRIPE_SECRET_KEY ?? "",
+    get enabled() {
+      return Boolean(this.secretKey);
+    },
+  },
 };

@@ -5,6 +5,8 @@ import {
   reviewPrSchema,
   reviewDiffSchema,
   setRepoSkillsSchema,
+  planLimits,
+  withinLimit,
 } from "@cortex/shared";
 import { prisma } from "../db.js";
 import { resolveUser, assertWorkspaceAccess, assertRepoAccess, HttpError } from "../auth.js";
@@ -89,6 +91,20 @@ export async function repoRoutes(app: FastifyInstance) {
       if (e instanceof HttpError) return reply.code(e.statusCode).send({ error: e.message });
       throw e;
     }
+    // Plan enforcement: cap connected repos by the workspace's plan.
+    const ws = await prisma.workspace.findUnique({
+      where: { id: body.workspaceId },
+      select: { plan: true },
+    });
+    const limits = planLimits(ws?.plan ?? "free");
+    const repoCount = await prisma.repo.count({ where: { workspaceId: body.workspaceId } });
+    if (!withinLimit(repoCount, limits.maxRepos)) {
+      return reply.code(402).send({
+        error: "plan_limit_repos",
+        limit: limits.maxRepos,
+        message: `Your plan allows ${limits.maxRepos} repos. Upgrade to connect more.`,
+      });
+    }
     const repo = await prisma.repo.create({
       data: {
         workspaceId: body.workspaceId,
@@ -149,6 +165,19 @@ export async function repoRoutes(app: FastifyInstance) {
       throw e;
     }
     const body = updateRepoSchema.parse(req.body);
+    // Plan enforcement: the PR reviewer is a paid feature.
+    if (body.reviewerEnabled === true) {
+      const repo = await prisma.repo.findUnique({
+        where: { id: repoId },
+        select: { workspace: { select: { plan: true } } },
+      });
+      if (!planLimits(repo?.workspace.plan ?? "free").reviewer) {
+        return reply.code(402).send({
+          error: "plan_requires_reviewer",
+          message: "The PR reviewer is available on the Team plan and up. Upgrade to enable it.",
+        });
+      }
+    }
     return prisma.repo.update({ where: { id: repoId }, data: body });
   });
 

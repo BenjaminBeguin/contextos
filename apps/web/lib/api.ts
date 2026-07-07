@@ -43,6 +43,12 @@ export interface Me {
   workspaces: Workspace[];
 }
 
+export interface PlanLimits {
+  maxRepos: number | null;
+  maxSeats: number | null;
+  reviewer: boolean;
+}
+
 export interface WorkspaceDetail {
   id: string;
   name: string;
@@ -52,11 +58,25 @@ export interface WorkspaceDetail {
   autoApproveThreshold?: number | null;
   autoRejectThreshold?: number | null;
   pendingMemories?: number;
+  plan?: Plan;
+  planStatus?: string;
+  planSource?: string;
+  limits?: PlanLimits;
+  usage?: { repos: number; seats: number };
   repos: { id: string; fullName: string; _count?: { memories: number } }[];
   memberships: {
     role: string;
     user: { id: string; email: string; name: string | null; avatarUrl: string | null };
   }[];
+}
+
+/** Start a self-serve upgrade. Resolves to a Stripe URL, or throws with
+    "billing_not_configured" until STRIPE_SECRET_KEY is set. */
+export function startCheckout(workspaceId: string, plan: Plan): Promise<{ url?: string }> {
+  return api<{ url?: string }>(`/workspaces/${workspaceId}/billing/checkout`, {
+    method: "POST",
+    body: JSON.stringify({ plan }),
+  });
 }
 
 export interface PullRequest {
