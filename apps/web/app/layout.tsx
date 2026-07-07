@@ -25,7 +25,6 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
   return (
     <html lang="en" className={`${spaceGrotesk.variable} ${inter.variable}`}>
       <body>
-        <div className="app-grid" aria-hidden />
         <div className="grain" aria-hidden />
         <Providers>{children}</Providers>
       </body>
