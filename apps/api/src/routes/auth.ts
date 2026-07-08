@@ -9,6 +9,8 @@ import {
   resolveUser,
   generateToken,
   hashToken,
+  assertWorkspaceAccess,
+  HttpError,
 } from "../auth.js";
 import { encryptToken } from "../crypto.js";
 
@@ -194,23 +196,47 @@ export async function authRoutes(app: FastifyInstance) {
   app.get("/auth/tokens", async (req, reply) => {
     const user = await resolveUser(req);
     if (!user) return reply.code(401).send({ error: "Unauthorized" });
-    return prisma.apiToken.findMany({
+    const tokens = await prisma.apiToken.findMany({
       where: { userId: user.id },
       orderBy: { createdAt: "desc" },
-      select: { id: true, name: true, scope: true, lastUsedAt: true, createdAt: true },
+      select: {
+        id: true,
+        name: true,
+        scope: true,
+        lastUsedAt: true,
+        createdAt: true,
+        workspace: { select: { id: true, name: true } },
+      },
     });
+    return tokens;
   });
 
-  // Mint an API token for CLI/MCP use. Returns the raw token once.
+  // Mint an API token for CLI/MCP use. Returns the raw token once. When
+  // `workspaceId` is set, the token is bound to that project (the caller must
+  // be a member) and can only reach that project's repos.
   app.post("/auth/tokens", async (req, reply) => {
     const user = await resolveUser(req);
     if (!user) return reply.code(401).send({ error: "Unauthorized" });
     const body = createTokenSchema.parse(req.body ?? {});
+    if (body.workspaceId) {
+      try {
+        await assertWorkspaceAccess(user.id, body.workspaceId);
+      } catch (e) {
+        if (e instanceof HttpError) return reply.code(e.statusCode).send({ error: e.message });
+        throw e;
+      }
+    }
     const raw = generateToken();
     await prisma.apiToken.create({
-      data: { userId: user.id, name: body.name, scope: body.scope, hashedToken: hashToken(raw) },
+      data: {
+        userId: user.id,
+        name: body.name,
+        scope: body.scope,
+        workspaceId: body.workspaceId ?? null,
+        hashedToken: hashToken(raw),
+      },
     });
-    return { token: raw, name: body.name, scope: body.scope };
+    return { token: raw, name: body.name, scope: body.scope, workspaceId: body.workspaceId ?? null };
   });
 
   // Revoke an API token.

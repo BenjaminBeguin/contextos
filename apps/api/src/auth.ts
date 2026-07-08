@@ -1,6 +1,6 @@
 import { createHash, randomBytes } from "node:crypto";
 import jwt from "jsonwebtoken";
-import type { FastifyRequest } from "fastify";
+import type { FastifyRequest, FastifyReply } from "fastify";
 import { roleAtLeast, type WorkspaceRole } from "@cortex/shared";
 import { prisma } from "./db.js";
 import { env } from "./env.js";
@@ -113,4 +113,38 @@ export async function requireRole(userId: string, workspaceId: string, min: Work
     throw new HttpError(403, `Requires ${min} role or higher`);
   }
   return membership;
+}
+
+/** Global preHandler: when a request authenticates with a project-scoped API
+    token, confine it to that project. We inspect the workspace/repo the request
+    targets — `:workspaceId`/`:repoId` route params and a `repoId` in the body
+    (the MCP routes) — and reject anything outside the token's workspace. Cookie
+    sessions and account-wide tokens are unaffected. */
+export async function enforceTokenScope(req: FastifyRequest, reply: FastifyReply): Promise<void> {
+  const authHeader = req.headers.authorization;
+  if (!authHeader?.startsWith("Bearer ")) return;
+  const raw = authHeader.slice("Bearer ".length).trim();
+  const token = await prisma.apiToken.findUnique({
+    where: { hashedToken: hashToken(raw) },
+    select: { workspaceId: true },
+  });
+  if (!token?.workspaceId) return; // unknown or account-wide token → no confinement here
+  const scope = token.workspaceId;
+
+  const params = (req.params ?? {}) as { workspaceId?: string; repoId?: string };
+  if (params.workspaceId && params.workspaceId !== scope) {
+    reply.code(403).send({ error: "token_scope_workspace" });
+    return;
+  }
+  const repoId = params.repoId ?? (req.body as { repoId?: string } | undefined)?.repoId;
+  if (repoId) {
+    const repo = await prisma.repo.findUnique({
+      where: { id: repoId },
+      select: { workspaceId: true },
+    });
+    if (repo && repo.workspaceId !== scope) {
+      reply.code(403).send({ error: "token_scope_repo" });
+      return;
+    }
+  }
 }

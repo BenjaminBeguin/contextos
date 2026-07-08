@@ -19,6 +19,7 @@ import { graphRoutes } from "./routes/graph.js";
 import { chatRoutes } from "./routes/chat.js";
 import { adminRoutes } from "./routes/admin.js";
 import { auditRoutes } from "./routes/audit.js";
+import { enforceTokenScope } from "./auth.js";
 
 // trustProxy so req.ip reflects the real client behind Railway's proxy (used by rate limiting).
 const app = Fastify({ logger: true, trustProxy: true });
@@ -38,6 +39,11 @@ app.setErrorHandler((error: FastifyError, _req, reply) => {
 });
 
 app.get("/health", async () => ({ ok: true }));
+
+// Confine project-scoped API tokens to their workspace (no-op for cookie
+// sessions and account-wide tokens). Runs after body parsing so it can also
+// inspect a `repoId` in the request body (the MCP routes).
+app.addHook("preHandler", enforceTokenScope);
 
 await app.register(authRoutes);
 await app.register(githubRoutes);

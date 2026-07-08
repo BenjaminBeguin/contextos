@@ -2,10 +2,10 @@
 
 import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { api, API_BASE_URL, type Me, type ApiTokenInfo } from "../../lib/api";
+import { api, API_BASE_URL, createToken, type Me, type ApiTokenInfo } from "../../lib/api";
 import { AppShell } from "../../components/AppShell";
 import { CopyButton } from "../../components/CopyButton";
-import { Button, Card, Code, Input, PageHeader } from "../../components/ui";
+import { Button, Card, Code, Input, Select, PageHeader } from "../../components/ui";
 
 export default function AccountPage() {
   return (
@@ -40,7 +40,7 @@ function Account() {
         </Card>
       ) : null}
       <GitHubCard me={me} />
-      <TokensCard />
+      <TokensCard me={me} />
     </div>
   );
 }
@@ -79,7 +79,7 @@ const SCOPE_OPTIONS: { value: TokenScope; label: string; hint: string }[] = [
 
 const SCOPE_LABEL: Record<TokenScope, string> = { both: "CLI + MCP", cli: "CLI", mcp: "MCP" };
 
-function TokensCard() {
+function TokensCard({ me }: { me?: Me }) {
   const qc = useQueryClient();
   const { data: tokens } = useQuery({
     queryKey: ["tokens"],
@@ -89,18 +89,22 @@ function TokensCard() {
   const [creating, setCreating] = useState(false);
   const [name, setName] = useState("");
   const [scope, setScope] = useState<TokenScope>("both");
+  const [projectId, setProjectId] = useState<string>(""); // "" = all projects
+  const projects = me?.workspaces ?? [];
 
   const create = useMutation({
     mutationFn: () =>
-      api<{ token: string }>("/auth/tokens", {
-        method: "POST",
-        body: JSON.stringify({ name: name.trim() || "cli", scope }),
+      createToken({
+        name: name.trim() || "cli",
+        scope,
+        workspaceId: projectId || undefined,
       }),
     onSuccess: (d) => {
       setNewToken(d.token);
       setCreating(false);
       setName("");
       setScope("both");
+      setProjectId("");
       qc.invalidateQueries({ queryKey: ["tokens"] });
     },
   });
@@ -115,7 +119,8 @@ function TokensCard() {
         <div>
           <h2 className="font-semibold">API tokens</h2>
           <p className="text-xs text-[var(--muted)]">
-            Used by the CLI and MCP server. One token authenticates you across all your projects.
+            Used by the CLI and MCP server. Scope a token to one project, or leave it account-wide to
+            reach all of them.
           </p>
         </div>
         <Button
@@ -140,6 +145,21 @@ function TokensCard() {
               autoFocus
             />
           </label>
+          <div className="mt-4">
+            <span className="mb-1.5 block text-xs font-medium text-[var(--muted)]">Project</span>
+            <Select value={projectId} onChange={(e) => setProjectId(e.target.value)} className="w-full">
+              <option value="">All projects (account-wide)</option>
+              {projects.map((w) => (
+                <option key={w.id} value={w.id}>
+                  {w.name}
+                </option>
+              ))}
+            </Select>
+            <p className="mt-1.5 text-[11px] text-[var(--faint)]">
+              A project token can only reach that project&apos;s repos — safer for CI or a single
+              repo.
+            </p>
+          </div>
           <div className="mt-4">
             <span className="mb-1.5 block text-xs font-medium text-[var(--muted)]">Scope</span>
             <div className="grid grid-cols-3 gap-2">
@@ -189,10 +209,20 @@ function TokensCard() {
         {tokens?.map((t) => (
           <li key={t.id} className="flex items-center justify-between gap-3 text-sm">
             <span className="min-w-0">
-              <span className="inline-flex items-center gap-2">
+              <span className="inline-flex flex-wrap items-center gap-2">
                 <span className="truncate font-medium">{t.name}</span>
                 <span className="shrink-0 rounded-full border border-[var(--border)] px-2 py-0.5 text-[10px] uppercase tracking-wide text-[var(--muted)]">
                   {SCOPE_LABEL[t.scope] ?? t.scope}
+                </span>
+                <span
+                  className="shrink-0 rounded-full border px-2 py-0.5 text-[10px]"
+                  style={
+                    t.workspace
+                      ? { borderColor: "var(--accent)", color: "var(--accent)" }
+                      : { borderColor: "var(--border)", color: "var(--faint)" }
+                  }
+                >
+                  {t.workspace ? t.workspace.name : "All projects"}
                 </span>
               </span>
               <span className="block text-xs text-[var(--muted)]">

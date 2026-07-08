@@ -22,6 +22,9 @@ export type TokenScope = (typeof TOKEN_SCOPES)[number];
 export const createTokenSchema = z.object({
   name: z.string().min(1).max(80).default("cli"),
   scope: tokenScopeSchema.default("both"),
+  // When set, the token is bound to this project (workspace); the CLI/MCP can
+  // only reach that project's repos. Omit for an account-wide token.
+  workspaceId: z.string().optional(),
 });
 
 export const createWorkspaceSchema = z.object({

@@ -279,6 +279,23 @@ export interface ApiTokenInfo {
   scope: "cli" | "mcp" | "both";
   lastUsedAt: string | null;
   createdAt: string;
+  /** Set when the token is bound to a single project. */
+  workspace?: { id: string; name: string } | null;
+}
+
+export interface CreateTokenBody {
+  name?: string;
+  scope?: "cli" | "mcp" | "both";
+  /** Bind the token to one project. Omit for an account-wide token. */
+  workspaceId?: string;
+}
+
+/** Mint an API token. Returns the raw token once. */
+export function createToken(body: CreateTokenBody): Promise<{ token: string }> {
+  return api<{ token: string }>("/auth/tokens", {
+    method: "POST",
+    body: JSON.stringify(body),
+  });
 }
 
 export interface GraphNode {

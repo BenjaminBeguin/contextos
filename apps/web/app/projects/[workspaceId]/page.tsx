@@ -8,6 +8,7 @@ import { MEMORY_TYPES, MEMORY_STATUSES } from "@cortex/shared";
 import { RepoPicker } from "../../../components/RepoPicker";
 import { RepoSetupDrawer } from "../../../components/RepoSetupDrawer";
 import { SessionTimeline } from "../../../components/SessionTimeline";
+import { ProjectOnboarding } from "../../../components/ProjectOnboarding";
 import {
   api,
   getWorkspaceReviews,
@@ -320,10 +321,11 @@ function Overview({
       </div>
 
       {ws.repos.length === 0 ? (
-        <EmptyState
-          title="No repos connected yet"
-          description="Connect a repo to start capturing memory, reviews, and docs."
-          action={<Button onClick={() => onGoto("Setup")}>Go to Setup</Button>}
+        <ProjectOnboarding
+          workspaceId={workspaceId}
+          projectName={ws.name}
+          color={projectColor(workspaceId).color}
+          onConnectRepo={() => onGoto("Setup")}
         />
       ) : (
         <ActivityFeed workspaceId={workspaceId} onGoto={onGoto} />

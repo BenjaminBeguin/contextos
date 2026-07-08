@@ -42,6 +42,7 @@ model Workspace {
   auditLogs      AuditLog[]
   reviewerSkills ReviewerSkill[]
   billingEvents  BillingEvent[]
+  apiTokens      ApiToken[]
 }
 
 /** Append-only log of billing/subscription activity — plan grants and changes
@@ -271,13 +272,19 @@ model WaitlistSignup {
 model ApiToken {
   id          String    @id @default(cuid())
   userId      String
+  // When set, the token is bound to one project — the CLI/MCP can only reach
+  // that workspace's repos with it. Null = account-wide (all your projects).
+  workspaceId String?
   name        String    @default("cli")
   scope       String    @default("both") // "cli" | "mcp" | "both"
   hashedToken String    @unique
   lastUsedAt  DateTime?
   createdAt   DateTime  @default(now())
 
-  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  user      User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  workspace Workspace? @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+
+  @@index([workspaceId])
 }
 
 model AuditLog {
