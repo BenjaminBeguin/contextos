@@ -3,11 +3,12 @@
 import { useState } from "react";
 import Link from "next/link";
 import { useQuery } from "@tanstack/react-query";
-import { api, type Me, type Workspace } from "../../lib/api";
+import { api, getOrgs, type Me, type Workspace } from "../../lib/api";
 import { AppShell } from "../../components/AppShell";
 import { ProjectForms } from "../../components/ProjectForms";
 import { useActiveWorkspace } from "../../lib/workspace";
 import { projectColor } from "../../lib/projectColor";
+import { PLAN_LABELS } from "@cortex/shared";
 import { Button, Card, PageHeader } from "../../components/ui";
 
 export default function DashboardPage() {
@@ -23,6 +24,39 @@ function Dashboard() {
   if (!me) return null;
   if (me.workspaces.length === 0) return <ProjectGate />;
   return <ProjectsList me={me} />;
+}
+
+function Organizations() {
+  const { data: orgs } = useQuery({ queryKey: ["orgs"], queryFn: getOrgs });
+  if (!orgs || orgs.length === 0) return null;
+  return (
+    <div className="mt-6">
+      <h2 className="mb-3 font-display text-sm font-semibold uppercase tracking-wide text-[var(--muted)]">
+        Organizations
+      </h2>
+      <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+        {orgs.map((o) => (
+          <Link key={o.id} href={`/orgs/${o.id}`} className="group">
+            <Card hover className="flex items-center justify-between p-4">
+              <div className="min-w-0">
+                <div className="flex items-center gap-2">
+                  <span className="font-medium transition group-hover:text-[var(--accent)]">{o.name}</span>
+                  <span className="rounded-full border border-[var(--border)] px-2 py-0.5 text-[10px] uppercase tracking-wide text-[var(--muted)]">
+                    {PLAN_LABELS[o.plan]}
+                  </span>
+                </div>
+                <p className="mt-0.5 text-xs text-[var(--faint)]">
+                  {o.projectCount} project{o.projectCount === 1 ? "" : "s"} · {o.memberCount} member
+                  {o.memberCount === 1 ? "" : "s"}
+                </p>
+              </div>
+              <span className="shrink-0 text-[var(--faint)] transition group-hover:text-[var(--accent)]">→</span>
+            </Card>
+          </Link>
+        ))}
+      </div>
+    </div>
+  );
 }
 
 function ProjectGate() {
@@ -75,7 +109,12 @@ function ProjectsList({ me }: { me: Me }) {
         </Card>
       ) : null}
 
-      <div className="mt-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+      <Organizations />
+
+      <h2 className="mt-8 mb-3 font-display text-sm font-semibold uppercase tracking-wide text-[var(--muted)]">
+        Projects
+      </h2>
+      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
         {list.map((w) => (
           <Link key={w.id} href={`/projects/${w.id}`} className="group" onClick={() => setActiveId(w.id)}>
             <Card hover className="relative h-full overflow-hidden p-5 transition-shadow duration-300">

@@ -84,6 +84,82 @@ export interface WorkspaceDetail {
   }[];
 }
 
+// ---- Organizations -----------------------------------------------------------
+
+export type OrgRole = "owner" | "admin" | "member";
+
+export interface OrgSummary {
+  id: string;
+  name: string;
+  slug: string;
+  plan: Plan;
+  role: OrgRole;
+  projectCount: number;
+  memberCount: number;
+}
+
+export interface OrgProject {
+  id: string;
+  name: string;
+  slug: string;
+  repoCount: number;
+  memberCount: number;
+}
+
+export interface OrgDetail {
+  id: string;
+  name: string;
+  slug: string;
+  plan: Plan;
+  planSource: string;
+  planStatus: string;
+  role: OrgRole;
+  limits: PlanLimits;
+  usage: { used: number; limit: number | null; hardCap: boolean };
+  billingEnabled: boolean;
+  projects: OrgProject[];
+  members: { userId: string; role: OrgRole; email: string; name: string | null; avatarUrl: string | null }[];
+}
+
+export function getOrgs(): Promise<OrgSummary[]> {
+  return api<OrgSummary[]>("/orgs");
+}
+export function getOrg(orgId: string): Promise<OrgDetail> {
+  return api<OrgDetail>(`/orgs/${orgId}`);
+}
+export function createOrg(name: string): Promise<OrgSummary> {
+  return api<OrgSummary>("/orgs", { method: "POST", body: JSON.stringify({ name }) });
+}
+export function updateOrg(orgId: string, name: string): Promise<{ id: string; name: string }> {
+  return api(`/orgs/${orgId}`, { method: "PATCH", body: JSON.stringify({ name }) });
+}
+export function createProjectInOrg(orgId: string, name: string, slug: string): Promise<{ id: string }> {
+  return api(`/orgs/${orgId}/workspaces`, { method: "POST", body: JSON.stringify({ name, slug }) });
+}
+export function inviteOrgMember(orgId: string, email: string, role: OrgRole): Promise<{ ok: boolean }> {
+  return api(`/orgs/${orgId}/members`, { method: "POST", body: JSON.stringify({ email, role }) });
+}
+export function setOrgMemberRole(orgId: string, userId: string, role: OrgRole): Promise<{ ok: boolean }> {
+  return api(`/orgs/${orgId}/members/${userId}`, { method: "PATCH", body: JSON.stringify({ role }) });
+}
+export function removeOrgMember(orgId: string, userId: string): Promise<{ ok: boolean }> {
+  return api(`/orgs/${orgId}/members/${userId}`, { method: "DELETE" });
+}
+export function getOrgUsage(
+  orgId: string,
+): Promise<{ usage: { used: number; limit: number | null; hardCap: boolean }; history: { month: string; count: number }[] }> {
+  return api(`/orgs/${orgId}/usage`);
+}
+export function getOrgBillingEvents(orgId: string): Promise<BillingEventRow[]> {
+  return api<BillingEventRow[]>(`/orgs/${orgId}/billing-events`);
+}
+export function orgRequestUpgrade(orgId: string, plan: Plan): Promise<{ ok: boolean }> {
+  return api(`/orgs/${orgId}/request-upgrade`, { method: "POST", body: JSON.stringify({ plan }) });
+}
+export function orgStartCheckout(orgId: string, plan: Plan): Promise<{ url?: string }> {
+  return api(`/orgs/${orgId}/billing/checkout`, { method: "POST", body: JSON.stringify({ plan }) });
+}
+
 /** Connect the workspace's own Postgres (BYODB). Throws plan_limit_byodb on
     non-Enterprise, or connection_failed / provision_failed on a bad URL. */
 export function connectDataStore(workspaceId: string, url: string): Promise<{ status: string }> {

@@ -37,6 +37,24 @@ export const createTokenSchema = z.object({
   workspaceId: z.string().optional(),
 });
 
+// Organizations (billing + entitlement container above projects).
+export const ORG_ROLES = ["owner", "admin", "member"] as const;
+export const orgRoleSchema = z.enum(ORG_ROLES);
+export type OrgRole = (typeof ORG_ROLES)[number];
+export const ORG_ROLE_LABELS: Record<OrgRole, string> = {
+  owner: "Owner",
+  admin: "Admin",
+  member: "Member",
+};
+
+export const createOrgSchema = z.object({ name: z.string().min(1).max(80) });
+export const updateOrgSchema = z.object({ name: z.string().min(1).max(80) });
+export const inviteOrgMemberSchema = z.object({
+  email: z.string().email(),
+  role: orgRoleSchema.default("member"),
+});
+export const setOrgRoleSchema = z.object({ role: orgRoleSchema });
+
 export const createWorkspaceSchema = z.object({
   name: z.string().min(1),
   slug: z
