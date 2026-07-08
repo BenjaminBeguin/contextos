@@ -3,7 +3,7 @@
 > Generated from `apps/api/src/routes/*.ts` by `scripts/gen-api-docs.mjs`.
 > Don't edit by hand — re-run the script after changing routes.
 
-75 endpoints. All app endpoints authenticate via a session cookie or a `Bearer` API token; MCP/CLI use the token. Admin endpoints require a superadmin (`SUPERADMIN_EMAILS`).
+77 endpoints. All app endpoints authenticate via a session cookie or a `Bearer` API token; MCP/CLI use the token. Admin endpoints require a superadmin (`SUPERADMIN_EMAILS`).
 
 ## admin
 
@@ -18,6 +18,13 @@
 | `DELETE` | `/admin/workspaces/:workspaceId/members/:userId` | Remove a member (blocked if they're the last owner — keeps the workspace reachable). |
 | `DELETE` | `/admin/workspaces/:workspaceId` | Delete a workspace entirely (cascades to repos, memory, sessions, reviews…). |
 | `GET` | `/admin/billing-events` | The billing / payment log (plan grants now, Stripe invoices once wired). |
+
+## audit
+
+| Method | Path | Description |
+| --- | --- | --- |
+| `GET` | `/workspaces/:workspaceId/audit` | — |
+| `GET` | `/workspaces/:workspaceId/audit.csv` | CSV export (top-level GET so it downloads with the session cookie). |
 
 ## auth
 

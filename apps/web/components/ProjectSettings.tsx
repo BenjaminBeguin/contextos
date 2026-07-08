@@ -6,6 +6,7 @@ import { ROLE_LABELS, type WorkspaceRole } from "@cortex/shared";
 import { api, type Me, type WorkspaceDetail } from "../lib/api";
 import { CopyButton } from "./CopyButton";
 import { Button, Card, Input, Select } from "./ui";
+import { AuditLogCard } from "./AuditLogCard";
 
 const INVITE_ROLES: WorkspaceRole[] = ["member", "admin", "viewer"];
 const ASSIGNABLE_ROLES: WorkspaceRole[] = ["owner", "admin", "member", "viewer"];
@@ -86,6 +87,8 @@ export function ProjectSettings({ workspaceId, isOwner }: { workspaceId: string;
       />
 
       <MembersCard workspaceId={workspaceId} memberships={ws.memberships} isOwner={isOwner} />
+
+      {isOwner ? <AuditLogCard workspaceId={workspaceId} /> : null}
     </div>
   );
 }
