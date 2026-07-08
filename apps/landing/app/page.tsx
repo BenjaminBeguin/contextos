@@ -63,37 +63,37 @@ const features = [
   {
     title: "Repo Memory",
     body: "Project conventions, architecture, commands, risky files, and deployment rules — structured and queryable.",
-    glyph: "◈",
+    icon: "database",
   },
   {
     title: "Session Learning",
     body: "Capture what Claude Code tried, what failed, what worked, and what should be remembered.",
-    glyph: "⟁",
+    icon: "activity",
   },
   {
     title: "Memory Inbox",
     body: "Review, approve, reject, edit, and scope every new memory before it reaches an agent.",
-    glyph: "❖",
+    icon: "inbox",
   },
   {
     title: "Risk Warnings",
     body: "Warn agents before they touch sensitive files or repeat a known outage.",
-    glyph: "⚠",
+    icon: "alert",
   },
   {
     title: "Self-improving reviews",
     body: "The memory-grounded PR reviewer learns from every accept or dismiss — the memory behind each finding gains or loses trust, so reviews sharpen over time.",
-    glyph: "✦",
+    icon: "loop",
   },
   {
     title: "Living Docs",
     body: "Generate onboarding guides, runbooks, and architecture notes from actual work.",
-    glyph: "❒",
+    icon: "doc",
   },
   {
     title: "MCP Integration",
     body: "Expose memory directly to Claude Code through the Model Context Protocol.",
-    glyph: "⌁",
+    icon: "plug",
   },
 ];
 
@@ -104,6 +104,71 @@ const steps = [
   "Review proposed memories",
   "Future sessions become smarter",
 ];
+
+// A small, coherent line-icon set (24×24, currentColor stroke) for the feature grid.
+const ICON_PATHS: Record<string, React.ReactNode> = {
+  database: (
+    <>
+      <ellipse cx="12" cy="5" rx="8" ry="3" />
+      <path d="M4 5v6c0 1.66 3.58 3 8 3s8-1.34 8-3V5" />
+      <path d="M4 11v6c0 1.66 3.58 3 8 3s8-1.34 8-3v-6" />
+    </>
+  ),
+  activity: <path d="M3 12h4l3 8 4-16 3 8h4" />,
+  inbox: (
+    <>
+      <path d="M3 12h5l2 3h4l2-3h5" />
+      <path d="M5 5h14l2 7v5a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-5l2-7Z" />
+    </>
+  ),
+  alert: (
+    <>
+      <path d="M12 3 2 20h20L12 3Z" />
+      <path d="M12 10v5" />
+      <path d="M12 18h.01" />
+    </>
+  ),
+  loop: (
+    <>
+      <path d="M3 12a9 9 0 0 1 15-6.7L21 8" />
+      <path d="M21 3v5h-5" />
+      <path d="M21 12a9 9 0 0 1-15 6.7L3 16" />
+      <path d="M3 21v-5h5" />
+    </>
+  ),
+  doc: (
+    <>
+      <path d="M6 2h8l6 6v12a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2Z" />
+      <path d="M14 2v6h6" />
+      <path d="M9 13h6M9 17h6" />
+    </>
+  ),
+  plug: (
+    <>
+      <path d="M9 2v6M15 2v6" />
+      <path d="M7 8h10v3a5 5 0 0 1-10 0V8Z" />
+      <path d="M12 16v6" />
+    </>
+  ),
+};
+
+function FeatureIcon({ name }: { name: string }) {
+  return (
+    <svg
+      width="20"
+      height="20"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.6"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden
+    >
+      {ICON_PATHS[name] ?? ICON_PATHS.database}
+    </svg>
+  );
+}
 
 function Terminal({ title, children }: { title: string; children: React.ReactNode }) {
   return (
@@ -207,8 +272,8 @@ export default function LandingPage() {
         <div className="mt-12 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
           {features.map((f) => (
             <div key={f.title} className="glass rounded-2xl p-6">
-              <div className="mb-4 flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-br from-violet-500/30 to-[var(--signal-soft)] text-lg text-[var(--signal)]">
-                {f.glyph}
+              <div className="mb-4 flex h-10 w-10 items-center justify-center rounded-xl border border-[var(--accent)]/20 bg-[var(--accent)]/10 text-[var(--accent)]">
+                <FeatureIcon name={f.icon} />
               </div>
               <h3 className="font-semibold">{f.title}</h3>
               <p className="mt-2 text-sm text-[var(--muted)]">{f.body}</p>

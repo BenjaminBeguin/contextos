@@ -52,27 +52,27 @@ export function CookieBanner() {
       role="dialog"
       aria-label="Cookie consent"
       aria-live="polite"
-      className="fixed inset-x-0 bottom-0 z-50 px-4 pb-4"
+      className="fixed inset-x-0 bottom-0 z-50 px-3 pb-3"
     >
-      <div className="glass mx-auto flex max-w-3xl flex-col gap-3 rounded-2xl border border-white/10 p-5 shadow-2xl backdrop-blur-xl sm:flex-row sm:items-center sm:justify-between">
-        <p className="text-sm text-[var(--muted)]">
-          We use essential cookies to make this site work. With your consent we&apos;d also use
-          analytics cookies to improve Cortex — never for ads. See our{" "}
-          <a href="/privacy" className="text-cyan-300 hover:underline">
+      <div className="glass mx-auto flex max-w-2xl flex-col gap-2.5 rounded-xl border border-white/10 px-4 py-3 shadow-xl backdrop-blur-xl sm:flex-row sm:items-center sm:justify-between">
+        <p className="text-xs text-[var(--muted)]">
+          Essential cookies keep this site working; with your consent we also use analytics to
+          improve Cortex — never ads.{" "}
+          <a href="/privacy" className="text-[var(--muted)] underline underline-offset-2 hover:text-white">
             Privacy &amp; Cookies
-          </a>{" "}
-          policy.
+          </a>
+          .
         </p>
         <div className="flex shrink-0 items-center gap-2">
           <button
             onClick={() => choose("declined")}
-            className="rounded-xl border border-white/15 px-4 py-2 text-sm font-medium transition hover:bg-white/5"
+            className="rounded-lg px-3 py-1.5 text-xs font-medium text-[var(--muted)] transition hover:text-white"
           >
             Decline
           </button>
           <button
             onClick={() => choose("accepted")}
-            className="brand-gradient rounded-xl px-4 py-2 text-sm font-semibold text-white transition hover:brightness-110"
+            className="rounded-lg bg-white/10 px-3.5 py-1.5 text-xs font-semibold text-white transition hover:bg-white/15"
           >
             Accept
           </button>
