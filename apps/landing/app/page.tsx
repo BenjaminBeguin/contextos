@@ -4,6 +4,60 @@ import { Reveal } from "../components/Reveal";
 import { Spotlight } from "../components/Spotlight";
 import { IslandNav } from "../components/IslandNav";
 import { CookieSettingsLink } from "../components/CookieSettingsLink";
+import { APP_URL, APP_LIVE } from "../lib/api";
+
+// Where "get started" points: the product app when deployed, else the waitlist.
+const startHref = APP_LIVE ? `${APP_URL}/login` : "#waitlist";
+
+const pricingTiers = [
+  {
+    name: "Free",
+    price: "$0",
+    period: "forever · no card",
+    tagline: "For solo devs and small teams getting started.",
+    cta: "Get started free",
+    href: startHref,
+    primary: true,
+    features: [
+      "1 project",
+      "Unlimited teammates",
+      "1,000 memory retrievals / month",
+      "Memory inbox, decisions & risks",
+      "Living docs & knowledge graph",
+    ],
+  },
+  {
+    name: "Scale",
+    price: "Usage-based",
+    period: "unlimited seats",
+    tagline: "For teams that rely on it every day.",
+    cta: "Start free, upgrade in-app",
+    href: startHref,
+    popular: true,
+    features: [
+      "Everything in Free",
+      "Unlimited projects",
+      "50,000 retrievals / month",
+      "Memory-grounded PR reviewer",
+      "Audit log",
+    ],
+  },
+  {
+    name: "Enterprise",
+    price: "Custom",
+    period: "talk to us",
+    tagline: "For regulated teams that need control.",
+    cta: "Talk to us",
+    href: "mailto:sales@cortex.dev?subject=Cortex%20Enterprise",
+    features: [
+      "Everything in Scale",
+      "Unlimited retrievals",
+      "Your data in your own database",
+      "Self-host in your own VPC",
+      "Priority support & SLA",
+    ],
+  },
+];
 
 const features = [
   {
@@ -336,6 +390,115 @@ cortex init
             </li>
           ))}
         </ul>
+      </Section>
+
+      {/* Data residency (Enterprise) */}
+      <Section>
+        <div className="conic-border glass overflow-hidden rounded-3xl">
+          <div className="grid items-center gap-8 p-8 lg:grid-cols-2 lg:p-12">
+            <div>
+              <p className="inline-flex items-center gap-2 text-xs font-medium uppercase tracking-[0.3em] text-[var(--verify)]">
+                <span className="inline-block h-1.5 w-1.5 rounded-full bg-[var(--verify)]" />
+                Enterprise · data residency
+              </p>
+              <h2 className="font-display mt-4 text-3xl font-semibold sm:text-4xl">
+                Your data, in your own database.
+              </h2>
+              <p className="mt-4 text-[var(--muted)]">
+                Bring your own Postgres and your team&apos;s memory is stored in{" "}
+                <span className="text-[var(--text)]">your</span> infrastructure — Cortex keeps only
+                routing metadata. Pair it with self-hosting to keep everything inside your VPC. Built
+                for teams with real compliance and data-sovereignty requirements.
+              </p>
+              <ul className="mt-6 grid gap-2 text-sm sm:grid-cols-2">
+                {[
+                  "Bring-your-own-database",
+                  "Self-host in your VPC",
+                  "Your own Anthropic key (BYOK)",
+                  "Audit log & export",
+                ].map((t) => (
+                  <li key={t} className="flex items-center gap-2">
+                    <span className="text-[var(--verify)]">✓</span>
+                    <span className="text-[var(--muted)]">{t}</span>
+                  </li>
+                ))}
+              </ul>
+            </div>
+            <Terminal title="settings · data residency">
+              {`▸ connect your database
+  postgres://…@db.internal.acme.com
+
+✓ CortexMemory table provisioned
+✓ this project's memory now lives in
+  YOUR database — not ours
+
+your knowledge never leaves your infra ✓`}
+            </Terminal>
+          </div>
+        </div>
+      </Section>
+
+      {/* Pricing */}
+      <Section id="pricing">
+        <div className="text-center">
+          <h2 className="font-display text-3xl font-semibold sm:text-4xl">
+            Start free. Pay for usage, not seats.
+          </h2>
+          <p className="mx-auto mt-3 max-w-xl text-[var(--muted)]">
+            Invite your whole team on every plan — you&apos;re only metered on how often your agents
+            pull memory. No per-seat tax.
+          </p>
+        </div>
+
+        <div className="mt-12 grid gap-5 lg:grid-cols-3">
+          {pricingTiers.map((t) => (
+            <div
+              key={t.name}
+              className={`relative flex flex-col rounded-3xl border p-7 ${
+                t.primary
+                  ? "border-[var(--signal)]/40 bg-[var(--signal-soft)]"
+                  : "glass border-white/10"
+              }`}
+            >
+              {t.popular ? (
+                <span className="absolute -top-3 right-6 rounded-full border border-white/10 bg-[var(--background)] px-3 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-[var(--muted)]">
+                  Most popular
+                </span>
+              ) : null}
+              <h3 className="font-display text-xl font-semibold">{t.name}</h3>
+              <div className="mt-2 flex items-baseline gap-2">
+                <span className="text-3xl font-semibold">{t.price}</span>
+                <span className="text-xs text-[var(--muted)]">{t.period}</span>
+              </div>
+              <p className="mt-2 text-sm text-[var(--muted)]">{t.tagline}</p>
+
+              <a
+                href={t.href}
+                className={`mt-6 inline-flex w-full items-center justify-center rounded-xl px-4 py-2.5 text-sm font-bold transition ${
+                  t.primary
+                    ? "shine brand-gradient text-white hover:brightness-110"
+                    : "border border-white/15 hover:bg-white/5"
+                }`}
+              >
+                {t.cta}
+              </a>
+
+              <ul className="mt-6 space-y-2.5 text-sm">
+                {t.features.map((f) => (
+                  <li key={f} className="flex items-start gap-2.5">
+                    <span className="mt-0.5 text-[var(--verify)]">✓</span>
+                    <span className="text-[var(--muted)]">{f}</span>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          ))}
+        </div>
+
+        <p className="mt-8 text-center text-sm text-[var(--faint)]">
+          Every plan includes unlimited teammates and projects on Scale up. Free is free forever —
+          start today, no credit card.
+        </p>
       </Section>
 
       {/* Final CTA */}
