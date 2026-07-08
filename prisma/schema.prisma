@@ -35,6 +35,13 @@ model Workspace {
   planNote         String?
   planUpdatedAt    DateTime?
   stripeCustomerId String?
+  // Bring-your-own-database (data residency, Enterprise). When connected, this
+  // project's memory is stored in the customer's own Postgres. The URL is
+  // encrypted; only status/metadata is kept in plaintext.
+  externalDbUrl       String? // encrypted connection string
+  externalDbStatus    String    @default("unconfigured") // unconfigured | connected | error
+  externalDbError     String?
+  externalDbCheckedAt DateTime?
   createdAt    DateTime @default(now())
 
   memberships    Membership[]

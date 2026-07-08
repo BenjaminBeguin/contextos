@@ -21,6 +21,7 @@ import { getWorkspaceKey } from "../services/llm.js";
 import { recordUsage } from "../services/analytics.js";
 import { loadDedupSet, partitionNew } from "../services/dedup.js";
 import { getAutoThresholds, statusFor, searchMemories } from "../services/memory.js";
+import { memoryStoreForRepo } from "../services/memoryStore.js";
 import { reviewPullRequest, formatReviewComment } from "../services/review.js";
 import { persistReview } from "../services/feedback.js";
 
@@ -135,11 +136,19 @@ export async function repoRoutes(app: FastifyInstance) {
         _count: { select: { memories: true, sessions: true } },
       },
     });
-    const counts = await prisma.memory.groupBy({
-      by: ["status"],
-      where: { repoId },
-      _count: true,
-    });
+    // BYODB: memory counts come from the customer's DB.
+    const { store } = await memoryStoreForRepo(repoId);
+    let counts: { status: string; _count: number }[];
+    if (store.external) {
+      const rows = await store.listByRepo(repoId);
+      const map = new Map<string, number>();
+      for (const m of rows) map.set(m.status, (map.get(m.status) ?? 0) + 1);
+      counts = [...map].map(([status, n]) => ({ status, _count: n }));
+      if (repo) repo._count.memories = rows.length;
+    } else {
+      const grouped = await prisma.memory.groupBy({ by: ["status"], where: { repoId }, _count: true });
+      counts = grouped.map((g) => ({ status: g.status, _count: g._count }));
+    }
     const membership = repo
       ? await prisma.membership.findUnique({
           where: { userId_workspaceId: { userId: user.id, workspaceId: repo.workspaceId } },
@@ -287,24 +296,22 @@ export async function repoRoutes(app: FastifyInstance) {
     const { fresh: freshDrafts } = partitionNew(await loadDedupSet(repoId), drafts);
     const thresholds = await getAutoThresholds(repo.workspaceId);
     if (freshDrafts.length > 0) {
-      await prisma.$transaction(
-        freshDrafts.map((d) =>
-          prisma.memory.create({
-            data: {
-              repoId,
-              type: d.type,
-              title: d.title,
-              content: d.content,
-              paths: d.paths ?? [],
-              scope: "repo",
-              confidence: d.confidence,
-              status: statusFor(thresholds, d.confidence),
-              source: "repo_scan",
-              evidence: d.evidence ? { create: [{ kind: "scan", content: d.evidence }] } : undefined,
-            },
-          }),
-        ),
-      );
+      const { store } = await memoryStoreForRepo(repoId);
+      for (const d of freshDrafts) {
+        await store.create({
+          repoId,
+          workspaceId: repo.workspaceId,
+          type: d.type,
+          title: d.title,
+          content: d.content,
+          paths: d.paths ?? [],
+          scope: "repo",
+          confidence: d.confidence,
+          status: statusFor(thresholds, d.confidence),
+          source: "repo_scan",
+          evidence: d.evidence ? [{ kind: "scan", content: d.evidence }] : undefined,
+        });
+      }
     }
 
     await recordUsage("repo.scanned", {

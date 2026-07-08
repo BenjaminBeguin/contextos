@@ -1,6 +1,5 @@
 import { randomBytes } from "node:crypto";
 import type { FastifyInstance } from "fastify";
-import type { Prisma } from "@prisma/client";
 import {
   createWorkspaceSchema,
   joinWorkspaceSchema,
@@ -11,6 +10,7 @@ import {
   updateReviewerSkillSchema,
   billingCheckoutSchema,
   requestUpgradeSchema,
+  dataStoreSchema,
   planLimits,
   withinLimit,
 } from "@cortex/shared";
@@ -19,6 +19,8 @@ import { resolveUser, assertWorkspaceAccess, requireRole, HttpError } from "../a
 import { encryptToken } from "../crypto.js";
 import { env } from "../env.js";
 import { getAutoThresholds } from "../services/memory.js";
+import { memoryStore } from "../services/memoryStore.js";
+import { testConnection, provisionExternalStore, dropExternalClient } from "../services/dataStore.js";
 
 function generateJoinCode(): string {
   // Human-friendly, unambiguous join code, e.g. "WS-7F3K9Q".
@@ -48,21 +50,21 @@ export async function workspaceRoutes(app: FastifyInstance) {
     });
     const repoName = new Map(repos.map((r) => [r.id, r.fullName]));
 
-    const where: Prisma.MemoryWhereInput = { repoId: { in: repos.map((r) => r.id) } };
-    if (status) where.status = status;
-    if (type) where.type = type;
-    const q = (search ?? "").trim();
+    // Routed through the workspace's memory store (BYODB projects read their own DB).
+    const store = await memoryStore(workspaceId);
+    let memories = await store.listByRepos(
+      repos.map((r) => r.id),
+      { status, type },
+    );
+    const q = (search ?? "").trim().toLowerCase();
     if (q) {
-      where.OR = [
-        { title: { contains: q, mode: "insensitive" } },
-        { content: { contains: q, mode: "insensitive" } },
-      ];
+      memories = memories.filter(
+        (m) => m.title.toLowerCase().includes(q) || m.content.toLowerCase().includes(q),
+      );
     }
-    const memories = await prisma.memory.findMany({
-      where,
-      orderBy: [{ confidence: "desc" }, { updatedAt: "desc" }],
-      take: 100,
-    });
+    memories = memories
+      .sort((a, b) => b.confidence - a.confidence || +b.updatedAt - +a.updatedAt)
+      .slice(0, 100);
     return memories.map((m) => ({ ...m, repoFullName: repoName.get(m.repoId) ?? "" }));
   });
 
@@ -140,6 +142,13 @@ export async function workspaceRoutes(app: FastifyInstance) {
       const ws = repoToWs.get(g.repoId);
       if (ws) pending.set(ws, (pending.get(ws) ?? 0) + g._count);
     }
+    // BYODB workspaces keep their memories in the customer DB — count there.
+    for (const m of memberships) {
+      if (m.workspace.externalDbStatus !== "connected") continue;
+      const store = await memoryStore(m.workspaceId);
+      const repoIds = repos.filter((r) => r.workspaceId === m.workspaceId).map((r) => r.id);
+      pending.set(m.workspaceId, await store.countByRepos(repoIds, { status: "proposed" }));
+    }
 
     return memberships.map((m) => ({
       id: m.workspace.id,
@@ -202,27 +211,39 @@ export async function workspaceRoutes(app: FastifyInstance) {
     }
     const repos = await prisma.repo.findMany({ where: { workspaceId }, select: { id: true } });
     const repoIds = repos.map((r) => r.id);
+    const store = await memoryStore(workspaceId);
 
     // Approve takes precedence: approve first (those leave 'proposed'), then reject the rest.
     let approved = 0;
     let rejected = 0;
-    if (t.approve != null) {
-      const r = await prisma.memory.updateMany({
-        where: { repoId: { in: repoIds }, status: "proposed", confidence: { gte: t.approve } },
-        data: { status: "approved" },
-      });
-      approved = r.count;
+    if (store.external) {
+      // BYODB: iterate the customer DB's proposed memories.
+      for (const m of await store.listByRepos(repoIds, { status: "proposed" })) {
+        if (t.approve != null && m.confidence >= t.approve) {
+          await store.setStatus(m.id, "approved");
+          approved++;
+        } else if (t.reject != null && m.confidence < t.reject) {
+          await store.setStatus(m.id, "rejected");
+          rejected++;
+        }
+      }
+    } else {
+      if (t.approve != null) {
+        const r = await prisma.memory.updateMany({
+          where: { repoId: { in: repoIds }, status: "proposed", confidence: { gte: t.approve } },
+          data: { status: "approved" },
+        });
+        approved = r.count;
+      }
+      if (t.reject != null) {
+        const r = await prisma.memory.updateMany({
+          where: { repoId: { in: repoIds }, status: "proposed", confidence: { lt: t.reject } },
+          data: { status: "rejected" },
+        });
+        rejected = r.count;
+      }
     }
-    if (t.reject != null) {
-      const r = await prisma.memory.updateMany({
-        where: { repoId: { in: repoIds }, status: "proposed", confidence: { lt: t.reject } },
-        data: { status: "rejected" },
-      });
-      rejected = r.count;
-    }
-    const kept = await prisma.memory.count({
-      where: { repoId: { in: repoIds }, status: "proposed" },
-    });
+    const kept = await store.countByRepos(repoIds, { status: "proposed" });
     return { approved, rejected, kept };
   });
 
@@ -340,20 +361,164 @@ export async function workspaceRoutes(app: FastifyInstance) {
       },
     });
     if (!workspace) return reply.code(404).send({ error: "Workspace not found" });
-    const pendingMemories = await prisma.memory.count({
-      where: { status: "proposed", repo: { workspaceId } },
-    });
-    // Never return the (encrypted) key — just whether one is set.
+
+    // BYODB: memory counts come from the customer's DB, not the shared _count.
+    const store = await memoryStore(workspaceId);
+    const repoIds = workspace.repos.map((r) => r.id);
+    let repos = workspace.repos as Array<
+      (typeof workspace.repos)[number] & { _count: { memories: number } }
+    >;
+    let pendingMemories: number;
+    if (store.external) {
+      const all = await store.listByRepos(repoIds);
+      const perRepo = new Map<string, number>();
+      for (const m of all) perRepo.set(m.repoId, (perRepo.get(m.repoId) ?? 0) + 1);
+      repos = workspace.repos.map((r) => ({ ...r, _count: { memories: perRepo.get(r.id) ?? 0 } }));
+      pendingMemories = all.filter((m) => m.status === "proposed").length;
+    } else {
+      pendingMemories = await prisma.memory.count({
+        where: { status: "proposed", repo: { workspaceId } },
+      });
+    }
+
+    // Never return the encrypted key or DB URL — just whether each is set.
     const { anthropicKey, ...rest } = workspace;
+    delete (rest as { externalDbUrl?: string | null }).externalDbUrl;
     const limits = planLimits(workspace.plan);
     return {
       ...rest,
+      repos,
       hasAnthropicKey: Boolean(anthropicKey),
       pendingMemories,
       limits,
       usage: { repos: workspace.repos.length, seats: workspace.memberships.length },
       billingEnabled: env.stripe.enabled,
+      dataStore: {
+        status: workspace.externalDbStatus,
+        configured: workspace.externalDbStatus === "connected",
+        checkedAt: workspace.externalDbCheckedAt,
+        error: workspace.externalDbError,
+      },
     };
+  });
+
+  // --- Bring-your-own-database (data residency, Enterprise) ---------------
+
+  // Connect the workspace's own Postgres: validate the URL, provision the
+  // memory table, and flip status to connected. Owner-only, Enterprise-gated.
+  app.put("/workspaces/:workspaceId/data-store", async (req, reply) => {
+    const user = await resolveUser(req);
+    if (!user) return reply.code(401).send({ error: "Unauthorized" });
+    const { workspaceId } = req.params as { workspaceId: string };
+    try {
+      await requireRole(user.id, workspaceId, "owner");
+    } catch (e) {
+      if (e instanceof HttpError) return reply.code(e.statusCode).send({ error: e.message });
+      throw e;
+    }
+    const ws = await prisma.workspace.findUnique({
+      where: { id: workspaceId },
+      select: { plan: true },
+    });
+    if (!planLimits(ws?.plan ?? "free").byodb) {
+      return reply.code(402).send({ error: "plan_limit_byodb" });
+    }
+    const body = dataStoreSchema.parse(req.body);
+
+    const test = await testConnection(body.url);
+    if (!test.ok) {
+      await prisma.workspace.update({
+        where: { id: workspaceId },
+        data: { externalDbStatus: "error", externalDbError: test.error, externalDbCheckedAt: new Date() },
+      });
+      return reply.code(400).send({ error: "connection_failed", detail: test.error });
+    }
+    const prov = await provisionExternalStore(body.url);
+    if (!prov.ok) {
+      await prisma.workspace.update({
+        where: { id: workspaceId },
+        data: { externalDbStatus: "error", externalDbError: prov.error, externalDbCheckedAt: new Date() },
+      });
+      return reply.code(400).send({ error: "provision_failed", detail: prov.error });
+    }
+    await prisma.workspace.update({
+      where: { id: workspaceId },
+      data: {
+        externalDbUrl: encryptToken(body.url),
+        externalDbStatus: "connected",
+        externalDbError: null,
+        externalDbCheckedAt: new Date(),
+      },
+    });
+    await prisma.billingEvent.create({
+      data: {
+        workspaceId,
+        type: "datastore.connected",
+        status: "active",
+        note: "External database connected",
+        actorEmail: user.email,
+      },
+    });
+    return { status: "connected" };
+  });
+
+  // Re-test the currently configured connection.
+  app.post("/workspaces/:workspaceId/data-store/test", async (req, reply) => {
+    const user = await resolveUser(req);
+    if (!user) return reply.code(401).send({ error: "Unauthorized" });
+    const { workspaceId } = req.params as { workspaceId: string };
+    try {
+      await requireRole(user.id, workspaceId, "owner");
+    } catch (e) {
+      if (e instanceof HttpError) return reply.code(e.statusCode).send({ error: e.message });
+      throw e;
+    }
+    const ws = await prisma.workspace.findUnique({
+      where: { id: workspaceId },
+      select: { externalDbUrl: true },
+    });
+    if (!ws?.externalDbUrl) return reply.code(400).send({ error: "not_configured" });
+    const { decryptToken } = await import("../crypto.js");
+    const url = decryptToken(ws.externalDbUrl);
+    if (!url) return reply.code(400).send({ error: "not_configured" });
+    const test = await testConnection(url);
+    await prisma.workspace.update({
+      where: { id: workspaceId },
+      data: {
+        externalDbStatus: test.ok ? "connected" : "error",
+        externalDbError: test.ok ? null : test.error,
+        externalDbCheckedAt: new Date(),
+      },
+    });
+    return { ok: test.ok, error: test.error };
+  });
+
+  // Disconnect: stop routing to the customer DB (their data stays in their DB).
+  app.delete("/workspaces/:workspaceId/data-store", async (req, reply) => {
+    const user = await resolveUser(req);
+    if (!user) return reply.code(401).send({ error: "Unauthorized" });
+    const { workspaceId } = req.params as { workspaceId: string };
+    try {
+      await requireRole(user.id, workspaceId, "owner");
+    } catch (e) {
+      if (e instanceof HttpError) return reply.code(e.statusCode).send({ error: e.message });
+      throw e;
+    }
+    const ws = await prisma.workspace.findUnique({
+      where: { id: workspaceId },
+      select: { externalDbUrl: true },
+    });
+    if (ws?.externalDbUrl) await dropExternalClient(ws.externalDbUrl);
+    await prisma.workspace.update({
+      where: { id: workspaceId },
+      data: {
+        externalDbUrl: null,
+        externalDbStatus: "unconfigured",
+        externalDbError: null,
+        externalDbCheckedAt: null,
+      },
+    });
+    return { status: "unconfigured" };
   });
 
   // This workspace's billing history (owners) — plan grants/changes, upgrade

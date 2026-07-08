@@ -19,6 +19,16 @@ export const TOKEN_SCOPES = ["cli", "mcp", "both"] as const;
 export const tokenScopeSchema = z.enum(TOKEN_SCOPES);
 export type TokenScope = (typeof TOKEN_SCOPES)[number];
 
+// Bring-your-own-database (data residency). The customer supplies a Postgres
+// connection string; Cortex stores that project's memory in it.
+export const dataStoreSchema = z.object({
+  url: z
+    .string()
+    .min(1)
+    .refine((u) => /^postgres(ql)?:\/\//i.test(u), "Must be a postgres:// connection string"),
+});
+export type DataStoreInput = z.infer<typeof dataStoreSchema>;
+
 export const createTokenSchema = z.object({
   name: z.string().min(1).max(80).default("cli"),
   scope: tokenScopeSchema.default("both"),
@@ -101,13 +111,14 @@ export interface PlanLimits {
   maxRepos: number | null;
   maxSeats: number | null;
   reviewer: boolean; // memory-grounded PR reviewer
+  byodb: boolean; // bring-your-own-database (data residency) — Enterprise
 }
 
 export const PLAN_LIMITS: Record<Plan, PlanLimits> = {
-  free: { maxRepos: 3, maxSeats: 2, reviewer: false },
-  team: { maxRepos: 20, maxSeats: 10, reviewer: true },
-  business: { maxRepos: 100, maxSeats: 50, reviewer: true },
-  enterprise: { maxRepos: null, maxSeats: null, reviewer: true },
+  free: { maxRepos: 3, maxSeats: 2, reviewer: false, byodb: false },
+  team: { maxRepos: 20, maxSeats: 10, reviewer: true, byodb: false },
+  business: { maxRepos: 100, maxSeats: 50, reviewer: true, byodb: false },
+  enterprise: { maxRepos: null, maxSeats: null, reviewer: true, byodb: true },
 };
 
 export const PLAN_LABELS: Record<Plan, string> = {

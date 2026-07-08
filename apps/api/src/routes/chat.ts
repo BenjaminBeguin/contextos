@@ -3,6 +3,7 @@ import { chatSchema } from "@cortex/shared";
 import { prisma } from "../db.js";
 import { resolveUser, assertWorkspaceAccess, HttpError } from "../auth.js";
 import { complete, getWorkspaceKey } from "../services/llm.js";
+import { memoryStore } from "../services/memoryStore.js";
 import { rateLimit } from "../rate-limit.js";
 
 const SYSTEM = `You are Cortex, answering questions about a software team's repositories.
@@ -38,11 +39,9 @@ export async function chatRoutes(app: FastifyInstance) {
     const repoIds = repos.map((r) => r.id);
     const repoName = new Map(repos.map((r) => [r.id, r.fullName]));
 
-    const memories = await prisma.memory.findMany({
-      where: { repoId: { in: repoIds }, status: "approved" },
-      select: { id: true, repoId: true, type: true, title: true, content: true, confidence: true },
-      take: 500,
-    });
+    // Routed through the workspace's memory store (BYODB reads the customer's DB).
+    const store = await memoryStore(workspaceId);
+    const memories = (await store.listByRepos(repoIds, { status: "approved" })).slice(0, 500);
 
     const terms = message.toLowerCase().split(/\s+/).filter((t) => t.length > 2);
     const ranked = memories

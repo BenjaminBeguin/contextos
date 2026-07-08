@@ -6,6 +6,9 @@ import { ROLE_LABELS, PLAN_LIMITS, PLAN_LABELS, type Plan, type WorkspaceRole } 
 import {
   api,
   getWorkspaceBillingEvents,
+  connectDataStore,
+  testDataStore,
+  disconnectDataStore,
   timeAgo,
   type Me,
   type WorkspaceDetail,
@@ -26,6 +29,7 @@ export const SETTINGS_SECTIONS = [
   "General",
   "Members",
   "Usage",
+  "Data",
   "Subscription",
   "Billing",
 ] as const;
@@ -35,6 +39,7 @@ const SECTION_HINT: Record<SettingsSection, string> = {
   General: "Name, join code, AI key, triage",
   Members: "People & roles",
   Usage: "What this project is consuming",
+  Data: "Data residency — bring your own DB",
   Subscription: "Plan & upgrades",
   Billing: "Payment & plan history",
 };
@@ -117,6 +122,10 @@ export function ProjectSettings({
         ) : null}
 
         {active === "Usage" ? <UsageCard ws={ws} /> : null}
+
+        {active === "Data" ? (
+          <DataResidencyCard workspaceId={workspaceId} ws={ws} isOwner={isOwner} />
+        ) : null}
 
         {active === "Subscription" ? (
           <PlanCard workspaceId={workspaceId} ws={ws} isOwner={isOwner} />
@@ -272,6 +281,166 @@ function UsageCard({ ws }: { ws: WorkspaceDetail }) {
       ) : null}
     </Card>
   );
+}
+
+function DataResidencyCard({
+  workspaceId,
+  ws,
+  isOwner,
+}: {
+  workspaceId: string;
+  ws: WorkspaceDetail;
+  isOwner: boolean;
+}) {
+  const qc = useQueryClient();
+  const [url, setUrl] = useState("");
+  const entitled = ws.limits?.byodb ?? false;
+  const ds = ws.dataStore;
+  const connected = ds?.status === "connected";
+  const invalidate = () => qc.invalidateQueries({ queryKey: ["workspace", workspaceId] });
+
+  const connect = useMutation({
+    mutationFn: () => connectDataStore(workspaceId, url),
+    onSuccess: () => {
+      setUrl("");
+      invalidate();
+    },
+  });
+  const test = useMutation({
+    mutationFn: () => testDataStore(workspaceId),
+    onSuccess: invalidate,
+  });
+  const disconnect = useMutation({
+    mutationFn: () => disconnectDataStore(workspaceId),
+    onSuccess: invalidate,
+  });
+
+  return (
+    <Card className="p-6">
+      <div className="flex items-start justify-between gap-3">
+        <div>
+          <h2 className="flex items-center gap-2 font-semibold">
+            Data residency
+            <span className="rounded-full border border-[var(--verify)]/40 px-2 py-0.5 text-[10px] uppercase tracking-wide text-[var(--verify)]">
+              Enterprise
+            </span>
+          </h2>
+          <p className="mt-1 text-sm text-[var(--muted)]">
+            Bring your own database. Connect your own Postgres and this project&apos;s memory is
+            stored in <span className="text-[var(--text)]">your</span> infrastructure — Cortex keeps
+            only routing metadata. Your knowledge never leaves your database.
+          </p>
+        </div>
+        <span
+          className="shrink-0 rounded-full px-2.5 py-0.5 text-xs"
+          style={
+            connected
+              ? { background: "var(--verify-soft, rgba(52,211,153,.12))", color: "var(--verify)" }
+              : ds?.status === "error"
+                ? { background: "var(--alert-soft, rgba(251,113,133,.12))", color: "var(--alert)" }
+                : { border: "1px solid var(--border)", color: "var(--muted)" }
+          }
+        >
+          {connected ? "Connected" : ds?.status === "error" ? "Error" : "Not connected"}
+        </span>
+      </div>
+
+      {!entitled ? (
+        <div className="mt-4 rounded-lg border border-[var(--signal)]/30 bg-[var(--signal-soft)] p-4 text-sm">
+          <p className="font-medium">Available on Enterprise.</p>
+          <p className="mt-1 text-[var(--muted)]">
+            Store your team&apos;s memory in your own Postgres for data residency and sovereignty —
+            SOC 2 friendly, your keys, your infrastructure.{" "}
+            <a href="mailto:sales@cortex.dev?subject=Cortex%20Enterprise%20—%20data%20residency" className="text-[var(--accent)] hover:underline">
+              Talk to us →
+            </a>
+          </p>
+        </div>
+      ) : (
+        <div className="mt-4 space-y-4">
+          {connected ? (
+            <div className="rounded-lg border border-[var(--border)] p-4">
+              <p className="text-sm">
+                <span className="text-[var(--verify)]">✓</span> This project&apos;s memory is stored in
+                your database.
+              </p>
+              {ds?.checkedAt ? (
+                <p className="mt-1 text-xs text-[var(--faint)]">
+                  Last checked {new Date(ds.checkedAt).toLocaleString()}
+                </p>
+              ) : null}
+              {isOwner ? (
+                <div className="mt-3 flex flex-wrap gap-2">
+                  <Button variant="ghost" size="sm" onClick={() => test.mutate()} loading={test.isPending}>
+                    Test connection
+                  </Button>
+                  <Button
+                    variant="danger"
+                    size="sm"
+                    onClick={() => disconnect.mutate()}
+                    loading={disconnect.isPending}
+                  >
+                    Disconnect
+                  </Button>
+                  {test.data ? (
+                    <span className={`self-center text-xs ${test.data.ok ? "text-[var(--verify)]" : "text-[var(--alert)]"}`}>
+                      {test.data.ok ? "Reachable ✓" : test.data.error}
+                    </span>
+                  ) : null}
+                </div>
+              ) : null}
+              <p className="mt-3 text-xs text-[var(--faint)]">
+                Disconnecting stops routing here — your data stays in your database untouched.
+              </p>
+            </div>
+          ) : isOwner ? (
+            <div>
+              <label className="mb-1.5 block text-xs font-medium text-[var(--muted)]">
+                Postgres connection string
+              </label>
+              <Input
+                type="password"
+                value={url}
+                onChange={(e) => setUrl(e.target.value)}
+                placeholder="postgresql://user:pass@host:5432/dbname"
+                className="w-full font-mono text-xs"
+              />
+              <p className="mt-1.5 text-xs text-[var(--faint)]">
+                We connect, create a <code>CortexMemory</code> table, and route this project&apos;s
+                memory there. Stored encrypted; never shown again.
+              </p>
+              <div className="mt-3">
+                <Button
+                  onClick={() => connect.mutate()}
+                  disabled={!url.trim()}
+                  loading={connect.isPending}
+                >
+                  Connect database
+                </Button>
+              </div>
+              {connect.isError ? (
+                <p className="mt-2 text-sm text-[var(--alert)]">
+                  {friendlyDbError((connect.error as Error).message)}
+                </p>
+              ) : null}
+              {ds?.status === "error" && ds.error ? (
+                <p className="mt-2 text-xs text-[var(--alert)]">Last error: {ds.error}</p>
+              ) : null}
+            </div>
+          ) : (
+            <p className="text-sm text-[var(--muted)]">Only owners can configure the database.</p>
+          )}
+        </div>
+      )}
+    </Card>
+  );
+}
+
+function friendlyDbError(msg: string): string {
+  if (msg === "connection_failed") return "Couldn't reach that database — check the host, port, and credentials.";
+  if (msg === "provision_failed") return "Connected, but couldn't create the CortexMemory table — check permissions.";
+  if (msg === "plan_limit_byodb") return "Data residency is an Enterprise feature.";
+  return msg;
 }
 
 function BillingHistoryCard({ workspaceId }: { workspaceId: string }) {

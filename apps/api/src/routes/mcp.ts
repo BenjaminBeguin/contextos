@@ -4,9 +4,9 @@ import {
   mcpRepoContextSchema,
   mcpRelevantWarningsSchema,
 } from "@cortex/shared";
-import { prisma } from "../db.js";
 import { resolveUser, assertRepoAccess, HttpError } from "../auth.js";
 import { searchMemories } from "../services/memory.js";
+import { memoryStoreForRepo } from "../services/memoryStore.js";
 import { recordUsage } from "../services/analytics.js";
 import { relevantToFiles } from "../services/relevance.js";
 
@@ -59,16 +59,15 @@ export async function mcpRoutes(app: FastifyInstance) {
     } catch (e) {
       return handle(reply, e);
     }
-    const warnings = await prisma.memory.findMany({
-      where: { repoId: body.repoId, status: "approved", type: { in: ["risk", "failure"] } },
-      orderBy: { confidence: "desc" },
-      take: 5,
-    });
-    const commands = await prisma.memory.findMany({
-      where: { repoId: body.repoId, status: "approved", type: "command" },
-      orderBy: { confidence: "desc" },
-      take: 5,
-    });
+    const { store } = await memoryStoreForRepo(body.repoId);
+    const approved = await store.listByRepo(body.repoId, { status: "approved" });
+    const byConfidence = (a: { confidence: number }, b: { confidence: number }) =>
+      b.confidence - a.confidence;
+    const warnings = approved
+      .filter((m) => m.type === "risk" || m.type === "failure")
+      .sort(byConfidence)
+      .slice(0, 5);
+    const commands = approved.filter((m) => m.type === "command").sort(byConfidence).slice(0, 5);
     // "served" = we actually had context to inject (not just that the hook fired).
     const served =
       (repo.stack?.length ?? 0) > 0 ||
@@ -104,11 +103,10 @@ export async function mcpRoutes(app: FastifyInstance) {
     } catch (e) {
       return handle(reply, e);
     }
-    const risks = await prisma.memory.findMany({
-      where: { repoId: body.repoId, status: "approved", type: { in: ["risk", "failure"] } },
-      orderBy: { confidence: "desc" },
-      select: { type: true, title: true, content: true, paths: true },
-    });
+    const { store } = await memoryStoreForRepo(body.repoId);
+    const risks = (await store.listByRepo(body.repoId, { status: "approved" }))
+      .filter((m) => m.type === "risk" || m.type === "failure")
+      .sort((a, b) => b.confidence - a.confidence);
     const matched = relevantToFiles(risks, body.files);
     await recordUsage("mcp.get_relevant_warnings", {
       workspaceId: repo.workspaceId,

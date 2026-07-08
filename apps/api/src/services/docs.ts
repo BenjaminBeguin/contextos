@@ -1,6 +1,7 @@
 import { DOC_TITLES, DOC_TYPES, type DocType } from "@cortex/shared";
 import { prisma } from "../db.js";
 import { complete } from "./llm.js";
+import { memoryStoreForRepo } from "./memoryStore.js";
 
 interface MemoryLite {
   type: string;
@@ -109,11 +110,11 @@ export async function generateDocs(
   repo: RepoForDocs,
   apiKey?: string,
 ): Promise<{ type: DocType; title: string }[]> {
-  const memories = await prisma.memory.findMany({
-    where: { repoId: repo.id, status: "approved" },
-    orderBy: { confidence: "desc" },
-    select: { type: true, title: true, content: true, confidence: true },
-  });
+  // Routed through the repo's memory store (BYODB reads the customer's DB).
+  const { store } = await memoryStoreForRepo(repo.id);
+  const memories = (await store.listByRepo(repo.id, { status: "approved" })).sort(
+    (a, b) => b.confidence - a.confidence,
+  );
 
   const content: Record<DocType, string> = {
     overview: buildOverview(repo, memories),

@@ -47,6 +47,14 @@ export interface PlanLimits {
   maxRepos: number | null;
   maxSeats: number | null;
   reviewer: boolean;
+  byodb: boolean;
+}
+
+export interface DataStoreStatus {
+  status: "unconfigured" | "connected" | "error";
+  configured: boolean;
+  checkedAt?: string | null;
+  error?: string | null;
 }
 
 export interface WorkspaceDetail {
@@ -64,11 +72,29 @@ export interface WorkspaceDetail {
   limits?: PlanLimits;
   usage?: { repos: number; seats: number };
   billingEnabled?: boolean;
+  dataStore?: DataStoreStatus;
   repos: { id: string; fullName: string; _count?: { memories: number } }[];
   memberships: {
     role: string;
     user: { id: string; email: string; name: string | null; avatarUrl: string | null };
   }[];
+}
+
+/** Connect the workspace's own Postgres (BYODB). Throws plan_limit_byodb on
+    non-Enterprise, or connection_failed / provision_failed on a bad URL. */
+export function connectDataStore(workspaceId: string, url: string): Promise<{ status: string }> {
+  return api(`/workspaces/${workspaceId}/data-store`, {
+    method: "PUT",
+    body: JSON.stringify({ url }),
+  });
+}
+
+export function testDataStore(workspaceId: string): Promise<{ ok: boolean; error?: string }> {
+  return api(`/workspaces/${workspaceId}/data-store/test`, { method: "POST" });
+}
+
+export function disconnectDataStore(workspaceId: string): Promise<{ status: string }> {
+  return api(`/workspaces/${workspaceId}/data-store`, { method: "DELETE" });
 }
 
 /** Start a self-serve upgrade. Resolves to a Stripe URL, or throws with

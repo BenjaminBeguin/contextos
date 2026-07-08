@@ -1,5 +1,6 @@
 import { Prisma } from "@prisma/client";
 import { prisma } from "../db.js";
+import { memoryStoreForRepo } from "./memoryStore.js";
 
 export interface SearchParams {
   repoId: string;
@@ -12,36 +13,13 @@ export interface SearchParams {
 
 /**
  * Keyword search over a repo's memories using case-insensitive matching on
- * title/content. Ordered by confidence then freshness. pgvector semantic
- * search is a deferred enhancement (see plan).
+ * title/content. Ordered by confidence then freshness. Routed through the
+ * workspace's memory store, so a bring-your-own-database project searches its
+ * own Postgres. pgvector semantic search is a deferred enhancement (see plan).
  */
 export async function searchMemories({ repoId, query, limit, approvedOnly, countUsage }: SearchParams) {
-  const where: Prisma.MemoryWhereInput = { repoId };
-  if (approvedOnly) where.status = "approved";
-
-  const trimmed = query.trim();
-  if (trimmed.length > 0) {
-    where.OR = [
-      { title: { contains: trimmed, mode: "insensitive" } },
-      { content: { contains: trimmed, mode: "insensitive" } },
-    ];
-  }
-
-  const memories = await prisma.memory.findMany({
-    where,
-    orderBy: [{ confidence: "desc" }, { updatedAt: "desc" }],
-    take: limit,
-    include: { evidence: true },
-  });
-
-  if (memories.length > 0) {
-    await prisma.memory.updateMany({
-      where: { id: { in: memories.map((m) => m.id) } },
-      data: { lastUsedAt: new Date(), ...(countUsage ? { usageCount: { increment: 1 } } : {}) },
-    });
-  }
-
-  return memories;
+  const { store } = await memoryStoreForRepo(repoId);
+  return store.search({ repoId, query, limit, approvedOnly, countUsage });
 }
 
 export interface AutoThresholds {

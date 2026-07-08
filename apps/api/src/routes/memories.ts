@@ -5,24 +5,22 @@ import {
   memoryListQuerySchema,
   proposeMemoriesSchema,
 } from "@cortex/shared";
-import { prisma } from "../db.js";
 import { resolveUser, assertRepoAccess, requireRepoRole, HttpError, type AuthedUser } from "../auth.js";
 import { searchMemories, writeAuditLog, getAutoThresholds, statusFor } from "../services/memory.js";
 import { recordUsage } from "../services/analytics.js";
 import { loadDedupSet, partitionNew, findDuplicate, similarity, DUP_THRESHOLD } from "../services/dedup.js";
+import { memoryStoreForRepo, resolveMemoryById } from "../services/memoryStore.js";
 import { splitMemory } from "../services/split.js";
 import { getWorkspaceKey } from "../services/llm.js";
 
+/** Resolve a memory by id (BYODB-aware) and enforce access. Writes
+    (approve/reject/edit) require member+; reads only require access. */
 async function getMemoryWithAccess(userId: string, memoryId: string, write = false) {
-  const memory = await prisma.memory.findUnique({
-    where: { id: memoryId },
-    include: { repo: true, evidence: true },
-  });
-  if (!memory) throw new HttpError(404, "Memory not found");
-  // Writes (approve/reject/edit) require member+; reads only require access.
-  if (write) await requireRepoRole(userId, memory.repoId, "member");
-  else await assertRepoAccess(userId, memory.repoId);
-  return memory;
+  const resolved = await resolveMemoryById(userId, memoryId);
+  if (!resolved) throw new HttpError(404, "Memory not found");
+  if (write) await requireRepoRole(userId, resolved.repoId, "member");
+  else await assertRepoAccess(userId, resolved.repoId);
+  return resolved;
 }
 
 function handle(reply: import("fastify").FastifyReply, e: unknown) {
@@ -30,16 +28,11 @@ function handle(reply: import("fastify").FastifyReply, e: unknown) {
   throw e;
 }
 
-async function setStatus(
-  user: AuthedUser,
-  memoryId: string,
-  status: string,
-  action: string,
-) {
-  const memory = await getMemoryWithAccess(user.id, memoryId, true);
-  const updated = await prisma.memory.update({ where: { id: memoryId }, data: { status } });
+async function setStatus(user: AuthedUser, memoryId: string, status: string, action: string) {
+  const { memory, store, workspaceId, repoId } = await getMemoryWithAccess(user.id, memoryId, true);
+  const updated = await store.setStatus(memoryId, status);
   await writeAuditLog({
-    workspaceId: memory.repo.workspaceId,
+    workspaceId,
     userId: user.id,
     action,
     entityType: "memory",
@@ -48,25 +41,18 @@ async function setStatus(
   });
   let superseded = 0;
   if (status === "approved") {
-    await recordUsage("memory.approved", {
-      workspaceId: memory.repo.workspaceId,
-      repoId: memory.repoId,
-    });
+    await recordUsage("memory.approved", { workspaceId, repoId });
     // Approving a memory supersedes any older approved memory that says the same
     // thing — archive the duplicates so only the latest stays canonical.
-    const others = await prisma.memory.findMany({
-      where: { repoId: memory.repoId, status: "approved", id: { not: memoryId } },
-      select: { id: true, type: true, title: true, content: true },
-    });
+    const others = (await store.listByRepo(repoId, { status: "approved" })).filter(
+      (o) => o.id !== memoryId,
+    );
     const dups = others.filter((o) => similarity(o, memory) >= DUP_THRESHOLD);
     if (dups.length > 0) {
-      await prisma.memory.updateMany({
-        where: { id: { in: dups.map((d) => d.id) } },
-        data: { status: "archived" },
-      });
+      await store.archiveMany(dups.map((d) => d.id));
       for (const d of dups) {
         await writeAuditLog({
-          workspaceId: memory.repo.workspaceId,
+          workspaceId,
           userId: user.id,
           action: "memory.superseded",
           entityType: "memory",
@@ -94,20 +80,14 @@ export async function memoryRoutes(app: FastifyInstance) {
     if (q.search) {
       return searchMemories({ repoId, query: q.search, limit: 50 });
     }
-    const memories = await prisma.memory.findMany({
-      where: { repoId, status: q.status, type: q.type },
-      orderBy: { updatedAt: "desc" },
-      include: { evidence: true },
-    });
+    const { store } = await memoryStoreForRepo(repoId);
+    const memories = await store.listByRepo(repoId, { status: q.status, type: q.type });
 
     // Flag proposed memories that look like an existing approved memory, so a
     // reviewer can supersede instead of creating a duplicate.
     const proposed = memories.filter((m) => m.status === "proposed");
     if (proposed.length === 0) return memories;
-    const approved = await prisma.memory.findMany({
-      where: { repoId, status: "approved" },
-      select: { id: true, type: true, title: true, content: true, status: true },
-    });
+    const approved = await store.listByRepo(repoId, { status: "approved" });
     return memories.map((m) => {
       if (m.status !== "proposed") return m;
       const dup = findDuplicate(approved, m, 0.45);
@@ -126,20 +106,19 @@ export async function memoryRoutes(app: FastifyInstance) {
       return handle(reply, e);
     }
     const body = createMemorySchema.parse(req.body);
-    const memory = await prisma.memory.create({
-      data: {
-        repoId,
-        type: body.type,
-        title: body.title,
-        content: body.content,
-        paths: body.paths ?? [],
-        scope: body.scope,
-        confidence: body.confidence,
-        status: body.status,
-        source: body.source,
-        evidence: body.evidence ? { create: body.evidence } : undefined,
-      },
-      include: { evidence: true },
+    const { store } = await memoryStoreForRepo(repoId);
+    const memory = await store.create({
+      repoId,
+      workspaceId: repo.workspaceId,
+      type: body.type,
+      title: body.title,
+      content: body.content,
+      paths: body.paths ?? [],
+      scope: body.scope,
+      confidence: body.confidence,
+      status: body.status,
+      source: body.source,
+      evidence: body.evidence,
     });
     await writeAuditLog({
       workspaceId: repo.workspaceId,
@@ -175,31 +154,29 @@ export async function memoryRoutes(app: FastifyInstance) {
     const existing = await loadDedupSet(repoId);
     const { fresh, skipped } = partitionNew(existing, body.memories);
     const thresholds = await getAutoThresholds(repo.workspaceId);
+    const { store } = await memoryStoreForRepo(repoId);
     let autoApproved = 0;
     let autoRejected = 0;
     let proposedCount = 0;
-    await prisma.$transaction(
-      fresh.map((m) => {
-        const status = statusFor(thresholds, m.confidence);
-        if (status === "approved") autoApproved++;
-        else if (status === "rejected") autoRejected++;
-        else proposedCount++;
-        return prisma.memory.create({
-          data: {
-            repoId,
-            type: m.type,
-            title: m.title,
-            content: m.content,
-            paths: m.paths ?? [],
-            scope: "repo",
-            confidence: m.confidence,
-            status,
-            source: "claude_code",
-            evidence: m.evidence ? { create: [{ kind: "agent", content: m.evidence }] } : undefined,
-          },
-        });
-      }),
-    );
+    for (const m of fresh) {
+      const status = statusFor(thresholds, m.confidence);
+      if (status === "approved") autoApproved++;
+      else if (status === "rejected") autoRejected++;
+      else proposedCount++;
+      await store.create({
+        repoId,
+        workspaceId: repo.workspaceId,
+        type: m.type,
+        title: m.title,
+        content: m.content,
+        paths: m.paths ?? [],
+        scope: "repo",
+        confidence: m.confidence,
+        status,
+        source: "claude_code",
+        evidence: m.evidence ? [{ kind: "agent", content: m.evidence }] : undefined,
+      });
+    }
     await recordUsage("memory.created", {
       workspaceId: repo.workspaceId,
       repoId,
@@ -212,20 +189,16 @@ export async function memoryRoutes(app: FastifyInstance) {
     const user = await resolveUser(req);
     if (!user) return reply.code(401).send({ error: "Unauthorized" });
     const { memoryId } = req.params as { memoryId: string };
-    let memory;
+    let resolved;
     try {
-      memory = await getMemoryWithAccess(user.id, memoryId, true);
+      resolved = await getMemoryWithAccess(user.id, memoryId, true);
     } catch (e) {
       return handle(reply, e);
     }
     const body = updateMemorySchema.parse(req.body);
-    const updated = await prisma.memory.update({
-      where: { id: memoryId },
-      data: body,
-      include: { evidence: true },
-    });
+    const updated = await resolved.store.update(memoryId, body);
     await writeAuditLog({
-      workspaceId: memory.repo.workspaceId,
+      workspaceId: resolved.workspaceId,
       userId: user.id,
       action: "memory.update",
       entityType: "memory",
@@ -240,13 +213,14 @@ export async function memoryRoutes(app: FastifyInstance) {
     const user = await resolveUser(req);
     if (!user) return reply.code(401).send({ error: "Unauthorized" });
     const { memoryId } = req.params as { memoryId: string };
-    let memory;
+    let resolved;
     try {
-      memory = await getMemoryWithAccess(user.id, memoryId, true);
+      resolved = await getMemoryWithAccess(user.id, memoryId, true);
     } catch (e) {
       return handle(reply, e);
     }
-    const apiKey = await getWorkspaceKey(memory.repo.workspaceId);
+    const { memory, store, workspaceId, repoId } = resolved;
+    const apiKey = await getWorkspaceKey(workspaceId);
     const parts = await splitMemory(
       {
         type: memory.type,
@@ -260,26 +234,23 @@ export async function memoryRoutes(app: FastifyInstance) {
     if (parts.length <= 1) {
       return reply.code(400).send({ error: "Nothing to split — this memory is already atomic." });
     }
-    await prisma.$transaction([
-      ...parts.map((p) =>
-        prisma.memory.create({
-          data: {
-            repoId: memory.repoId,
-            type: p.type,
-            title: p.title.slice(0, 140),
-            content: p.content,
-            paths: p.paths ?? memory.paths,
-            scope: "repo",
-            confidence: p.confidence,
-            status: "proposed",
-            source: "split",
-          },
-        }),
-      ),
-      prisma.memory.update({ where: { id: memoryId }, data: { status: "archived" } }),
-    ]);
+    for (const p of parts) {
+      await store.create({
+        repoId,
+        workspaceId,
+        type: p.type,
+        title: p.title.slice(0, 140),
+        content: p.content,
+        paths: p.paths ?? memory.paths,
+        scope: "repo",
+        confidence: p.confidence,
+        status: "proposed",
+        source: "split",
+      });
+    }
+    await store.setStatus(memoryId, "archived");
     await writeAuditLog({
-      workspaceId: memory.repo.workspaceId,
+      workspaceId,
       userId: user.id,
       action: "memory.split",
       entityType: "memory",

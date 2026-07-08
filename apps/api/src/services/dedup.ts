@@ -1,4 +1,4 @@
-import { prisma } from "../db.js";
+import { memoryStoreForRepo } from "./memoryStore.js";
 
 export interface MemoryLike {
   type: string;
@@ -68,12 +68,14 @@ export interface DedupMemory {
   status: string;
 }
 
-/** Existing proposed + approved memories for a repo, for duplicate checks. */
-export function loadDedupSet(repoId: string): Promise<DedupMemory[]> {
-  return prisma.memory.findMany({
-    where: { repoId, status: { in: ["proposed", "approved"] } },
-    select: { id: true, type: true, title: true, content: true, status: true },
-  });
+/** Existing proposed + approved memories for a repo, for duplicate checks.
+    Routed through the workspace's memory store (BYODB-aware). */
+export async function loadDedupSet(repoId: string): Promise<DedupMemory[]> {
+  const { store } = await memoryStoreForRepo(repoId);
+  const rows = await store.listByRepo(repoId);
+  return rows
+    .filter((m) => m.status === "proposed" || m.status === "approved")
+    .map((m) => ({ id: m.id, type: m.type, title: m.title, content: m.content, status: m.status }));
 }
 
 /**
