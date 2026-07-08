@@ -21,6 +21,7 @@ import { env } from "../env.js";
 import { getAutoThresholds } from "../services/memory.js";
 import { memoryStore } from "../services/memoryStore.js";
 import { testConnection, provisionExternalStore, dropExternalClient } from "../services/dataStore.js";
+import { createCheckoutSession } from "../services/stripe.js";
 
 function generateJoinCode(): string {
   // Human-friendly, unambiguous join code, e.g. "WS-7F3K9Q".
@@ -580,7 +581,7 @@ export async function workspaceRoutes(app: FastifyInstance) {
       if (e instanceof HttpError) return reply.code(e.statusCode).send({ error: e.message });
       throw e;
     }
-    billingCheckoutSchema.parse(req.body);
+    const body = billingCheckoutSchema.parse(req.body);
     if (!env.stripe.enabled) {
       return reply.code(501).send({
         error: "billing_not_configured",
@@ -588,8 +589,19 @@ export async function workspaceRoutes(app: FastifyInstance) {
           "Self-serve billing isn't enabled yet. An admin can comp your plan, or set STRIPE_SECRET_KEY to turn on checkout.",
       });
     }
-    // TODO: create a Stripe Checkout session for body.plan and return { url }.
-    return reply.code(501).send({ error: "billing_not_configured" });
+    try {
+      const { url } = await createCheckoutSession({ workspaceId, plan: body.plan, email: user.email });
+      return { url };
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : "checkout_failed";
+      if (msg === "price_not_configured") {
+        return reply.code(400).send({
+          error: "price_not_configured",
+          message: `No Stripe price is configured for the ${body.plan} plan. Set STRIPE_PRICE_${body.plan.toUpperCase()}.`,
+        });
+      }
+      return reply.code(400).send({ error: "checkout_failed", message: msg });
+    }
   });
 
   // Update workspace settings — name and/or auto-approve threshold (owners only).

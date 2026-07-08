@@ -40,9 +40,15 @@ export const env = {
     .map((s) => s.trim().toLowerCase())
     .filter(Boolean),
 
-  // Stripe (self-serve billing). Self-serve checkout is enabled once a secret key is set.
+  // Stripe (self-serve billing). Checkout turns on once a secret key is set;
+  // the webhook needs the signing secret; each paid plan maps to a Price ID.
   stripe: {
     secretKey: process.env.STRIPE_SECRET_KEY ?? "",
+    webhookSecret: process.env.STRIPE_WEBHOOK_SECRET ?? "",
+    prices: {
+      team: process.env.STRIPE_PRICE_TEAM ?? "",
+      business: process.env.STRIPE_PRICE_BUSINESS ?? "",
+    } as Record<string, string>,
     get enabled() {
       return Boolean(this.secretKey);
     },
