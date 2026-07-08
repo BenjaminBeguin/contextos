@@ -7,9 +7,12 @@ import {
   getAdminWhoami,
   getAdminOverview,
   getAdminWorkspaces,
+  getAdminPricing,
+  setPlanPrice,
   getBillingEvents,
   setWorkspacePlan,
   type AdminWorkspace,
+  type AdminPlanPricing,
   type Plan,
 } from "../../lib/api";
 import { AppShell } from "../../components/AppShell";
@@ -17,6 +20,7 @@ import {
   Button,
   Card,
   EmptyState,
+  Input,
   Modal,
   PageHeader,
   Select,
@@ -24,14 +28,17 @@ import {
   Textarea,
 } from "../../components/ui";
 
-const PLANS: Plan[] = ["free", "team", "business", "enterprise"];
+const PLANS: Plan[] = ["free", "scale", "enterprise"];
 
 const PLAN_STYLE: Record<string, string> = {
   free: "bg-white/8 text-[var(--muted)] border-white/10",
-  team: "bg-[var(--accent-soft)] text-[var(--accent-hover)] border-[var(--accent)]/30",
-  business: "border-[var(--signal)]/30 text-[var(--signal)]",
+  scale: "bg-[var(--accent-soft)] text-[var(--accent-hover)] border-[var(--accent)]/30",
   enterprise: "border-[var(--verify)]/30 text-[var(--verify)]",
 };
+
+function compactNum(n: number): string {
+  return n >= 1000 ? `${(n / 1000).toFixed(n >= 10000 ? 0 : 1)}k` : String(n);
+}
 
 export default function AdminPage() {
   return (
@@ -66,9 +73,121 @@ function Admin() {
     <div>
       <PageHeader title="Admin" description="Platform management — plans, subscriptions, and billing." />
       <Overview />
+      <PricingSection />
       <Workspaces />
       <BillingLog />
     </div>
+  );
+}
+
+function PricingSection() {
+  const qc = useQueryClient();
+  const { data } = useQuery({ queryKey: ["admin-pricing"], queryFn: getAdminPricing });
+  const [drafts, setDrafts] = useState<Record<string, string>>({});
+  const save = useMutation({
+    mutationFn: ({ plan, id }: { plan: Plan; id: string }) => setPlanPrice(plan, id),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["admin-pricing"] }),
+  });
+  if (!data) return null;
+
+  const rows: { key: string; label: string; render: (p: AdminPlanPricing) => React.ReactNode }[] = [
+    { key: "tagline", label: "", render: (p) => <span className="text-xs text-[var(--faint)]">{p.tagline}</span> },
+    {
+      key: "retrievals",
+      label: "Retrievals / mo",
+      render: (p) =>
+        p.limits.retrievalsPerMonth === null
+          ? "Unlimited"
+          : `${p.limits.retrievalsPerMonth.toLocaleString()}${p.limits.hardCap ? " (hard)" : ""}`,
+    },
+    { key: "seats", label: "Seats", render: () => "Unlimited" },
+    {
+      key: "repos",
+      label: "Repos",
+      render: (p) => (p.limits.maxRepos === null ? "Unlimited" : String(p.limits.maxRepos)),
+    },
+    { key: "reviewer", label: "PR reviewer", render: (p) => (p.limits.reviewer ? "✓" : "—") },
+    { key: "audit", label: "Audit log", render: (p) => (p.limits.audit ? "✓" : "—") },
+    { key: "byodb", label: "Data residency (BYODB)", render: (p) => (p.limits.byodb ? "✓" : "—") },
+  ];
+
+  return (
+    <Card className="mt-6 p-0">
+      <div className="flex items-center justify-between border-b border-[var(--border)] px-5 py-4">
+        <div>
+          <h2 className="font-display font-semibold">Pricing &amp; plans</h2>
+          <p className="text-xs text-[var(--muted)]">
+            The plan matrix (single source of truth). Set each paid plan&apos;s Stripe Price ID here —
+            no redeploy.
+          </p>
+        </div>
+        <span
+          className={`rounded-full border px-2.5 py-0.5 text-xs ${data.stripeEnabled ? "border-[var(--verify)]/40 text-[var(--verify)]" : "border-[var(--border)] text-[var(--muted)]"}`}
+        >
+          Stripe {data.stripeEnabled ? "connected" : "off"}
+        </span>
+      </div>
+      <div className="overflow-x-auto">
+        <table className="w-full min-w-[640px] text-sm">
+          <thead>
+            <tr className="border-b border-[var(--border)] text-left text-xs uppercase tracking-wide text-[var(--faint)]">
+              <th className="px-5 py-2.5 font-medium">Feature</th>
+              {data.plans.map((p) => (
+                <th key={p.plan} className="px-3 py-2.5 font-medium">
+                  <span className={`inline-flex items-center rounded-full border px-2 py-0.5 ${PLAN_STYLE[p.plan]}`}>
+                    {p.label}
+                  </span>
+                </th>
+              ))}
+            </tr>
+          </thead>
+          <tbody>
+            {rows.map((r) => (
+              <tr key={r.key} className="border-b border-[var(--border)] last:border-0">
+                <td className="px-5 py-2.5 text-[var(--muted)]">{r.label}</td>
+                {data.plans.map((p) => (
+                  <td key={p.plan} className="px-3 py-2.5">
+                    {r.render(p)}
+                  </td>
+                ))}
+              </tr>
+            ))}
+            <tr>
+              <td className="px-5 py-3 align-top text-[var(--muted)]">Stripe Price ID</td>
+              {data.plans.map((p) => (
+                <td key={p.plan} className="px-3 py-3 align-top">
+                  {p.plan === "free" ? (
+                    <span className="text-xs text-[var(--faint)]">—</span>
+                  ) : (
+                    <div className="space-y-1.5">
+                      <Input
+                        defaultValue={p.stripePriceId ?? ""}
+                        placeholder="price_…"
+                        className="w-40 font-mono text-xs"
+                        onChange={(e) => setDrafts((d) => ({ ...d, [p.plan]: e.target.value }))}
+                      />
+                      <div className="flex items-center gap-2">
+                        <Button
+                          size="sm"
+                          variant="ghost"
+                          onClick={() => save.mutate({ plan: p.plan, id: drafts[p.plan] ?? p.stripePriceId ?? "" })}
+                          loading={save.isPending && save.variables?.plan === p.plan}
+                        >
+                          Save
+                        </Button>
+                        <span className="text-[10px] uppercase tracking-wide text-[var(--faint)]">
+                          {p.priceSource}
+                        </span>
+                      </div>
+                    </div>
+                  )}
+                </td>
+              ))}
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </Card>
   );
 }
 
@@ -140,6 +259,7 @@ function Workspaces() {
                 <th className="px-5 py-2.5 font-medium">Workspace</th>
                 <th className="px-3 py-2.5 font-medium">Owner</th>
                 <th className="px-3 py-2.5 font-medium">Plan</th>
+                <th className="px-3 py-2.5 font-medium">Usage (mo)</th>
                 <th className="px-3 py-2.5 font-medium">Size</th>
                 <th className="px-5 py-2.5 text-right font-medium">Manage</th>
               </tr>
@@ -167,6 +287,9 @@ function Workspaces() {
                       <span className="ml-1.5 text-[10px] uppercase text-[var(--alert)]">{w.planStatus}</span>
                     ) : null}
                   </td>
+                  <td className="px-3 py-3">
+                    <UsageMeter used={w.retrievals} limit={w.retrievalLimit} />
+                  </td>
                   <td className="px-3 py-3 text-xs text-[var(--muted)]">
                     {w.memberCount} member{w.memberCount === 1 ? "" : "s"} · {w.repoCount} repo
                     {w.repoCount === 1 ? "" : "s"}
@@ -192,6 +315,28 @@ function Workspaces() {
       )}
       {editing ? <PlanModal ws={editing} onClose={() => setEditing(null)} /> : null}
     </Card>
+  );
+}
+
+function UsageMeter({ used, limit }: { used: number; limit: number | null }) {
+  const pct = limit === null ? 0 : Math.min(100, Math.round((used / limit) * 100));
+  const over = limit !== null && used >= limit;
+  return (
+    <div className="w-28">
+      <div className="flex items-center justify-between text-xs">
+        <span className={over ? "text-[var(--signal)]" : "text-[var(--muted)]"}>{compactNum(used)}</span>
+        <span className="text-[var(--faint)]">{limit === null ? "∞" : compactNum(limit)}</span>
+      </div>
+      <div className="mt-1 h-1.5 overflow-hidden rounded-full bg-[var(--surface-3)]">
+        <div
+          className="h-full rounded-full"
+          style={{
+            width: limit === null ? "12%" : `${pct}%`,
+            background: over ? "var(--signal)" : "var(--accent)",
+          }}
+        />
+      </div>
+    </div>
   );
 }
 

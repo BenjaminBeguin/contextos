@@ -1,8 +1,17 @@
 import type { FastifyInstance, FastifyRequest, FastifyReply } from "fastify";
 import { z } from "zod";
-import { setPlanSchema, PLANS } from "@cortex/shared";
+import {
+  setPlanSchema,
+  PLANS,
+  PLAN_LIMITS,
+  PLAN_LABELS,
+  PLAN_TAGLINES,
+  planLimits,
+} from "@cortex/shared";
 import { prisma } from "../db.js";
 import { resolveUser, isSuperAdmin } from "../auth.js";
+import { RETRIEVAL_TYPES, retrievalHistory } from "../services/retrievals.js";
+import { env } from "../env.js";
 
 const addMemberSchema = z.object({
   email: z.string().email(),
@@ -75,6 +84,15 @@ export async function adminRoutes(app: FastifyInstance) {
       },
     });
 
+    // This month's retrievals per workspace (the usage meter), in one query.
+    const monthStart = new Date(Date.UTC(new Date().getUTCFullYear(), new Date().getUTCMonth(), 1));
+    const retr = await prisma.usageEvent.groupBy({
+      by: ["workspaceId"],
+      where: { type: { in: RETRIEVAL_TYPES }, createdAt: { gte: monthStart } },
+      _count: { _all: true },
+    });
+    const retrMap = new Map(retr.map((r) => [r.workspaceId, r._count._all]));
+
     return workspaces.map((w) => {
       const owner = w.memberships.find((m) => m.role === "owner") ?? w.memberships[0];
       return {
@@ -89,9 +107,66 @@ export async function adminRoutes(app: FastifyInstance) {
         createdAt: w.createdAt,
         repoCount: w._count.repos,
         memberCount: w._count.memberships,
+        retrievals: retrMap.get(w.id) ?? 0,
+        retrievalLimit: planLimits(w.plan).retrievalsPerMonth,
         owner: owner ? { email: owner.user.email, name: owner.user.name } : null,
       };
     });
+  });
+
+  // Pricing matrix (plan entitlements + taglines) and configured Stripe Price IDs.
+  app.get("/admin/pricing", async (req, reply) => {
+    const admin = await requireAdmin(req, reply);
+    if (!admin) return;
+    const configured = await prisma.planPrice.findMany();
+    const priceMap = new Map(configured.map((p) => [p.plan, p.stripePriceId]));
+    return {
+      stripeEnabled: env.stripe.enabled,
+      plans: PLANS.map((plan) => ({
+        plan,
+        label: PLAN_LABELS[plan],
+        tagline: PLAN_TAGLINES[plan],
+        limits: PLAN_LIMITS[plan],
+        stripePriceId: priceMap.get(plan) ?? env.stripe.prices[plan] ?? null,
+        priceSource: priceMap.get(plan) ? "config" : env.stripe.prices[plan] ? "env" : "unset",
+      })),
+    };
+  });
+
+  // Set (or clear) a plan's Stripe Price ID from the admin — no redeploy.
+  app.put("/admin/pricing/:plan", async (req, reply) => {
+    const admin = await requireAdmin(req, reply);
+    if (!admin) return;
+    const { plan } = req.params as { plan: string };
+    if (!PLANS.includes(plan as (typeof PLANS)[number])) {
+      return reply.code(400).send({ error: "unknown_plan" });
+    }
+    const { stripePriceId } = z
+      .object({ stripePriceId: z.string().trim() })
+      .parse(req.body);
+    if (!stripePriceId) {
+      await prisma.planPrice.deleteMany({ where: { plan } });
+      return { plan, stripePriceId: null };
+    }
+    const saved = await prisma.planPrice.upsert({
+      where: { plan },
+      update: { stripePriceId },
+      create: { plan, stripePriceId },
+    });
+    return { plan, stripePriceId: saved.stripePriceId };
+  });
+
+  // A workspace's retrieval history (usage over the last months) for the admin.
+  app.get("/admin/workspaces/:workspaceId/usage", async (req, reply) => {
+    const admin = await requireAdmin(req, reply);
+    if (!admin) return;
+    const { workspaceId } = req.params as { workspaceId: string };
+    const ws = await prisma.workspace.findUnique({
+      where: { id: workspaceId },
+      select: { plan: true },
+    });
+    const history = await retrievalHistory(workspaceId, 6);
+    return { plan: ws?.plan ?? "free", limit: planLimits(ws?.plan ?? "free").retrievalsPerMonth, history };
   });
 
   // Set a workspace's plan (promote-for-free = plan + source "comp"). Logged.

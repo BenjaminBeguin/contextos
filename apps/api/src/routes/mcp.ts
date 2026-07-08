@@ -8,6 +8,7 @@ import { resolveUser, assertRepoAccess, HttpError } from "../auth.js";
 import { searchMemories } from "../services/memory.js";
 import { memoryStoreForRepo } from "../services/memoryStore.js";
 import { recordUsage } from "../services/analytics.js";
+import { retrievalBlockedForWorkspace } from "../services/retrievals.js";
 import { relevantToFiles } from "../services/relevance.js";
 
 function handle(reply: import("fastify").FastifyReply, e: unknown) {
@@ -26,6 +27,10 @@ export async function mcpRoutes(app: FastifyInstance) {
       repo = await assertRepoAccess(user.id, body.repoId);
     } catch (e) {
       return handle(reply, e);
+    }
+    // Free hard-caps retrievals; paid tiers never block (see retrievals.ts).
+    if (await retrievalBlockedForWorkspace(repo.workspaceId)) {
+      return { memories: [], capped: true };
     }
     const memories = await searchMemories({
       repoId: body.repoId,
@@ -58,6 +63,9 @@ export async function mcpRoutes(app: FastifyInstance) {
       repo = await assertRepoAccess(user.id, body.repoId);
     } catch (e) {
       return handle(reply, e);
+    }
+    if (await retrievalBlockedForWorkspace(repo.workspaceId)) {
+      return { repoContext: null, warnings: [], recommendedCommands: [], capped: true };
     }
     const { store } = await memoryStoreForRepo(body.repoId);
     const approved = await store.listByRepo(body.repoId, { status: "approved" });
@@ -102,6 +110,9 @@ export async function mcpRoutes(app: FastifyInstance) {
       repo = await assertRepoAccess(user.id, body.repoId);
     } catch (e) {
       return handle(reply, e);
+    }
+    if (await retrievalBlockedForWorkspace(repo.workspaceId)) {
+      return { warnings: [], capped: true };
     }
     const { store } = await memoryStoreForRepo(body.repoId);
     const risks = (await store.listByRepo(body.repoId, { status: "approved" }))

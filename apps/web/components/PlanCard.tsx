@@ -8,8 +8,7 @@ import { Button, Card } from "./ui";
 
 const PLAN_ACCENT: Record<Plan, string> = {
   free: "var(--muted)",
-  team: "var(--accent)",
-  business: "var(--signal)",
+  scale: "var(--accent)",
   enterprise: "var(--verify)",
 };
 
@@ -53,9 +52,10 @@ export function PlanCard({
     onError: (e) => setMsg(e instanceof Error ? e.message : "Upgrade failed"),
   });
 
+  const retrievals = ws.retrievals ?? { used: 0, limit: limits.retrievalsPerMonth, hardCap: limits.hardCap };
   const meters: { label: string; used: number; max: number | null }[] = [
+    { label: "Retrievals this month", used: retrievals.used, max: retrievals.limit },
     { label: "Repos", used: usage.repos, max: limits.maxRepos },
-    { label: "Members", used: usage.seats, max: limits.maxSeats },
   ];
 
   return (
@@ -140,9 +140,14 @@ export function PlanCard({
                     ) : null}
                   </div>
                   <ul className="mt-2 space-y-1 text-xs text-[var(--muted)]">
-                    <li>{limitText(l.maxRepos)} repos</li>
-                    <li>{limitText(l.maxSeats)} members</li>
+                    <li>
+                      {l.retrievalsPerMonth === null
+                        ? "Unlimited retrievals"
+                        : `${l.retrievalsPerMonth.toLocaleString()} retrievals/mo`}
+                    </li>
+                    <li>{limitText(l.maxRepos)} repos · unlimited seats</li>
                     <li>{l.reviewer ? "PR reviewer" : "No PR reviewer"}</li>
+                    {l.byodb ? <li>Data residency (BYODB)</li> : l.audit ? <li>Audit log</li> : null}
                   </ul>
                   {isCurrent ? (
                     <div className="mt-3 text-xs text-[var(--faint)]">Your plan</div>

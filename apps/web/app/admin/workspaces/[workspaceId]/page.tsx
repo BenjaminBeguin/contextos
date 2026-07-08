@@ -7,6 +7,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import {
   getAdminWhoami,
   getAdminWorkspace,
+  getAdminWorkspaceUsage,
   adminAddMember,
   adminRemoveMember,
   adminDeleteWorkspace,
@@ -17,7 +18,7 @@ import {
 import { AppShell } from "../../../../components/AppShell";
 import { Breadcrumb, Button, Card, EmptyState, Input, Select, Spinner } from "../../../../components/ui";
 
-const PLANS: Plan[] = ["free", "team", "business", "enterprise"];
+const PLANS: Plan[] = ["free", "scale", "enterprise"];
 
 export default function AdminWorkspacePage({
   params,
@@ -73,10 +74,72 @@ function Manage({ workspaceId }: { workspaceId: string }) {
         <PlanControl ws={ws} />
       </div>
 
+      <UsageCard workspaceId={ws.id} />
       <MembersCard ws={ws} />
       <ReposCard ws={ws} />
       <DangerZone ws={ws} />
     </div>
+  );
+}
+
+function UsageCard({ workspaceId }: { workspaceId: string }) {
+  const { data } = useQuery({
+    queryKey: ["admin-workspace-usage", workspaceId],
+    queryFn: () => getAdminWorkspaceUsage(workspaceId),
+  });
+  if (!data) return null;
+  const max = Math.max(1, ...data.history.map((h) => h.count));
+  const thisMonth = data.history[0]?.count ?? 0;
+  const limit = data.limit;
+  const pct = limit === null ? 0 : Math.min(100, Math.round((thisMonth / limit) * 100));
+  const over = limit !== null && thisMonth >= limit;
+
+  return (
+    <Card className="mt-6 p-6">
+      <div className="flex items-center justify-between">
+        <div>
+          <h2 className="font-semibold">Retrieval usage</h2>
+          <p className="text-xs text-[var(--muted)]">
+            Memory pulls per month. This month vs the {data.plan} allotment
+            {limit === null ? " (unlimited)" : ` (${limit.toLocaleString()})`}.
+          </p>
+        </div>
+        <div className="text-right">
+          <div className={`text-2xl font-semibold tabular-nums ${over ? "text-[var(--signal)]" : ""}`}>
+            {thisMonth.toLocaleString()}
+          </div>
+          {limit !== null ? <div className="text-xs text-[var(--faint)]">{pct}% of plan</div> : null}
+        </div>
+      </div>
+
+      {limit !== null ? (
+        <div className="mt-3 h-1.5 overflow-hidden rounded-full bg-[var(--surface-3)]">
+          <div
+            className="h-full rounded-full"
+            style={{ width: `${pct}%`, background: over ? "var(--signal)" : "var(--accent)" }}
+          />
+        </div>
+      ) : null}
+
+      <div className="mt-5 flex items-end gap-2">
+        {[...data.history].reverse().map((h) => (
+          <div key={h.month} className="flex flex-1 flex-col items-center gap-1">
+            <div className="flex h-24 w-full items-end">
+              <div
+                className="w-full rounded-t bg-[var(--accent)]/70"
+                style={{ height: `${Math.max(3, Math.round((h.count / max) * 100))}%` }}
+                title={`${h.count.toLocaleString()} retrievals`}
+              />
+            </div>
+            <span className="text-[10px] tabular-nums text-[var(--muted)]">{h.count.toLocaleString()}</span>
+            <span className="text-[10px] text-[var(--faint)]">{h.month.slice(5)}</span>
+          </div>
+        ))}
+        {data.history.length === 0 ? (
+          <p className="text-sm text-[var(--muted)]">No retrievals recorded yet.</p>
+        ) : null}
+      </div>
+    </Card>
   );
 }
 

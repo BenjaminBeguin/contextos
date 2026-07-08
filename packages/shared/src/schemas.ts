@@ -101,31 +101,44 @@ export const reviewDiffSchema = z.object({
   diff: z.string().min(1).max(400000),
 });
 
-export const PLANS = ["free", "team", "business", "enterprise"] as const;
+// Three tiers, usage-metered, unlimited seats. Free is capped hard (the
+// conversion lever); Scale is self-serve with a soft/generous cap; Enterprise
+// is unlimited + data residency + self-host (contact sales).
+export const PLANS = ["free", "scale", "enterprise"] as const;
 export const planSchema = z.enum(PLANS);
 export type Plan = (typeof PLANS)[number];
 
 /** What each plan is allowed. `null` = unlimited. Single source of truth for
-    entitlements — enforced in the API and shown in the app. */
+    entitlements — enforced in the API and shown in the app. Pricing is metered
+    on memory retrievals/month; seats are unlimited on every tier. */
 export interface PlanLimits {
   maxRepos: number | null;
-  maxSeats: number | null;
-  reviewer: boolean; // memory-grounded PR reviewer
-  byodb: boolean; // bring-your-own-database (data residency) — Enterprise
+  /** Memory retrievals (agent memory pulls) included per month. null = unlimited. */
+  retrievalsPerMonth: number | null;
+  /** Free blocks agents at the cap; paid tiers only warn/upsell (never blind an agent). */
+  hardCap: boolean;
+  reviewer: boolean; // memory-grounded PR reviewer (Scale+)
+  audit: boolean; // audit log + export (Scale+)
+  byodb: boolean; // bring-your-own-database / data residency (Enterprise)
 }
 
 export const PLAN_LIMITS: Record<Plan, PlanLimits> = {
-  free: { maxRepos: 3, maxSeats: 2, reviewer: false, byodb: false },
-  team: { maxRepos: 20, maxSeats: 10, reviewer: true, byodb: false },
-  business: { maxRepos: 100, maxSeats: 50, reviewer: true, byodb: false },
-  enterprise: { maxRepos: null, maxSeats: null, reviewer: true, byodb: true },
+  free: { maxRepos: 3, retrievalsPerMonth: 1_000, hardCap: true, reviewer: false, audit: false, byodb: false },
+  scale: { maxRepos: null, retrievalsPerMonth: 50_000, hardCap: false, reviewer: true, audit: true, byodb: false },
+  enterprise: { maxRepos: null, retrievalsPerMonth: null, hardCap: false, reviewer: true, audit: true, byodb: true },
 };
 
 export const PLAN_LABELS: Record<Plan, string> = {
   free: "Free",
-  team: "Team",
-  business: "Business",
+  scale: "Scale",
   enterprise: "Enterprise",
+};
+
+/** One-line positioning per tier, shown in the pricing UI. */
+export const PLAN_TAGLINES: Record<Plan, string> = {
+  free: "For solo devs and small teams getting started.",
+  scale: "For teams that rely on it — reviewer, unlimited projects, generous usage.",
+  enterprise: "For regulated teams — your data in your own database, self-host, SLA.",
 };
 
 export function planLimits(plan: string): PlanLimits {

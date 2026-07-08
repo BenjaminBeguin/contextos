@@ -1,9 +1,7 @@
 import type { FastifyInstance } from "fastify";
+import { planLimits } from "@cortex/shared";
 import { prisma } from "../db.js";
 import { resolveUser, requireRole, HttpError } from "../auth.js";
-
-// Audit log export is a Business+ entitlement.
-const AUDIT_PLANS = new Set(["business", "enterprise"]);
 
 interface AuditRow {
   id: string;
@@ -50,7 +48,7 @@ export async function auditRoutes(app: FastifyInstance) {
       where: { id: workspaceId },
       select: { plan: true },
     });
-    if (!AUDIT_PLANS.has(ws?.plan ?? "free")) {
+    if (!planLimits(ws?.plan ?? "free").audit) {
       throw new HttpError(402, "plan_limit_audit");
     }
     return membership;

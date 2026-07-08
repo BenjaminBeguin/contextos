@@ -22,6 +22,7 @@ import { getAutoThresholds } from "../services/memory.js";
 import { memoryStore } from "../services/memoryStore.js";
 import { testConnection, provisionExternalStore, dropExternalClient } from "../services/dataStore.js";
 import { createCheckoutSession } from "../services/stripe.js";
+import { retrievalUsage } from "../services/retrievals.js";
 
 function generateJoinCode(): string {
   // Human-friendly, unambiguous join code, e.g. "WS-7F3K9Q".
@@ -272,17 +273,7 @@ export async function workspaceRoutes(app: FastifyInstance) {
       where: { userId_workspaceId: { userId: target.id, workspaceId } },
     });
     if (existing) return reply.code(409).send({ error: "Already a member." });
-    // Plan enforcement: cap seats by the workspace's plan.
-    const ws = await prisma.workspace.findUnique({ where: { id: workspaceId }, select: { plan: true } });
-    const limits = planLimits(ws?.plan ?? "free");
-    const seats = await prisma.membership.count({ where: { workspaceId } });
-    if (!withinLimit(seats, limits.maxSeats)) {
-      return reply.code(402).send({
-        error: "plan_limit_seats",
-        limit: limits.maxSeats,
-        message: `Your plan allows ${limits.maxSeats} members. Upgrade to add more.`,
-      });
-    }
+    // Seats are unlimited on every tier — invite freely.
     await prisma.membership.create({
       data: { userId: target.id, workspaceId, role: body.role },
     });
@@ -386,6 +377,7 @@ export async function workspaceRoutes(app: FastifyInstance) {
     const { anthropicKey, ...rest } = workspace;
     delete (rest as { externalDbUrl?: string | null }).externalDbUrl;
     const limits = planLimits(workspace.plan);
+    const retrievals = await retrievalUsage(workspaceId, workspace.plan);
     return {
       ...rest,
       repos,
@@ -393,6 +385,7 @@ export async function workspaceRoutes(app: FastifyInstance) {
       pendingMemories,
       limits,
       usage: { repos: workspace.repos.length, seats: workspace.memberships.length },
+      retrievals,
       billingEnabled: env.stripe.enabled,
       dataStore: {
         status: workspace.externalDbStatus,

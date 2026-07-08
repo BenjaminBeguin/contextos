@@ -11,8 +11,11 @@ export function getStripe(): Stripe | null {
   return client;
 }
 
-/** The Stripe Price ID for a plan, or null if that plan isn't sold via Stripe. */
-export function priceForPlan(plan: string): string | null {
+/** The Stripe Price ID for a plan: admin-set config (DB) first, then the
+    STRIPE_PRICE_* env fallback. Null if neither is set. */
+export async function priceForPlan(plan: string): Promise<string | null> {
+  const configured = await prisma.planPrice.findUnique({ where: { plan } });
+  if (configured?.stripePriceId) return configured.stripePriceId;
   return env.stripe.prices[plan] || null;
 }
 
@@ -47,7 +50,7 @@ export async function createCheckoutSession(opts: {
 }): Promise<{ url: string | null }> {
   const stripe = getStripe();
   if (!stripe) throw new Error("billing_not_configured");
-  const price = priceForPlan(opts.plan);
+  const price = await priceForPlan(opts.plan);
   if (!price) throw new Error("price_not_configured");
 
   const customer = await ensureCustomer(stripe, opts.workspaceId, opts.email);

@@ -276,6 +276,14 @@ model WaitlistSignup {
   createdAt DateTime @default(now())
 }
 
+/** Stripe Price ID per paid plan, editable from the admin dashboard so a
+    superadmin can set them without a redeploy. Falls back to STRIPE_PRICE_* env. */
+model PlanPrice {
+  plan          String   @id // "scale" | "enterprise"
+  stripePriceId String
+  updatedAt     DateTime @updatedAt
+}
+
 model ApiToken {
   id          String    @id @default(cuid())
   userId      String

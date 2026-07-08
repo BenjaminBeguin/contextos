@@ -45,8 +45,10 @@ export interface Me {
 
 export interface PlanLimits {
   maxRepos: number | null;
-  maxSeats: number | null;
+  retrievalsPerMonth: number | null;
+  hardCap: boolean;
   reviewer: boolean;
+  audit: boolean;
   byodb: boolean;
 }
 
@@ -71,6 +73,8 @@ export interface WorkspaceDetail {
   planSource?: string;
   limits?: PlanLimits;
   usage?: { repos: number; seats: number };
+  /** Memory retrievals this calendar month vs the plan's included allotment. */
+  retrievals?: { used: number; limit: number | null; hardCap: boolean };
   billingEnabled?: boolean;
   dataStore?: DataStoreStatus;
   repos: { id: string; fullName: string; _count?: { memories: number } }[];
@@ -162,7 +166,7 @@ export function getWorkspaceReviews(workspaceId: string): Promise<WorkspaceRevie
 
 // ---- Admin (superadmin) ------------------------------------------------------
 
-export type Plan = "free" | "team" | "business" | "enterprise";
+export type Plan = "free" | "scale" | "enterprise";
 
 export interface AdminOverview {
   totals: { users: number; workspaces: number; repos: number; memories: number };
@@ -183,7 +187,35 @@ export interface AdminWorkspace {
   createdAt: string;
   repoCount: number;
   memberCount: number;
+  retrievals: number;
+  retrievalLimit: number | null;
   owner: { email: string; name: string | null } | null;
+}
+
+export interface AdminPlanPricing {
+  plan: Plan;
+  label: string;
+  tagline: string;
+  limits: PlanLimits;
+  stripePriceId: string | null;
+  priceSource: "config" | "env" | "unset";
+}
+
+export interface AdminPricing {
+  stripeEnabled: boolean;
+  plans: AdminPlanPricing[];
+}
+
+export function getAdminPricing(): Promise<AdminPricing> {
+  return api<AdminPricing>("/admin/pricing");
+}
+export function setPlanPrice(plan: Plan, stripePriceId: string): Promise<{ plan: string; stripePriceId: string | null }> {
+  return api(`/admin/pricing/${plan}`, { method: "PUT", body: JSON.stringify({ stripePriceId }) });
+}
+export function getAdminWorkspaceUsage(
+  workspaceId: string,
+): Promise<{ plan: Plan; limit: number | null; history: { month: string; count: number }[] }> {
+  return api(`/admin/workspaces/${workspaceId}/usage`);
 }
 
 export interface BillingEventRow {

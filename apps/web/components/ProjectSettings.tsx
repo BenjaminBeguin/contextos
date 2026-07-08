@@ -209,11 +209,12 @@ function UsageCard({ ws }: { ws: WorkspaceDetail }) {
   const current = (ws.plan ?? "free") as Plan;
   const limits = ws.limits ?? PLAN_LIMITS[current];
   const usage = ws.usage ?? { repos: ws.repos.length, seats: ws.memberships.length };
+  const retrievals = ws.retrievals ?? { used: 0, limit: limits.retrievalsPerMonth, hardCap: limits.hardCap };
   const totalMemories = ws.repos.reduce((n, r) => n + (r._count?.memories ?? 0), 0);
 
   const meters: { label: string; used: number; max: number | null }[] = [
+    { label: "Retrievals this month", used: retrievals.used, max: retrievals.limit },
     { label: "Repos", used: usage.repos, max: limits.maxRepos },
-    { label: "Members", used: usage.seats, max: limits.maxSeats },
   ];
 
   return (
@@ -237,7 +238,7 @@ function UsageCard({ ws }: { ws: WorkspaceDetail }) {
               <div className="flex items-center justify-between text-sm">
                 <span className="text-[var(--muted)]">{m.label}</span>
                 <span className={near ? "text-[var(--signal)]" : ""}>
-                  {m.used} / {m.max === null ? "∞" : m.max}
+                  {m.used.toLocaleString()} / {m.max === null ? "∞" : m.max.toLocaleString()}
                 </span>
               </div>
               {m.max !== null ? (
@@ -265,6 +266,11 @@ function UsageCard({ ws }: { ws: WorkspaceDetail }) {
           </p>
         </div>
       </div>
+
+      <p className="mt-3 text-xs text-[var(--faint)]">
+        Seats are unlimited on every plan — invite your whole team. Pricing is metered on memory
+        retrievals (how often your agents pull memory).
+      </p>
 
       {ws.repos.length > 0 ? (
         <div className="mt-5 border-t border-[var(--border)] pt-4">
