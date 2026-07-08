@@ -14,13 +14,19 @@
     "start:api": "prisma generate && tsx apps/api/src/server.ts",
     "cli": "pnpm --filter @mxbenjaminbeguin/cortex exec cortex",
     "test": "vitest run",
-    "test:watch": "vitest"
+    "test:watch": "vitest",
+    "docs:api": "node scripts/gen-api-docs.mjs"
   },
   "prisma": {
     "schema": "prisma/schema.prisma"
   },
   "pnpm": {
-    "onlyBuiltDependencies": ["@prisma/client", "prisma", "@prisma/engines", "esbuild"]
+    "onlyBuiltDependencies": [
+      "@prisma/client",
+      "prisma",
+      "@prisma/engines",
+      "esbuild"
+    ]
   },
   "devDependencies": {
     "@modelcontextprotocol/sdk": "^1.13.0",
