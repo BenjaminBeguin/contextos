@@ -201,6 +201,10 @@ export const memoryListQuerySchema = z.object({
 export const sessionEventSchema = z.object({
   type: z.string().min(1),
   payload: z.record(z.unknown()).default({}),
+  // Optional span fields — render a session's events as a timeline.
+  name: z.string().max(200).optional(),
+  durationMs: z.number().int().min(0).optional(),
+  status: z.enum(["ok", "error", "warning"]).optional(),
 });
 
 export const recordSessionSchema = z.object({

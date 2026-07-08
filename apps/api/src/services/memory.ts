@@ -6,6 +6,8 @@ export interface SearchParams {
   query: string;
   limit: number;
   approvedOnly?: boolean;
+  /** Count these retrievals toward each memory's usageCount (agent/MCP only, not web browsing). */
+  countUsage?: boolean;
 }
 
 /**
@@ -13,7 +15,7 @@ export interface SearchParams {
  * title/content. Ordered by confidence then freshness. pgvector semantic
  * search is a deferred enhancement (see plan).
  */
-export async function searchMemories({ repoId, query, limit, approvedOnly }: SearchParams) {
+export async function searchMemories({ repoId, query, limit, approvedOnly, countUsage }: SearchParams) {
   const where: Prisma.MemoryWhereInput = { repoId };
   if (approvedOnly) where.status = "approved";
 
@@ -35,7 +37,7 @@ export async function searchMemories({ repoId, query, limit, approvedOnly }: Sea
   if (memories.length > 0) {
     await prisma.memory.updateMany({
       where: { id: { in: memories.map((m) => m.id) } },
-      data: { lastUsedAt: new Date() },
+      data: { lastUsedAt: new Date(), ...(countUsage ? { usageCount: { increment: 1 } } : {}) },
     });
   }
 

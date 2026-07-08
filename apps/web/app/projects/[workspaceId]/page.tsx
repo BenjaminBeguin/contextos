@@ -7,6 +7,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { MEMORY_TYPES, MEMORY_STATUSES } from "@cortex/shared";
 import { RepoPicker } from "../../../components/RepoPicker";
 import { RepoSetupDrawer } from "../../../components/RepoSetupDrawer";
+import { SessionTimeline } from "../../../components/SessionTimeline";
 import { PlanCard } from "../../../components/PlanCard";
 import {
   api,
@@ -760,6 +761,45 @@ function MemoryList({
   );
 }
 
+function SessionRow({ s }: { s: WsSession }) {
+  const [open, setOpen] = useState(false);
+  return (
+    <Card className="p-4">
+      <button className="w-full text-left" onClick={() => setOpen((v) => !v)} aria-expanded={open}>
+        <div className="flex items-center justify-between text-xs text-[var(--muted)]">
+          <span className="flex items-center gap-2">
+            <Badge label={s.agent} />
+            <span>{s.repoFullName}</span>
+            {s.errorCount ? (
+              <span className="text-[var(--alert)]">{s.errorCount} error{s.errorCount === 1 ? "" : "s"}</span>
+            ) : null}
+          </span>
+          <span className="flex items-center gap-2">
+            {timeAgo(s.createdAt)}
+            <svg
+              width="12"
+              height="12"
+              viewBox="0 0 24 24"
+              fill="none"
+              className={cn("transition-transform", open && "rotate-180")}
+              aria-hidden
+            >
+              <path d="M6 9l6 6 6-6" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
+            </svg>
+          </span>
+        </div>
+        <p className="mt-2 font-medium">{s.task ?? "Session"}</p>
+        {s.summary ? <p className="mt-1 text-sm text-[var(--muted)]">{s.summary}</p> : null}
+      </button>
+      {open ? (
+        <div className="mt-3 border-t border-[var(--border)] pt-3">
+          <SessionTimeline sessionId={s.id} />
+        </div>
+      ) : null}
+    </Card>
+  );
+}
+
 function SessionsTab({ workspaceId, repoId }: { workspaceId: string; repoId: string }) {
   const [q, setQ] = useState("");
   const { data, isLoading } = useQuery({
@@ -785,17 +825,7 @@ function SessionsTab({ workspaceId, repoId }: { workspaceId: string; repoId: str
       ) : (
         <div className="space-y-3">
           {pageItems.map((s) => (
-            <Card key={s.id} className="p-4">
-              <div className="flex items-center justify-between text-xs text-[var(--muted)]">
-                <span className="flex items-center gap-2">
-                  <Badge label={s.agent} />
-                  <span>{s.repoFullName}</span>
-                </span>
-                <span>{timeAgo(s.createdAt)}</span>
-              </div>
-              <p className="mt-2 font-medium">{s.task ?? "Session"}</p>
-              {s.summary ? <p className="mt-1 text-sm text-[var(--muted)]">{s.summary}</p> : null}
-            </Card>
+            <SessionRow key={s.id} s={s} />
           ))}
         </div>
       )}

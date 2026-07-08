@@ -32,6 +32,7 @@ export async function mcpRoutes(app: FastifyInstance) {
       query: body.query,
       limit: body.limit,
       approvedOnly: true,
+      countUsage: true, // real agent retrieval — counts toward memory impact
     });
     await recordUsage("mcp.search_memory", {
       workspaceId: repo.workspaceId,

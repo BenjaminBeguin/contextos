@@ -31,7 +31,7 @@ export async function sessionRoutes(app: FastifyInstance) {
     const events = [
       ...(body.commandsRun?.map((c) => ({ type: "command", payload: { command: c } })) ?? []),
       ...(body.filesChanged?.map((f) => ({ type: "file_changed", payload: { path: f } })) ?? []),
-      ...(body.errors?.map((e) => ({ type: "error", payload: { message: e } })) ?? []),
+      ...(body.errors?.map((e) => ({ type: "error", payload: { message: e }, status: "error" as const })) ?? []),
       ...(body.events ?? []),
     ];
 
@@ -45,11 +45,14 @@ export async function sessionRoutes(app: FastifyInstance) {
         externalId: body.sessionId,
         errorCount: body.errors?.length ?? 0,
         events: {
-        create: events.map((e) => ({
-          type: e.type,
-          payload: e.payload as Prisma.InputJsonValue,
-        })),
-      },
+          create: events.map((e) => ({
+            type: e.type,
+            payload: e.payload as Prisma.InputJsonValue,
+            name: "name" in e ? e.name : undefined,
+            durationMs: "durationMs" in e ? e.durationMs : undefined,
+            status: "status" in e ? e.status : undefined,
+          })),
+        },
       },
     });
 

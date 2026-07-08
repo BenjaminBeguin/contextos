@@ -133,6 +133,15 @@ export function MemoryCard({ memory }: { memory: Memory }) {
             <span className="text-xs text-[var(--muted)]">
               conf {Math.round(memory.confidence * 100)}%
             </span>
+            {memory.usageCount && memory.usageCount > 0 ? (
+              <span
+                className="inline-flex items-center gap-1 text-xs text-[var(--signal)]"
+                title={`Retrieved by an agent ${memory.usageCount} time${memory.usageCount === 1 ? "" : "s"}`}
+              >
+                <span className="inline-block h-1.5 w-1.5 rounded-full bg-[var(--signal)]" />
+                used {memory.usageCount}×
+              </span>
+            ) : null}
             <span
               className="text-xs text-[var(--faint)]"
               title={new Date(memory.createdAt).toLocaleString()}

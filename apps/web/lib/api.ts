@@ -316,6 +316,7 @@ export interface AgentSessionSummary {
   task: string | null;
   summary: string | null;
   status: string;
+  errorCount?: number;
   createdAt: string;
   _count?: { events: number };
 }
@@ -384,8 +385,27 @@ export interface Memory {
   createdAt: string;
   updatedAt: string;
   lastUsedAt?: string | null;
+  usageCount?: number;
   evidence?: { id: string; kind: string; content: string; url: string | null }[];
   duplicateOf?: { id: string; title: string } | null;
+}
+
+/** One event/span in a session timeline. */
+export interface SessionSpan {
+  id: string;
+  type: string;
+  name?: string | null;
+  durationMs?: number | null;
+  status?: string | null;
+  payload?: Record<string, unknown>;
+  createdAt: string;
+}
+
+/** A session with its events (GET /sessions/:id). */
+export function getSession(
+  sessionId: string,
+): Promise<AgentSession & { events: SessionSpan[] }> {
+  return api<AgentSession & { events: SessionSpan[] }>(`/sessions/${sessionId}`);
 }
 
 export interface WorkspaceMemory extends Memory {

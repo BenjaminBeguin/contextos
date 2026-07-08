@@ -140,6 +140,7 @@ model Memory {
   confidence Float     @default(0.7)
   status     String    @default("proposed")
   source     String?
+  usageCount Int       @default(0) // times served to an agent via MCP (impact signal)
   createdAt  DateTime  @default(now())
   updatedAt  DateTime  @updatedAt
   lastUsedAt DateTime?
@@ -224,9 +225,15 @@ model SessionEvent {
   sessionId String
   type      String
   payload   Json
+  // Span fields (optional) — a session's events render as a timeline.
+  name       String?
+  durationMs Int?
+  status     String? // ok | error | warning
   createdAt DateTime @default(now())
 
   session AgentSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+
+  @@index([sessionId, createdAt])
 }
 
 model GeneratedDoc {
