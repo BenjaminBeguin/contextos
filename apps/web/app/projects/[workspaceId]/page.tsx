@@ -8,7 +8,6 @@ import { MEMORY_TYPES, MEMORY_STATUSES } from "@cortex/shared";
 import { RepoPicker } from "../../../components/RepoPicker";
 import { RepoSetupDrawer } from "../../../components/RepoSetupDrawer";
 import { SessionTimeline } from "../../../components/SessionTimeline";
-import { PlanCard } from "../../../components/PlanCard";
 import {
   api,
   getWorkspaceReviews,
@@ -21,7 +20,11 @@ import {
 } from "../../../lib/api";
 import { AppShell } from "../../../components/AppShell";
 import { MemoryCard } from "../../../components/MemoryCard";
-import { ProjectSettings } from "../../../components/ProjectSettings";
+import {
+  ProjectSettings,
+  SETTINGS_SECTIONS,
+  type SettingsSection,
+} from "../../../components/ProjectSettings";
 import { SearchTool } from "../../../components/tools/SearchTool";
 import { ChatTool } from "../../../components/tools/ChatTool";
 import { GraphTool } from "../../../components/tools/GraphTool";
@@ -47,8 +50,9 @@ type WsSession = AgentSessionSummary & { repoId: string; repoFullName: string };
 type WsDoc = GeneratedDoc & { repoFullName: string };
 
 // Top-level sections. Memory / Decisions / Risks / Sessions live together under
-// "Knowledge"; repo connection lives under "Setup" — so the top row stays short.
-const TABS = ["Overview", "Knowledge", "Reviews", "Docs", "Tools", "Billing", "Setup", "Settings"] as const;
+// "Knowledge"; repo connection lives under "Setup"; plan, usage & billing live
+// inside "Settings" — so the top row stays short.
+const TABS = ["Overview", "Knowledge", "Reviews", "Docs", "Tools", "Setup", "Settings"] as const;
 type Tab = (typeof TABS)[number];
 
 const SECTION_TABS = TABS.filter((t) => t !== "Settings");
@@ -74,10 +78,16 @@ function Project({ workspaceId }: { workspaceId: string }) {
   const searchParams = useSearchParams();
   const initialTab = TABS.find((t) => t === searchParams.get("tab")) ?? "Overview";
   const [tab, setTab] = useState<Tab>(initialTab);
+  const [settingsSection, setSettingsSection] = useState<SettingsSection>("General");
   const [repoFilter, setRepoFilter] = useState("");
   const { workspaces, setActiveId } = useActiveWorkspace();
   const role = workspaces.find((w) => w.id === workspaceId)?.role;
   const isOwner = role === "owner";
+
+  const gotoSettings = (s: SettingsSection) => {
+    setSettingsSection(s);
+    setTab("Settings");
+  };
 
   useEffect(() => setActiveId(workspaceId), [workspaceId, setActiveId]);
 
@@ -97,27 +107,14 @@ function Project({ workspaceId }: { workspaceId: string }) {
     <div>
       <header className="sticky top-0 z-20 -mx-8 -mt-8 mb-6 border-b border-[var(--border)] bg-[var(--background)]/90 px-8 backdrop-blur">
         <div className="flex items-stretch gap-6">
-          <div className="flex shrink-0 items-center gap-2.5 py-3.5">
-            <span
-              className="inline-block h-3 w-3 shrink-0 rounded-full"
-              style={{ background: color, boxShadow: `0 0 12px ${color}` }}
-              aria-hidden
+          <div className="flex shrink-0 items-center py-3.5">
+            <ProjectMenu
+              name={ws?.name ?? "Project"}
+              color={color}
+              plan={ws?.plan}
+              isOwner={isOwner}
+              onGoto={gotoSettings}
             />
-            <h1 className="font-display whitespace-nowrap text-base font-semibold tracking-tight">
-              {ws?.name ?? "Project"}
-            </h1>
-            <span className="hidden whitespace-nowrap text-xs text-[var(--muted)] sm:inline">
-              {repos.length} repo{repos.length === 1 ? "" : "s"} · {role ?? "member"}
-            </span>
-            {ws?.plan ? (
-              <button
-                onClick={() => setTab("Billing")}
-                title="View plan & usage"
-                className="hidden rounded-full border border-[var(--border)] px-2 py-0.5 text-[10px] uppercase tracking-wide text-[var(--muted)] transition hover:border-[var(--border-strong)] hover:text-white sm:inline"
-              >
-                {ws.plan}
-              </button>
-            ) : null}
           </div>
 
           <nav className="flex min-w-0 flex-1 items-stretch gap-1 overflow-x-auto">
@@ -177,18 +174,102 @@ function Project({ workspaceId }: { workspaceId: string }) {
         {tab === "Reviews" ? <ReviewsTab workspaceId={workspaceId} /> : null}
         {tab === "Docs" ? <DocsTab workspaceId={workspaceId} repoId={repoFilter} /> : null}
         {tab === "Tools" ? <ToolsTab workspaceId={workspaceId} /> : null}
-        {tab === "Billing" ? (
-          ws ? (
-            <div className="max-w-4xl">
-              <PlanCard workspaceId={workspaceId} ws={ws} isOwner={isOwner} />
-            </div>
-          ) : (
-            <Loading />
-          )
-        ) : null}
         {tab === "Setup" ? <SetupTab workspaceId={workspaceId} repos={repos} /> : null}
-        {tab === "Settings" ? <ProjectSettings workspaceId={workspaceId} isOwner={isOwner} /> : null}
+        {tab === "Settings" ? (
+          <ProjectSettings
+            workspaceId={workspaceId}
+            isOwner={isOwner}
+            section={settingsSection}
+            onSection={setSettingsSection}
+          />
+        ) : null}
       </div>
+    </div>
+  );
+}
+
+/** Project title that doubles as a settings menu — click the name to jump
+    straight to a settings section (General, Members, Usage, Subscription, Billing). */
+function ProjectMenu({
+  name,
+  color,
+  plan,
+  isOwner,
+  onGoto,
+}: {
+  name: string;
+  color: string;
+  plan?: string;
+  isOwner: boolean;
+  onGoto: (s: SettingsSection) => void;
+}) {
+  const [open, setOpen] = useState(false);
+  const sections = SETTINGS_SECTIONS.filter((s) => s !== "Billing" || isOwner);
+
+  return (
+    <div className="relative">
+      <button
+        onClick={() => setOpen((v) => !v)}
+        className="group flex items-center gap-2.5 rounded-lg px-1.5 py-1 transition hover:bg-white/5"
+        aria-haspopup="menu"
+        aria-expanded={open}
+      >
+        <span
+          className="inline-block h-3 w-3 shrink-0 rounded-full"
+          style={{ background: color, boxShadow: `0 0 12px ${color}` }}
+          aria-hidden
+        />
+        <h1 className="font-display whitespace-nowrap text-base font-semibold tracking-tight">
+          {name}
+        </h1>
+        {plan ? (
+          <span className="hidden rounded-full border border-[var(--border)] px-2 py-0.5 text-[10px] uppercase tracking-wide text-[var(--muted)] sm:inline">
+            {plan}
+          </span>
+        ) : null}
+        <svg
+          width="12"
+          height="12"
+          viewBox="0 0 24 24"
+          fill="none"
+          className={cn("text-[var(--faint)] transition-transform", open && "rotate-180")}
+          aria-hidden
+        >
+          <path d="M6 9l6 6 6-6" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
+        </svg>
+      </button>
+
+      {open ? (
+        <>
+          <button
+            className="fixed inset-0 z-30 cursor-default"
+            aria-hidden
+            tabIndex={-1}
+            onClick={() => setOpen(false)}
+          />
+          <div
+            role="menu"
+            className="absolute left-0 top-full z-40 mt-1 w-56 overflow-hidden rounded-xl border border-[var(--border)] bg-[var(--surface-2)] p-1 shadow-xl"
+          >
+            <p className="px-3 py-1.5 text-[10px] uppercase tracking-wide text-[var(--faint)]">
+              Project settings
+            </p>
+            {sections.map((s) => (
+              <button
+                key={s}
+                role="menuitem"
+                onClick={() => {
+                  onGoto(s);
+                  setOpen(false);
+                }}
+                className="flex w-full items-center gap-2 rounded-lg px-3 py-1.5 text-left text-sm text-[var(--muted)] transition hover:bg-white/5 hover:text-white"
+              >
+                {s}
+              </button>
+            ))}
+          </div>
+        </>
+      ) : null}
     </div>
   );
 }

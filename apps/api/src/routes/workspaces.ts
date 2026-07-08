@@ -356,6 +356,25 @@ export async function workspaceRoutes(app: FastifyInstance) {
     };
   });
 
+  // This workspace's billing history (owners) — plan grants/changes, upgrade
+  // requests, and (once Stripe is wired) invoices.
+  app.get("/workspaces/:workspaceId/billing-events", async (req, reply) => {
+    const user = await resolveUser(req);
+    if (!user) return reply.code(401).send({ error: "Unauthorized" });
+    const { workspaceId } = req.params as { workspaceId: string };
+    try {
+      await requireRole(user.id, workspaceId, "owner");
+    } catch (e) {
+      if (e instanceof HttpError) return reply.code(e.statusCode).send({ error: e.message });
+      throw e;
+    }
+    return prisma.billingEvent.findMany({
+      where: { workspaceId },
+      orderBy: { createdAt: "desc" },
+      take: 100,
+    });
+  });
+
   // Owner requests an upgrade when self-serve billing is off — logged as a
   // BillingEvent the admin sees (they can then comp/upgrade). No Stripe needed.
   app.post("/workspaces/:workspaceId/request-upgrade", async (req, reply) => {

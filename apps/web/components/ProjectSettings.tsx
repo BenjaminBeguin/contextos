@@ -2,22 +2,142 @@
 
 import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { ROLE_LABELS, type WorkspaceRole } from "@cortex/shared";
-import { api, type Me, type WorkspaceDetail } from "../lib/api";
+import { ROLE_LABELS, PLAN_LIMITS, PLAN_LABELS, type Plan, type WorkspaceRole } from "@cortex/shared";
+import {
+  api,
+  getWorkspaceBillingEvents,
+  timeAgo,
+  type Me,
+  type WorkspaceDetail,
+  type BillingEventRow,
+} from "../lib/api";
 import { CopyButton } from "./CopyButton";
 import { Button, Card, Input, Select } from "./ui";
 import { AuditLogCard } from "./AuditLogCard";
+import { PlanCard } from "./PlanCard";
 
 const INVITE_ROLES: WorkspaceRole[] = ["member", "admin", "viewer"];
 const ASSIGNABLE_ROLES: WorkspaceRole[] = ["owner", "admin", "member", "viewer"];
 
-/** Project (workspace) settings: rename, join code, AI key, triage, members, repos. */
-export function ProjectSettings({ workspaceId, isOwner }: { workspaceId: string; isOwner: boolean }) {
-  const qc = useQueryClient();
+// Left-rail sections. Ordered as a natural top-to-bottom flow: identity first,
+// then people, then what they're consuming, then the plan that governs it, then
+// the money trail. Billing history is owner-only, so it's filtered out below.
+export const SETTINGS_SECTIONS = [
+  "General",
+  "Members",
+  "Usage",
+  "Subscription",
+  "Billing",
+] as const;
+export type SettingsSection = (typeof SETTINGS_SECTIONS)[number];
+
+const SECTION_HINT: Record<SettingsSection, string> = {
+  General: "Name, join code, AI key, triage",
+  Members: "People & roles",
+  Usage: "What this project is consuming",
+  Subscription: "Plan & upgrades",
+  Billing: "Payment & plan history",
+};
+
+/** Project (workspace) settings with a left side-menu:
+    General · Members · Usage · Subscription · Billing. */
+export function ProjectSettings({
+  workspaceId,
+  isOwner,
+  section,
+  onSection,
+}: {
+  workspaceId: string;
+  isOwner: boolean;
+  section: SettingsSection;
+  onSection: (s: SettingsSection) => void;
+}) {
   const { data: ws } = useQuery({
     queryKey: ["workspace", workspaceId],
     queryFn: () => api<WorkspaceDetail>(`/workspaces/${workspaceId}`),
   });
+
+  // Billing history is owner-only (the API guards it), so hide the tab for others.
+  const sections = SETTINGS_SECTIONS.filter((s) => s !== "Billing" || isOwner);
+  const active = sections.includes(section) ? section : "General";
+
+  if (!ws) return <Card className="p-6 text-[var(--muted)]">Loading…</Card>;
+
+  return (
+    <div className="flex flex-col gap-6 lg:flex-row lg:items-start">
+      <nav className="flex shrink-0 gap-1 overflow-x-auto lg:w-56 lg:flex-col lg:overflow-visible">
+        {sections.map((s) => {
+          const on = s === active;
+          return (
+            <button
+              key={s}
+              onClick={() => onSection(s)}
+              className={
+                "group flex shrink-0 flex-col rounded-lg px-3 py-2 text-left transition " +
+                (on
+                  ? "bg-[var(--surface-2)] text-white"
+                  : "text-[var(--muted)] hover:bg-white/5 hover:text-white")
+              }
+            >
+              <span className="flex items-center gap-2 text-sm font-medium">
+                {on ? (
+                  <span className="h-3.5 w-0.5 rounded-full bg-[var(--accent)]" aria-hidden />
+                ) : (
+                  <span className="h-3.5 w-0.5 rounded-full bg-transparent" aria-hidden />
+                )}
+                {s}
+              </span>
+              <span className="ml-2.5 hidden text-xs text-[var(--faint)] lg:block">
+                {SECTION_HINT[s]}
+              </span>
+            </button>
+          );
+        })}
+      </nav>
+
+      <div className="min-w-0 flex-1 space-y-6">
+        {active === "General" ? (
+          <>
+            <GeneralCard workspaceId={workspaceId} ws={ws} isOwner={isOwner} />
+            <AiKeyCard workspaceId={workspaceId} hasKey={!!ws.hasAnthropicKey} isOwner={isOwner} />
+            <AutoTriageCard
+              workspaceId={workspaceId}
+              approve={ws.autoApproveThreshold ?? null}
+              reject={ws.autoRejectThreshold ?? null}
+              isOwner={isOwner}
+            />
+          </>
+        ) : null}
+
+        {active === "Members" ? (
+          <>
+            <MembersCard workspaceId={workspaceId} memberships={ws.memberships} isOwner={isOwner} />
+            {isOwner ? <AuditLogCard workspaceId={workspaceId} /> : null}
+          </>
+        ) : null}
+
+        {active === "Usage" ? <UsageCard ws={ws} /> : null}
+
+        {active === "Subscription" ? (
+          <PlanCard workspaceId={workspaceId} ws={ws} isOwner={isOwner} />
+        ) : null}
+
+        {active === "Billing" && isOwner ? <BillingHistoryCard workspaceId={workspaceId} /> : null}
+      </div>
+    </div>
+  );
+}
+
+function GeneralCard({
+  workspaceId,
+  ws,
+  isOwner,
+}: {
+  workspaceId: string;
+  ws: WorkspaceDetail;
+  isOwner: boolean;
+}) {
+  const qc = useQueryClient();
   const [name, setName] = useState("");
 
   const rename = useMutation({
@@ -36,60 +156,178 @@ export function ProjectSettings({ workspaceId, isOwner }: { workspaceId: string;
     },
   });
 
-  if (!ws) return <Card className="p-6 text-[var(--muted)]">Loading…</Card>;
+  return (
+    <Card className="p-6">
+      <h2 className="font-semibold">Project</h2>
+      <div className="mt-4 flex flex-wrap items-center gap-3">
+        <Input
+          defaultValue={ws.name}
+          onChange={(e) => setName(e.target.value)}
+          disabled={!isOwner}
+          className="w-56 disabled:opacity-60"
+        />
+        {isOwner ? (
+          <Button onClick={() => rename.mutate()} disabled={!name || rename.isPending}>
+            {rename.isPending ? "Saving…" : "Rename"}
+          </Button>
+        ) : (
+          <span className="text-xs text-[var(--muted)]">Only owners can edit</span>
+        )}
+      </div>
+
+      <div className="mt-5 flex items-center justify-between border-t border-[var(--border)] pt-4">
+        <div>
+          <p className="text-sm">Join code</p>
+          <p className="text-xs text-[var(--muted)]">Share to invite teammates.</p>
+        </div>
+        <div className="flex items-center gap-2">
+          <code className="rounded-md border border-[var(--border)] bg-black/40 px-3 py-1 text-sm">
+            {ws.joinCode}
+          </code>
+          <CopyButton value={ws.joinCode} />
+          {isOwner ? (
+            <Button variant="ghost" onClick={() => rotate.mutate()} disabled={rotate.isPending}>
+              {rotate.isPending ? "…" : "Rotate"}
+            </Button>
+          ) : null}
+        </div>
+      </div>
+    </Card>
+  );
+}
+
+function UsageCard({ ws }: { ws: WorkspaceDetail }) {
+  const current = (ws.plan ?? "free") as Plan;
+  const limits = ws.limits ?? PLAN_LIMITS[current];
+  const usage = ws.usage ?? { repos: ws.repos.length, seats: ws.memberships.length };
+  const totalMemories = ws.repos.reduce((n, r) => n + (r._count?.memories ?? 0), 0);
+
+  const meters: { label: string; used: number; max: number | null }[] = [
+    { label: "Repos", used: usage.repos, max: limits.maxRepos },
+    { label: "Members", used: usage.seats, max: limits.maxSeats },
+  ];
 
   return (
-    <div className="space-y-6">
-      <Card className="p-6">
-        <h2 className="font-semibold">Project</h2>
-        <div className="mt-4 flex flex-wrap items-center gap-3">
-          <Input
-            defaultValue={ws.name}
-            onChange={(e) => setName(e.target.value)}
-            disabled={!isOwner}
-            className="w-56 disabled:opacity-60"
-          />
-          {isOwner ? (
-            <Button onClick={() => rename.mutate()} disabled={!name || rename.isPending}>
-              {rename.isPending ? "Saving…" : "Rename"}
-            </Button>
-          ) : (
-            <span className="text-xs text-[var(--muted)]">Only owners can edit</span>
-          )}
+    <Card className="p-6">
+      <div className="flex items-center justify-between gap-3">
+        <div>
+          <h2 className="font-semibold">Usage</h2>
+          <p className="mt-1 text-sm text-[var(--muted)]">
+            What this project is consuming against your{" "}
+            <span className="font-medium">{PLAN_LABELS[current]}</span> plan.
+          </p>
         </div>
+      </div>
 
-        <div className="mt-5 flex items-center justify-between border-t border-[var(--border)] pt-4">
-          <div>
-            <p className="text-sm">Join code</p>
-            <p className="text-xs text-[var(--muted)]">Share to invite teammates.</p>
-          </div>
-          <div className="flex items-center gap-2">
-            <code className="rounded-md border border-[var(--border)] bg-black/40 px-3 py-1 text-sm">
-              {ws.joinCode}
-            </code>
-            <CopyButton value={ws.joinCode} />
-            {isOwner ? (
-              <Button variant="ghost" onClick={() => rotate.mutate()} disabled={rotate.isPending}>
-                {rotate.isPending ? "…" : "Rotate"}
-              </Button>
-            ) : null}
-          </div>
+      <div className="mt-4 grid gap-3 sm:grid-cols-2">
+        {meters.map((m) => {
+          const pct = m.max === null ? 0 : Math.min(100, Math.round((m.used / m.max) * 100));
+          const near = m.max !== null && m.used >= m.max;
+          return (
+            <div key={m.label} className="rounded-lg border border-[var(--border)] p-3">
+              <div className="flex items-center justify-between text-sm">
+                <span className="text-[var(--muted)]">{m.label}</span>
+                <span className={near ? "text-[var(--signal)]" : ""}>
+                  {m.used} / {m.max === null ? "∞" : m.max}
+                </span>
+              </div>
+              {m.max !== null ? (
+                <div className="mt-2 h-1.5 overflow-hidden rounded-full bg-[var(--surface-3)]">
+                  <div
+                    className="h-full rounded-full"
+                    style={{ width: `${pct}%`, background: near ? "var(--signal)" : "var(--accent)" }}
+                  />
+                </div>
+              ) : null}
+            </div>
+          );
+        })}
+      </div>
+
+      <div className="mt-4 grid gap-3 sm:grid-cols-2">
+        <div className="rounded-lg border border-[var(--border)] p-3">
+          <p className="text-sm text-[var(--muted)]">Stored memories</p>
+          <p className="mt-1 text-2xl font-semibold tabular-nums">{totalMemories}</p>
         </div>
-      </Card>
+        <div className="rounded-lg border border-[var(--border)] p-3">
+          <p className="text-sm text-[var(--muted)]">PR reviewer</p>
+          <p className="mt-1 text-2xl font-semibold" style={{ color: limits.reviewer ? "var(--verify)" : "var(--faint)" }}>
+            {limits.reviewer ? "Enabled" : "Not on plan"}
+          </p>
+        </div>
+      </div>
 
-      <AiKeyCard workspaceId={workspaceId} hasKey={!!ws.hasAnthropicKey} isOwner={isOwner} />
+      {ws.repos.length > 0 ? (
+        <div className="mt-5 border-t border-[var(--border)] pt-4">
+          <p className="text-sm font-medium">By repo</p>
+          <ul className="mt-2 divide-y divide-[var(--border)]">
+            {ws.repos.map((r) => (
+              <li key={r.id} className="flex items-center justify-between py-2 text-sm">
+                <span className="truncate text-[var(--muted)]">{r.fullName}</span>
+                <span className="shrink-0 tabular-nums">{r._count?.memories ?? 0} memories</span>
+              </li>
+            ))}
+          </ul>
+        </div>
+      ) : null}
+    </Card>
+  );
+}
 
-      <AutoTriageCard
-        workspaceId={workspaceId}
-        approve={ws.autoApproveThreshold ?? null}
-        reject={ws.autoRejectThreshold ?? null}
-        isOwner={isOwner}
-      />
+function BillingHistoryCard({ workspaceId }: { workspaceId: string }) {
+  const { data, isLoading } = useQuery({
+    queryKey: ["billing-events", workspaceId],
+    queryFn: () => getWorkspaceBillingEvents(workspaceId),
+    retry: false,
+  });
 
-      <MembersCard workspaceId={workspaceId} memberships={ws.memberships} isOwner={isOwner} />
+  const fmtAmount = (e: BillingEventRow) =>
+    e.amountCents != null
+      ? `${(e.amountCents / 100).toLocaleString(undefined, {
+          style: "currency",
+          currency: (e.currency ?? "usd").toUpperCase(),
+        })}`
+      : null;
 
-      {isOwner ? <AuditLogCard workspaceId={workspaceId} /> : null}
-    </div>
+  return (
+    <Card className="p-6">
+      <h2 className="font-semibold">Billing history</h2>
+      <p className="mt-1 text-xs text-[var(--muted)]">
+        Plan grants, upgrade requests, and — once Stripe is connected — invoices.
+      </p>
+
+      {isLoading ? (
+        <p className="mt-4 text-sm text-[var(--muted)]">Loading…</p>
+      ) : !data || data.length === 0 ? (
+        <p className="mt-4 text-sm text-[var(--muted)]">
+          No billing activity yet. Plan changes and upgrade requests will show up here.
+        </p>
+      ) : (
+        <ul className="mt-4 divide-y divide-[var(--border)]">
+          {data.map((e) => (
+            <li key={e.id} className="flex items-start justify-between gap-3 py-2.5 text-sm">
+              <div className="min-w-0">
+                <span className="font-medium">{e.type.replace(/_/g, " ")}</span>
+                {e.plan ? <span className="text-[var(--muted)]"> · {e.plan}</span> : null}
+                {e.status ? <span className="text-[var(--faint)]"> · {e.status}</span> : null}
+                {e.note ? (
+                  <div className="truncate text-xs text-[var(--faint)]">{e.note}</div>
+                ) : null}
+                {e.actorEmail ? (
+                  <div className="truncate text-xs text-[var(--faint)]">by {e.actorEmail}</div>
+                ) : null}
+              </div>
+              <div className="shrink-0 text-right">
+                {fmtAmount(e) ? <div className="tabular-nums">{fmtAmount(e)}</div> : null}
+                <div className="text-xs text-[var(--faint)]" title={new Date(e.createdAt).toLocaleString()}>
+                  {timeAgo(e.createdAt)}
+                </div>
+              </div>
+            </li>
+          ))}
+        </ul>
+      )}
+    </Card>
   );
 }
 

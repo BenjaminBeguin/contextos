@@ -88,6 +88,12 @@ export function requestUpgrade(workspaceId: string, plan: Plan, note?: string): 
   });
 }
 
+/** This workspace's billing history (owner-only) — plan grants, upgrade
+    requests, and (once Stripe is wired) invoices. */
+export function getWorkspaceBillingEvents(workspaceId: string): Promise<BillingEventRow[]> {
+  return api<BillingEventRow[]>(`/workspaces/${workspaceId}/billing-events`);
+}
+
 export interface PullRequest {
   number: number;
   title: string;

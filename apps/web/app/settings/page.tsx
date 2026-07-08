@@ -1,12 +1,13 @@
 "use client";
 
+import { useState } from "react";
 import Link from "next/link";
 import { useQuery } from "@tanstack/react-query";
 import { api, type Me } from "../../lib/api";
 import { AppShell } from "../../components/AppShell";
 import { useActiveWorkspace } from "../../lib/workspace";
 import { projectColor } from "../../lib/projectColor";
-import { ProjectSettings } from "../../components/ProjectSettings";
+import { ProjectSettings, type SettingsSection } from "../../components/ProjectSettings";
 import { Breadcrumb, PageHeader } from "../../components/ui";
 
 export default function SettingsPage() {
@@ -22,6 +23,7 @@ function Settings() {
   const { activeId: activeWs } = useActiveWorkspace();
   const role = me?.workspaces.find((w) => w.id === activeWs)?.role;
   const isOwner = role === "owner";
+  const [section, setSection] = useState<SettingsSection>("General");
 
   if (me && me.workspaces.length === 0) {
     return (
@@ -37,7 +39,7 @@ function Settings() {
   const projectName = me?.workspaces.find((w) => w.id === activeWs)?.name;
 
   return (
-    <div className="max-w-3xl">
+    <div className="max-w-5xl">
       <Breadcrumb
         items={[
           { label: "Projects", href: "/dashboard" },
@@ -57,7 +59,15 @@ function Settings() {
           </>
         }
       />
-      {activeWs ? <ProjectSettings key={activeWs} workspaceId={activeWs} isOwner={isOwner} /> : null}
+      {activeWs ? (
+        <ProjectSettings
+          key={activeWs}
+          workspaceId={activeWs}
+          isOwner={isOwner}
+          section={section}
+          onSection={setSection}
+        />
+      ) : null}
     </div>
   );
 }
