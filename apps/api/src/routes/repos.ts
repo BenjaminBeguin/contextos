@@ -22,6 +22,7 @@ import { recordUsage } from "../services/analytics.js";
 import { loadDedupSet, partitionNew } from "../services/dedup.js";
 import { getAutoThresholds, statusFor, searchMemories } from "../services/memory.js";
 import { memoryStoreForRepo } from "../services/memoryStore.js";
+import { planForWorkspace } from "../services/orgs.js";
 import { reviewPullRequest, formatReviewComment } from "../services/review.js";
 import { persistReview } from "../services/feedback.js";
 
@@ -92,12 +93,8 @@ export async function repoRoutes(app: FastifyInstance) {
       if (e instanceof HttpError) return reply.code(e.statusCode).send({ error: e.message });
       throw e;
     }
-    // Plan enforcement: cap connected repos by the workspace's plan.
-    const ws = await prisma.workspace.findUnique({
-      where: { id: body.workspaceId },
-      select: { plan: true },
-    });
-    const limits = planLimits(ws?.plan ?? "free");
+    // Plan enforcement: cap connected repos by the org's plan.
+    const limits = planLimits(await planForWorkspace(body.workspaceId));
     const repoCount = await prisma.repo.count({ where: { workspaceId: body.workspaceId } });
     if (!withinLimit(repoCount, limits.maxRepos)) {
       return reply.code(402).send({
@@ -178,12 +175,12 @@ export async function repoRoutes(app: FastifyInstance) {
     if (body.reviewerEnabled === true) {
       const repo = await prisma.repo.findUnique({
         where: { id: repoId },
-        select: { workspace: { select: { plan: true } } },
+        select: { workspace: { select: { organization: { select: { plan: true } } } } },
       });
-      if (!planLimits(repo?.workspace.plan ?? "free").reviewer) {
+      if (!planLimits(repo?.workspace.organization.plan ?? "free").reviewer) {
         return reply.code(402).send({
           error: "plan_requires_reviewer",
-          message: "The PR reviewer is available on the Team plan and up. Upgrade to enable it.",
+          message: "The PR reviewer is available on the Scale plan and up. Upgrade to enable it.",
         });
       }
     }

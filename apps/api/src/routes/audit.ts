@@ -46,9 +46,9 @@ export async function auditRoutes(app: FastifyInstance) {
     const membership = await requireRole(userId, workspaceId, "admin");
     const ws = await prisma.workspace.findUnique({
       where: { id: workspaceId },
-      select: { plan: true },
+      select: { organization: { select: { plan: true } } },
     });
-    if (!planLimits(ws?.plan ?? "free").audit) {
+    if (!planLimits(ws?.organization.plan ?? "free").audit) {
       throw new HttpError(402, "plan_limit_audit");
     }
     return membership;

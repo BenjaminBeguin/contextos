@@ -3,9 +3,8 @@ import { planLimits } from "@cortex/shared";
 
 /**
  * Usage metering. Pricing is on memory retrievals — every time an agent pulls
- * memory (the MCP calls below). We count UsageEvents in the shared control
- * plane (telemetry lives there even for BYODB workspaces), per workspace, per
- * calendar month.
+ * memory (the MCP calls below). Billing is org-level, so usage is aggregated
+ * across all of an organization's projects and compared to the org's plan cap.
  */
 export const RETRIEVAL_TYPES = [
   "mcp.search_memory",
@@ -17,11 +16,21 @@ function startOfMonth(d = new Date()): Date {
   return new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), 1));
 }
 
-/** Retrievals used by a workspace in the current calendar month. */
-export async function retrievalsThisMonth(workspaceId: string): Promise<number> {
+async function workspaceIdsForOrg(organizationId: string): Promise<string[]> {
+  const rows = await prisma.workspace.findMany({
+    where: { organizationId },
+    select: { id: true },
+  });
+  return rows.map((r) => r.id);
+}
+
+/** Retrievals used by an org (across its projects) in the current month. */
+export async function retrievalsThisMonthForOrg(organizationId: string): Promise<number> {
+  const ids = await workspaceIdsForOrg(organizationId);
+  if (ids.length === 0) return 0;
   return prisma.usageEvent.count({
     where: {
-      workspaceId,
+      workspaceId: { in: ids },
       type: { in: RETRIEVAL_TYPES },
       createdAt: { gte: startOfMonth() },
     },
@@ -34,48 +43,60 @@ export interface RetrievalUsage {
   hardCap: boolean;
 }
 
-/** Current-month retrievals + the plan allotment, for meters and gating. */
-export async function retrievalUsage(workspaceId: string, plan: string): Promise<RetrievalUsage> {
-  const limits = planLimits(plan);
-  const used = await retrievalsThisMonth(workspaceId);
+/** Current-month retrievals + plan allotment for an org. */
+export async function retrievalUsageForOrg(organizationId: string): Promise<RetrievalUsage> {
+  const org = await prisma.organization.findUnique({
+    where: { id: organizationId },
+    select: { plan: true },
+  });
+  const limits = planLimits(org?.plan ?? "free");
+  const used = await retrievalsThisMonthForOrg(organizationId);
   return { used, limit: limits.retrievalsPerMonth, hardCap: limits.hardCap };
 }
 
+/** Usage for the org that owns a workspace (what the project meter shows). */
+export async function retrievalUsageForWorkspace(workspaceId: string): Promise<RetrievalUsage> {
+  const w = await prisma.workspace.findUnique({
+    where: { id: workspaceId },
+    select: { organizationId: true },
+  });
+  if (!w) return { used: 0, limit: planLimits("free").retrievalsPerMonth, hardCap: true };
+  return retrievalUsageForOrg(w.organizationId);
+}
+
 /**
- * Whether a workspace has exhausted its included retrievals AND is on a hard cap
- * (Free). Paid tiers never block — they only warn/upsell — so an agent is never
- * left without memory mid-sprint.
+ * Whether the org that owns this workspace has exhausted its retrievals AND is
+ * on a hard cap (Free). Paid tiers never block — an agent is never left without
+ * memory mid-sprint.
  */
-export async function retrievalBlocked(workspaceId: string, plan: string): Promise<boolean> {
-  const limits = planLimits(plan);
+export async function retrievalBlockedForWorkspace(workspaceId: string): Promise<boolean> {
+  const w = await prisma.workspace.findUnique({
+    where: { id: workspaceId },
+    select: { organizationId: true, organization: { select: { plan: true } } },
+  });
+  if (!w) return false;
+  const limits = planLimits(w.organization.plan);
   if (!limits.hardCap || limits.retrievalsPerMonth === null) return false;
-  const used = await retrievalsThisMonth(workspaceId);
+  const used = await retrievalsThisMonthForOrg(w.organizationId);
   return used >= limits.retrievalsPerMonth;
 }
 
-/** Convenience: look up the plan and decide if retrieval is hard-capped. */
-export async function retrievalBlockedForWorkspace(workspaceId: string): Promise<boolean> {
-  const ws = await prisma.workspace.findUnique({
-    where: { id: workspaceId },
-    select: { plan: true },
-  });
-  return retrievalBlocked(workspaceId, ws?.plan ?? "free");
-}
-
-/** Retrievals per month for the last `months` calendar months (most recent first). */
-export async function retrievalHistory(
-  workspaceId: string,
+/** Retrievals per month for the last `months` months across an org's projects. */
+export async function retrievalHistoryForOrg(
+  organizationId: string,
   months = 6,
 ): Promise<{ month: string; count: number }[]> {
+  const ids = await workspaceIdsForOrg(organizationId);
+  if (ids.length === 0) return [];
   const rows = await prisma.$queryRawUnsafe<{ month: Date; count: bigint }[]>(
     `SELECT date_trunc('month', "createdAt") AS month, count(*) AS count
        FROM "UsageEvent"
-      WHERE "workspaceId" = $1
+      WHERE "workspaceId" = ANY($1)
         AND "type" = ANY($2)
         AND "createdAt" >= date_trunc('month', now()) - ($3 || ' months')::interval
       GROUP BY 1
       ORDER BY 1 DESC`,
-    workspaceId,
+    ids,
     RETRIEVAL_TYPES,
     String(months - 1),
   );

@@ -16,48 +16,82 @@ model User {
   githubAccessToken String?
   createdAt         DateTime @default(now())
 
-  memberships Membership[]
-  apiTokens   ApiToken[]
+  memberships    Membership[]
+  orgMemberships OrgMembership[]
+  apiTokens      ApiToken[]
 }
 
-model Workspace {
-  id           String   @id @default(cuid())
-  name         String
-  slug         String   @unique
-  joinCode     String   @unique
-  anthropicKey String? // encrypted; BYOK for this workspace's AI features
-  autoApproveThreshold Float? // if set, proposed memories with confidence >= this are auto-approved
-  autoRejectThreshold  Float? // if set, proposed memories with confidence < this are auto-rejected
-  // Billing / plan (managed from the superadmin dashboard; Stripe fields reserved).
-  plan             String    @default("free") // free | team | business | enterprise
+/** The billing + entitlement + membership container. One organization holds a
+    single plan/subscription and many projects (workspaces); projects inherit
+    the org's entitlements. Usage (retrievals) is metered across the org. */
+model Organization {
+  id               String    @id @default(cuid())
+  name             String
+  slug             String    @unique
+  plan             String    @default("free") // free | scale | enterprise
   planSource       String    @default("none") // none | stripe | comp | manual
   planStatus       String    @default("active") // active | past_due | canceled
   planNote         String?
   planUpdatedAt    DateTime?
   stripeCustomerId String?
+  createdAt        DateTime  @default(now())
+
+  workspaces    Workspace[]
+  members       OrgMembership[]
+  billingEvents BillingEvent[]
+}
+
+/** Org-level roles: owner/admin can manage billing + all projects in the org;
+    member is billed-but-scoped (project access is granted per project). */
+model OrgMembership {
+  id             String @id @default(cuid())
+  userId         String
+  organizationId String
+  role           String @default("owner") // owner | admin | member
+
+  user         User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, organizationId])
+  @@index([organizationId])
+}
+
+model Workspace {
+  id             String @id @default(cuid())
+  organizationId String
+  name           String
+  slug           String   @unique
+  joinCode       String   @unique
+  anthropicKey String? // encrypted; BYOK for this workspace's AI features
+  autoApproveThreshold Float? // if set, proposed memories with confidence >= this are auto-approved
+  autoRejectThreshold  Float? // if set, proposed memories with confidence < this are auto-rejected
   // Bring-your-own-database (data residency, Enterprise). When connected, this
   // project's memory is stored in the customer's own Postgres. The URL is
-  // encrypted; only status/metadata is kept in plaintext.
+  // encrypted; only status/metadata is kept in plaintext. Per-project; entitled
+  // by the org's plan.
   externalDbUrl       String? // encrypted connection string
   externalDbStatus    String    @default("unconfigured") // unconfigured | connected | error
   externalDbError     String?
   externalDbCheckedAt DateTime?
   createdAt    DateTime @default(now())
 
+  organization   Organization    @relation(fields: [organizationId], references: [id], onDelete: Cascade)
   memberships    Membership[]
   repos          Repo[]
   auditLogs      AuditLog[]
   reviewerSkills ReviewerSkill[]
-  billingEvents  BillingEvent[]
   apiTokens      ApiToken[]
+
+  @@index([organizationId])
 }
 
 /** Append-only log of billing/subscription activity — plan grants and changes
     now, real Stripe payments/invoices once billing is wired. Powers the admin
     payment log. */
 model BillingEvent {
-  id          String   @id @default(cuid())
-  workspaceId String?
+  id             String   @id @default(cuid())
+  organizationId String?
+  workspaceId    String? // legacy reference (billing is org-level now)
   type        String // plan.granted | plan.changed | plan.canceled | invoice.paid | payment.failed
   plan        String?
   amountCents Int?
@@ -68,10 +102,10 @@ model BillingEvent {
   metadata    Json?
   createdAt   DateTime @default(now())
 
-  workspace Workspace? @relation(fields: [workspaceId], references: [id], onDelete: SetNull)
+  organization Organization? @relation(fields: [organizationId], references: [id], onDelete: SetNull)
 
   @@index([createdAt])
-  @@index([workspaceId, createdAt])
+  @@index([organizationId, createdAt])
 }
 
 model Membership {

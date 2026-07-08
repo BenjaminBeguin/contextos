@@ -10,7 +10,7 @@ import {
 } from "@cortex/shared";
 import { prisma } from "../db.js";
 import { resolveUser, isSuperAdmin } from "../auth.js";
-import { RETRIEVAL_TYPES, retrievalHistory } from "../services/retrievals.js";
+import { RETRIEVAL_TYPES, retrievalHistoryForOrg } from "../services/retrievals.js";
 import { env } from "../env.js";
 
 const addMemberSchema = z.object({
@@ -44,14 +44,16 @@ export async function adminRoutes(app: FastifyInstance) {
     const admin = await requireAdmin(req, reply);
     if (!admin) return;
 
-    const [users, workspaces, repos, memories, byPlan, recentEvents] = await Promise.all([
-      prisma.user.count(),
-      prisma.workspace.count(),
-      prisma.repo.count(),
-      prisma.memory.count(),
-      prisma.workspace.groupBy({ by: ["plan"], _count: { _all: true } }),
-      prisma.billingEvent.findMany({ orderBy: { createdAt: "desc" }, take: 10 }),
-    ]);
+    const [users, organizations, workspaces, repos, memories, byPlan, recentEvents] =
+      await Promise.all([
+        prisma.user.count(),
+        prisma.organization.count(),
+        prisma.workspace.count(),
+        prisma.repo.count(),
+        prisma.memory.count(),
+        prisma.organization.groupBy({ by: ["plan"], _count: { _all: true } }),
+        prisma.billingEvent.findMany({ orderBy: { createdAt: "desc" }, take: 10 }),
+      ]);
 
     const plans = Object.fromEntries(PLANS.map((p) => [p, 0])) as Record<string, number>;
     for (const row of byPlan) plans[row.plan] = row._count._all;
@@ -64,7 +66,7 @@ export async function adminRoutes(app: FastifyInstance) {
     });
 
     return {
-      totals: { users, workspaces, repos, memories },
+      totals: { users, organizations, workspaces, repos, memories },
       plans,
       mrrCents: paid._sum.amountCents ?? 0,
       recentEvents,
@@ -79,6 +81,7 @@ export async function adminRoutes(app: FastifyInstance) {
     const workspaces = await prisma.workspace.findMany({
       orderBy: { createdAt: "desc" },
       include: {
+        organization: { select: { plan: true, planSource: true, planStatus: true, planNote: true, planUpdatedAt: true } },
         memberships: { include: { user: { select: { email: true, name: true } } } },
         _count: { select: { repos: true, memberships: true } },
       },
@@ -99,16 +102,16 @@ export async function adminRoutes(app: FastifyInstance) {
         id: w.id,
         name: w.name,
         slug: w.slug,
-        plan: w.plan,
-        planSource: w.planSource,
-        planStatus: w.planStatus,
-        planNote: w.planNote,
-        planUpdatedAt: w.planUpdatedAt,
+        plan: w.organization.plan,
+        planSource: w.organization.planSource,
+        planStatus: w.organization.planStatus,
+        planNote: w.organization.planNote,
+        planUpdatedAt: w.organization.planUpdatedAt,
         createdAt: w.createdAt,
         repoCount: w._count.repos,
         memberCount: w._count.memberships,
         retrievals: retrMap.get(w.id) ?? 0,
-        retrievalLimit: planLimits(w.plan).retrievalsPerMonth,
+        retrievalLimit: planLimits(w.organization.plan).retrievalsPerMonth,
         owner: owner ? { email: owner.user.email, name: owner.user.name } : null,
       };
     });
@@ -163,24 +166,29 @@ export async function adminRoutes(app: FastifyInstance) {
     const { workspaceId } = req.params as { workspaceId: string };
     const ws = await prisma.workspace.findUnique({
       where: { id: workspaceId },
-      select: { plan: true },
+      select: { organizationId: true, organization: { select: { plan: true } } },
     });
-    const history = await retrievalHistory(workspaceId, 6);
-    return { plan: ws?.plan ?? "free", limit: planLimits(ws?.plan ?? "free").retrievalsPerMonth, history };
+    const plan = ws?.organization.plan ?? "free";
+    const history = ws ? await retrievalHistoryForOrg(ws.organizationId, 6) : [];
+    return { plan, limit: planLimits(plan).retrievalsPerMonth, history };
   });
 
-  // Set a workspace's plan (promote-for-free = plan + source "comp"). Logged.
+  // Set a workspace's (org's) plan (promote-for-free = plan + source "comp"). Logged.
   app.post("/admin/workspaces/:workspaceId/plan", async (req, reply) => {
     const admin = await requireAdmin(req, reply);
     if (!admin) return;
     const { workspaceId } = req.params as { workspaceId: string };
     const body = setPlanSchema.parse(req.body);
 
-    const ws = await prisma.workspace.findUnique({ where: { id: workspaceId } });
-    if (!ws) return reply.code(404).send({ error: "Workspace not found" });
-
-    const updated = await prisma.workspace.update({
+    const ws = await prisma.workspace.findUnique({
       where: { id: workspaceId },
+      select: { organization: true },
+    });
+    if (!ws) return reply.code(404).send({ error: "Workspace not found" });
+    const org = ws.organization;
+
+    const updated = await prisma.organization.update({
+      where: { id: org.id },
       data: {
         plan: body.plan,
         planSource: body.source,
@@ -192,18 +200,18 @@ export async function adminRoutes(app: FastifyInstance) {
 
     await prisma.billingEvent.create({
       data: {
-        workspaceId,
-        type: ws.plan === body.plan ? "plan.changed" : "plan.granted",
+        organizationId: org.id,
+        type: org.plan === body.plan ? "plan.changed" : "plan.granted",
         plan: body.plan,
         status: body.source === "comp" ? "comp" : null,
         note: body.note ?? null,
         actorEmail: admin.email,
-        metadata: { from: ws.plan, to: body.plan, source: body.source },
+        metadata: { from: org.plan, to: body.plan, source: body.source },
       },
     });
 
     return {
-      id: updated.id,
+      id: workspaceId,
       plan: updated.plan,
       planSource: updated.planSource,
       planStatus: updated.planStatus,
@@ -220,6 +228,7 @@ export async function adminRoutes(app: FastifyInstance) {
     const w = await prisma.workspace.findUnique({
       where: { id: workspaceId },
       include: {
+        organization: { select: { plan: true, planSource: true, planStatus: true, planNote: true } },
         memberships: {
           orderBy: { role: "asc" },
           include: { user: { select: { id: true, email: true, name: true, avatarUrl: true } } },
@@ -233,10 +242,10 @@ export async function adminRoutes(app: FastifyInstance) {
       name: w.name,
       slug: w.slug,
       joinCode: w.joinCode,
-      plan: w.plan,
-      planSource: w.planSource,
-      planStatus: w.planStatus,
-      planNote: w.planNote,
+      plan: w.organization.plan,
+      planSource: w.organization.planSource,
+      planStatus: w.organization.planStatus,
+      planNote: w.organization.planNote,
       createdAt: w.createdAt,
       members: w.memberships.map((m) => ({
         userId: m.userId,
@@ -306,8 +315,9 @@ export async function adminRoutes(app: FastifyInstance) {
     const events = await prisma.billingEvent.findMany({
       orderBy: { createdAt: "desc" },
       take: limit,
-      include: { workspace: { select: { name: true, slug: true } } },
+      include: { organization: { select: { name: true, slug: true } } },
     });
-    return events;
+    // Keep the response shape stable for the admin UI (it reads `workspace`).
+    return events.map((e) => ({ ...e, workspace: e.organization }));
   });
 }

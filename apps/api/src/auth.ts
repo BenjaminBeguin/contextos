@@ -74,45 +74,66 @@ export class HttpError extends Error {
   }
 }
 
+/**
+ * The user's effective role on a workspace: their explicit project role, or —
+ * for org owners/admins — full access to every project in their org (org owner
+ * → "owner", org admin → "admin"). Returns null if they can't reach it.
+ */
+export async function effectiveWorkspaceRole(
+  userId: string,
+  workspaceId: string,
+): Promise<WorkspaceRole | null> {
+  const ws = await prisma.workspace.findUnique({
+    where: { id: workspaceId },
+    select: { organizationId: true },
+  });
+  if (!ws) return null;
+  const membership = await prisma.membership.findUnique({
+    where: { userId_workspaceId: { userId, workspaceId } },
+  });
+  if (membership) return membership.role as WorkspaceRole;
+  const org = await prisma.orgMembership.findUnique({
+    where: { userId_organizationId: { userId, organizationId: ws.organizationId } },
+  });
+  if (org?.role === "owner") return "owner";
+  if (org?.role === "admin") return "admin";
+  return null;
+}
+
 /** Ensure the user belongs to the workspace that owns the repo. Returns the repo. */
 export async function assertRepoAccess(userId: string, repoId: string) {
   const repo = await prisma.repo.findUnique({ where: { id: repoId } });
   if (!repo) throw new HttpError(404, "Repo not found");
-  const membership = await prisma.membership.findUnique({
-    where: { userId_workspaceId: { userId, workspaceId: repo.workspaceId } },
-  });
-  if (!membership) throw new HttpError(403, "No access to this repo");
+  const role = await effectiveWorkspaceRole(userId, repo.workspaceId);
+  if (!role) throw new HttpError(403, "No access to this repo");
   return repo;
 }
 
 /** Repo access AND at least `min` role in the owning workspace (RBAC). Returns the repo. */
 export async function requireRepoRole(userId: string, repoId: string, min: WorkspaceRole) {
-  const repo = await assertRepoAccess(userId, repoId);
-  const membership = await prisma.membership.findUnique({
-    where: { userId_workspaceId: { userId, workspaceId: repo.workspaceId } },
-  });
-  if (!membership || !roleAtLeast(membership.role, min)) {
+  const repo = await prisma.repo.findUnique({ where: { id: repoId } });
+  if (!repo) throw new HttpError(404, "Repo not found");
+  const role = await effectiveWorkspaceRole(userId, repo.workspaceId);
+  if (!role || !roleAtLeast(role, min)) {
     throw new HttpError(403, `Requires ${min} role or higher`);
   }
   return repo;
 }
 
-/** Ensure the user belongs to the workspace. */
+/** Ensure the user can access the workspace. Returns { role } (effective role). */
 export async function assertWorkspaceAccess(userId: string, workspaceId: string) {
-  const membership = await prisma.membership.findUnique({
-    where: { userId_workspaceId: { userId, workspaceId } },
-  });
-  if (!membership) throw new HttpError(403, "No access to this workspace");
-  return membership;
+  const role = await effectiveWorkspaceRole(userId, workspaceId);
+  if (!role) throw new HttpError(403, "No access to this workspace");
+  return { role };
 }
 
 /** Assert workspace access AND that the user's role is at least `min` (RBAC). */
 export async function requireRole(userId: string, workspaceId: string, min: WorkspaceRole) {
-  const membership = await assertWorkspaceAccess(userId, workspaceId);
-  if (!roleAtLeast(membership.role, min)) {
+  const { role } = await assertWorkspaceAccess(userId, workspaceId);
+  if (!roleAtLeast(role, min)) {
     throw new HttpError(403, `Requires ${min} role or higher`);
   }
-  return membership;
+  return { role };
 }
 
 /** Global preHandler: when a request authenticates with a project-scoped API

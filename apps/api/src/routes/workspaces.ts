@@ -22,7 +22,8 @@ import { getAutoThresholds } from "../services/memory.js";
 import { memoryStore } from "../services/memoryStore.js";
 import { testConnection, provisionExternalStore, dropExternalClient } from "../services/dataStore.js";
 import { createCheckoutSession } from "../services/stripe.js";
-import { retrievalUsage } from "../services/retrievals.js";
+import { retrievalUsageForWorkspace } from "../services/retrievals.js";
+import { orgIdForWorkspace, planForWorkspace } from "../services/orgs.js";
 
 function generateJoinCode(): string {
   // Human-friendly, unambiguous join code, e.g. "WS-7F3K9Q".
@@ -167,8 +168,22 @@ export async function workspaceRoutes(app: FastifyInstance) {
     const user = await resolveUser(req);
     if (!user) return reply.code(401).send({ error: "Unauthorized" });
     const body = createWorkspaceSchema.parse(req.body);
+    // A standalone project gets its own organization (its billing container).
+    // Creating multiple projects under one org goes through the org routes.
+    const org = await prisma.organization.create({
+      data: {
+        name: body.name,
+        slug: `${body.slug}-${randomBytes(3).toString("hex")}`,
+        members: { create: { userId: user.id, role: "owner" } },
+      },
+    });
     const workspace = await prisma.workspace.create({
-      data: { name: body.name, slug: body.slug, joinCode: generateJoinCode() },
+      data: {
+        name: body.name,
+        slug: body.slug,
+        joinCode: generateJoinCode(),
+        organizationId: org.id,
+      },
     });
     await prisma.membership.create({
       data: { userId: user.id, workspaceId: workspace.id, role: "owner" },
@@ -346,6 +361,7 @@ export async function workspaceRoutes(app: FastifyInstance) {
     const workspace = await prisma.workspace.findUnique({
       where: { id: workspaceId },
       include: {
+        organization: true,
         repos: { include: { _count: { select: { memories: true } } } },
         memberships: {
           include: { user: { select: { id: true, email: true, name: true, avatarUrl: true } } },
@@ -374,15 +390,20 @@ export async function workspaceRoutes(app: FastifyInstance) {
     }
 
     // Never return the encrypted key or DB URL — just whether each is set.
-    const { anthropicKey, ...rest } = workspace;
+    const { anthropicKey, organization, ...rest } = workspace;
     delete (rest as { externalDbUrl?: string | null }).externalDbUrl;
-    const limits = planLimits(workspace.plan);
-    const retrievals = await retrievalUsage(workspaceId, workspace.plan);
+    const limits = planLimits(organization.plan);
+    const retrievals = await retrievalUsageForWorkspace(workspaceId);
     return {
       ...rest,
       repos,
       hasAnthropicKey: Boolean(anthropicKey),
       pendingMemories,
+      // Plan/billing are org-level; surface them here so the project UI keeps working.
+      plan: organization.plan,
+      planSource: organization.planSource,
+      planStatus: organization.planStatus,
+      organization: { id: organization.id, name: organization.name, slug: organization.slug },
       limits,
       usage: { repos: workspace.repos.length, seats: workspace.memberships.length },
       retrievals,
@@ -410,11 +431,7 @@ export async function workspaceRoutes(app: FastifyInstance) {
       if (e instanceof HttpError) return reply.code(e.statusCode).send({ error: e.message });
       throw e;
     }
-    const ws = await prisma.workspace.findUnique({
-      where: { id: workspaceId },
-      select: { plan: true },
-    });
-    if (!planLimits(ws?.plan ?? "free").byodb) {
+    if (!planLimits(await planForWorkspace(workspaceId)).byodb) {
       return reply.code(402).send({ error: "plan_limit_byodb" });
     }
     const body = dataStoreSchema.parse(req.body);
@@ -446,6 +463,7 @@ export async function workspaceRoutes(app: FastifyInstance) {
     });
     await prisma.billingEvent.create({
       data: {
+        organizationId: await orgIdForWorkspace(workspaceId),
         workspaceId,
         type: "datastore.connected",
         status: "active",
@@ -528,7 +546,7 @@ export async function workspaceRoutes(app: FastifyInstance) {
       throw e;
     }
     return prisma.billingEvent.findMany({
-      where: { workspaceId },
+      where: { organizationId: await orgIdForWorkspace(workspaceId) },
       orderBy: { createdAt: "desc" },
       take: 100,
     });
@@ -550,6 +568,7 @@ export async function workspaceRoutes(app: FastifyInstance) {
     const body = requestUpgradeSchema.parse(req.body);
     await prisma.billingEvent.create({
       data: {
+        organizationId: await orgIdForWorkspace(workspaceId),
         workspaceId,
         type: "upgrade.requested",
         plan: body.plan,
@@ -583,7 +602,8 @@ export async function workspaceRoutes(app: FastifyInstance) {
       });
     }
     try {
-      const { url } = await createCheckoutSession({ workspaceId, plan: body.plan, email: user.email });
+      const organizationId = (await orgIdForWorkspace(workspaceId))!;
+      const { url } = await createCheckoutSession({ organizationId, plan: body.plan, email: user.email });
       return { url };
     } catch (e) {
       const msg = e instanceof Error ? e.message : "checkout_failed";

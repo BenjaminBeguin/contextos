@@ -49,29 +49,26 @@ export async function stripeRoutes(app: FastifyInstance) {
   });
 }
 
-async function workspaceIdFor(
-  stripe: Stripe,
-  sub: Stripe.Subscription,
-): Promise<string | null> {
-  if (sub.metadata?.workspaceId) return sub.metadata.workspaceId;
-  // Fall back to the customer's stored workspace mapping.
+async function orgIdFor(sub: Stripe.Subscription): Promise<string | null> {
+  if (sub.metadata?.organizationId) return sub.metadata.organizationId;
+  // Fall back to the customer's stored org mapping.
   const customerId = typeof sub.customer === "string" ? sub.customer : sub.customer.id;
-  const ws = await prisma.workspace.findFirst({
+  const org = await prisma.organization.findFirst({
     where: { stripeCustomerId: customerId },
     select: { id: true },
   });
-  return ws?.id ?? null;
+  return org?.id ?? null;
 }
 
-async function handleEvent(stripe: Stripe, event: Stripe.Event): Promise<void> {
+async function handleEvent(_stripe: Stripe, event: Stripe.Event): Promise<void> {
   switch (event.type) {
     case "checkout.session.completed": {
       const session = event.data.object as Stripe.Checkout.Session;
-      const workspaceId = session.metadata?.workspaceId;
+      const organizationId = session.metadata?.organizationId;
       const plan = session.metadata?.plan;
-      if (workspaceId && plan) {
+      if (organizationId && plan) {
         await applyStripePlan({
-          workspaceId,
+          organizationId,
           plan,
           status: "active",
           amountCents: session.amount_total,
@@ -82,9 +79,9 @@ async function handleEvent(stripe: Stripe, event: Stripe.Event): Promise<void> {
     }
     case "customer.subscription.updated": {
       const sub = event.data.object as Stripe.Subscription;
-      const workspaceId = await workspaceIdFor(stripe, sub);
+      const organizationId = await orgIdFor(sub);
       const plan = sub.metadata?.plan;
-      if (workspaceId && plan) {
+      if (organizationId && plan) {
         // Map Stripe status → our planStatus (active | past_due | canceled).
         const status =
           sub.status === "active" || sub.status === "trialing"
@@ -92,16 +89,16 @@ async function handleEvent(stripe: Stripe, event: Stripe.Event): Promise<void> {
             : sub.status === "past_due" || sub.status === "unpaid"
               ? "past_due"
               : "canceled";
-        await applyStripePlan({ workspaceId, plan, status });
+        await applyStripePlan({ organizationId, plan, status });
       }
       break;
     }
     case "customer.subscription.deleted": {
       const sub = event.data.object as Stripe.Subscription;
-      const workspaceId = await workspaceIdFor(stripe, sub);
-      if (workspaceId) {
+      const organizationId = await orgIdFor(sub);
+      if (organizationId) {
         // Subscription ended → drop back to free.
-        await applyStripePlan({ workspaceId, plan: "free", status: "canceled" });
+        await applyStripePlan({ organizationId, plan: "free", status: "canceled" });
       }
       break;
     }
