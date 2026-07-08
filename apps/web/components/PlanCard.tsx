@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { useMutation } from "@tanstack/react-query";
 import { PLANS, PLAN_LABELS, PLAN_LIMITS, type Plan } from "@cortex/shared";
-import { startCheckout, type WorkspaceDetail } from "../lib/api";
+import { startCheckout, requestUpgrade, type WorkspaceDetail } from "../lib/api";
 import { Button, Card } from "./ui";
 
 const PLAN_ACCENT: Record<Plan, string> = {
@@ -31,12 +31,24 @@ export function PlanCard({
   const current = (ws.plan ?? "free") as Plan;
   const limits = ws.limits ?? PLAN_LIMITS[current];
   const usage = ws.usage ?? { repos: 0, seats: 0 };
+  // Self-serve Stripe checkout when configured; otherwise a request-upgrade loop
+  // the admin sees and can comp — so plans are usable today without Stripe.
+  const billingEnabled = ws.billingEnabled ?? false;
   const [msg, setMsg] = useState<string | null>(null);
+  const [requested, setRequested] = useState<Plan | null>(null);
 
-  const checkout = useMutation({
-    mutationFn: (plan: Plan) => startCheckout(workspaceId, plan),
-    onSuccess: (r) => {
-      if (r.url) window.location.href = r.url;
+  const checkout = useMutation<{ url?: string }, Error, Plan>({
+    mutationFn: (plan) =>
+      billingEnabled
+        ? startCheckout(workspaceId, plan)
+        : requestUpgrade(workspaceId, plan).then(() => ({})),
+    onSuccess: (r, plan) => {
+      if (billingEnabled && r.url) {
+        window.location.href = r.url;
+      } else {
+        setRequested(plan);
+        setMsg(null);
+      }
     },
     onError: (e) => setMsg(e instanceof Error ? e.message : "Upgrade failed"),
   });
@@ -147,16 +159,35 @@ export function PlanCard({
                       className="mt-3 w-full"
                       variant={p === "free" ? "ghost" : "primary"}
                       onClick={() => checkout.mutate(p)}
+                      disabled={requested === p}
                       loading={checkout.isPending && checkout.variables === p}
                     >
-                      {p === "free" ? "Downgrade" : "Upgrade"}
+                      {requested === p
+                        ? "Requested ✓"
+                        : p === "free"
+                          ? "Downgrade"
+                          : billingEnabled
+                            ? "Upgrade"
+                            : "Request upgrade"}
                     </Button>
                   )}
                 </div>
               );
             })}
           </div>
+          {requested ? (
+            <p className="mt-3 text-xs text-[var(--verify)]">
+              Upgrade to {PLAN_LABELS[requested]} requested — an admin will follow up. (Set{" "}
+              <code>STRIPE_SECRET_KEY</code> to enable instant self-serve checkout.)
+            </p>
+          ) : null}
           {msg ? <p className="mt-3 text-xs text-[var(--signal)]">{msg}</p> : null}
+          {!billingEnabled && !requested ? (
+            <p className="mt-3 text-xs text-[var(--faint)]">
+              Self-serve billing isn&apos;t on yet — requesting an upgrade notifies an admin, who can
+              grant it.
+            </p>
+          ) : null}
         </div>
       ) : null}
     </Card>

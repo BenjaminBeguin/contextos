@@ -125,6 +125,12 @@ export const billingCheckoutSchema = z.object({
   plan: planSchema,
 });
 
+/** Owner requests an upgrade when self-serve billing is off (logged for the admin). */
+export const requestUpgradeSchema = z.object({
+  plan: planSchema,
+  note: z.string().max(500).optional(),
+});
+
 /** Superadmin: set a workspace's plan (e.g. comp / promote-for-free). */
 export const setPlanSchema = z.object({
   plan: planSchema,

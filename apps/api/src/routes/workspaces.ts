@@ -9,6 +9,7 @@ import {
   reviewerSkillSchema,
   updateReviewerSkillSchema,
   billingCheckoutSchema,
+  requestUpgradeSchema,
   planLimits,
   withinLimit,
 } from "@cortex/shared";
@@ -324,7 +325,35 @@ export async function workspaceRoutes(app: FastifyInstance) {
       pendingMemories,
       limits,
       usage: { repos: workspace.repos.length, seats: workspace.memberships.length },
+      billingEnabled: env.stripe.enabled,
     };
+  });
+
+  // Owner requests an upgrade when self-serve billing is off — logged as a
+  // BillingEvent the admin sees (they can then comp/upgrade). No Stripe needed.
+  app.post("/workspaces/:workspaceId/request-upgrade", async (req, reply) => {
+    const user = await resolveUser(req);
+    if (!user) return reply.code(401).send({ error: "Unauthorized" });
+    const { workspaceId } = req.params as { workspaceId: string };
+    try {
+      const membership = await assertWorkspaceAccess(user.id, workspaceId);
+      if (membership.role !== "owner") throw new HttpError(403, "Only owners can request an upgrade");
+    } catch (e) {
+      if (e instanceof HttpError) return reply.code(e.statusCode).send({ error: e.message });
+      throw e;
+    }
+    const body = requestUpgradeSchema.parse(req.body);
+    await prisma.billingEvent.create({
+      data: {
+        workspaceId,
+        type: "upgrade.requested",
+        plan: body.plan,
+        status: "requested",
+        note: body.note ?? null,
+        actorEmail: user.email,
+      },
+    });
+    return { ok: true };
   });
 
   // Start a self-serve upgrade (owners only). Returns a Stripe Checkout URL once

@@ -63,6 +63,7 @@ export interface WorkspaceDetail {
   planSource?: string;
   limits?: PlanLimits;
   usage?: { repos: number; seats: number };
+  billingEnabled?: boolean;
   repos: { id: string; fullName: string; _count?: { memories: number } }[];
   memberships: {
     role: string;
@@ -76,6 +77,14 @@ export function startCheckout(workspaceId: string, plan: Plan): Promise<{ url?: 
   return api<{ url?: string }>(`/workspaces/${workspaceId}/billing/checkout`, {
     method: "POST",
     body: JSON.stringify({ plan }),
+  });
+}
+
+/** Request an upgrade when self-serve billing is off — logged for the admin. */
+export function requestUpgrade(workspaceId: string, plan: Plan, note?: string): Promise<{ ok: boolean }> {
+  return api<{ ok: boolean }>(`/workspaces/${workspaceId}/request-upgrade`, {
+    method: "POST",
+    body: JSON.stringify({ plan, note }),
   });
 }
 
