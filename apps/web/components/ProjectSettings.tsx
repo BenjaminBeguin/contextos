@@ -2,9 +2,13 @@
 
 import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { ROLE_LABELS, type WorkspaceRole } from "@cortex/shared";
 import { api, type Me, type WorkspaceDetail } from "../lib/api";
 import { CopyButton } from "./CopyButton";
-import { Button, Card, Input } from "./ui";
+import { Button, Card, Input, Select } from "./ui";
+
+const INVITE_ROLES: WorkspaceRole[] = ["member", "admin", "viewer"];
+const ASSIGNABLE_ROLES: WorkspaceRole[] = ["owner", "admin", "member", "viewer"];
 
 /** Project (workspace) settings: rename, join code, AI key, triage, members, repos. */
 export function ProjectSettings({ workspaceId, isOwner }: { workspaceId: string; isOwner: boolean }) {
@@ -98,13 +102,14 @@ function MembersCard({
   const qc = useQueryClient();
   const { data: me } = useQuery({ queryKey: ["me"], queryFn: () => api<Me>("/me") });
   const [email, setEmail] = useState("");
+  const [inviteRole, setInviteRole] = useState<WorkspaceRole>("member");
   const invalidate = () => qc.invalidateQueries({ queryKey: ["workspace", workspaceId] });
 
   const invite = useMutation({
     mutationFn: () =>
       api(`/workspaces/${workspaceId}/members`, {
         method: "POST",
-        body: JSON.stringify({ email }),
+        body: JSON.stringify({ email, role: inviteRole }),
       }),
     onSuccess: () => {
       setEmail("");
@@ -114,6 +119,14 @@ function MembersCard({
   const remove = useMutation({
     mutationFn: (userId: string) =>
       api(`/workspaces/${workspaceId}/members/${userId}`, { method: "DELETE" }),
+    onSuccess: invalidate,
+  });
+  const setRole = useMutation({
+    mutationFn: ({ userId, role }: { userId: string; role: WorkspaceRole }) =>
+      api(`/workspaces/${workspaceId}/members/${userId}/role`, {
+        method: "PATCH",
+        body: JSON.stringify({ role }),
+      }),
     onSuccess: invalidate,
   });
 
@@ -136,7 +149,21 @@ function MembersCard({
               ) : null}
             </span>
             <span className="flex items-center gap-3">
-              <span className="text-xs text-[var(--muted)]">{m.role}</span>
+              {isOwner ? (
+                <Select
+                  value={m.role}
+                  onChange={(e) => setRole.mutate({ userId: m.user.id, role: e.target.value as WorkspaceRole })}
+                  className="text-xs"
+                >
+                  {ASSIGNABLE_ROLES.map((r) => (
+                    <option key={r} value={r}>
+                      {ROLE_LABELS[r]}
+                    </option>
+                  ))}
+                </Select>
+              ) : (
+                <span className="text-xs text-[var(--muted)]">{ROLE_LABELS[m.role as WorkspaceRole] ?? m.role}</span>
+              )}
               {isOwner ? (
                 <Button
                   variant="ghost"
@@ -167,6 +194,13 @@ function MembersCard({
               placeholder="teammate@company.com"
               className="min-w-56 flex-1"
             />
+            <Select value={inviteRole} onChange={(e) => setInviteRole(e.target.value as WorkspaceRole)}>
+              {INVITE_ROLES.map((r) => (
+                <option key={r} value={r}>
+                  {ROLE_LABELS[r]}
+                </option>
+              ))}
+            </Select>
             <Button onClick={() => invite.mutate()} disabled={!email} loading={invite.isPending}>
               Invite
             </Button>

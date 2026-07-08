@@ -1,6 +1,7 @@
 import { createHash, randomBytes } from "node:crypto";
 import jwt from "jsonwebtoken";
 import type { FastifyRequest } from "fastify";
+import { roleAtLeast, type WorkspaceRole } from "@cortex/shared";
 import { prisma } from "./db.js";
 import { env } from "./env.js";
 
@@ -84,11 +85,32 @@ export async function assertRepoAccess(userId: string, repoId: string) {
   return repo;
 }
 
+/** Repo access AND at least `min` role in the owning workspace (RBAC). Returns the repo. */
+export async function requireRepoRole(userId: string, repoId: string, min: WorkspaceRole) {
+  const repo = await assertRepoAccess(userId, repoId);
+  const membership = await prisma.membership.findUnique({
+    where: { userId_workspaceId: { userId, workspaceId: repo.workspaceId } },
+  });
+  if (!membership || !roleAtLeast(membership.role, min)) {
+    throw new HttpError(403, `Requires ${min} role or higher`);
+  }
+  return repo;
+}
+
 /** Ensure the user belongs to the workspace. */
 export async function assertWorkspaceAccess(userId: string, workspaceId: string) {
   const membership = await prisma.membership.findUnique({
     where: { userId_workspaceId: { userId, workspaceId } },
   });
   if (!membership) throw new HttpError(403, "No access to this workspace");
+  return membership;
+}
+
+/** Assert workspace access AND that the user's role is at least `min` (RBAC). */
+export async function requireRole(userId: string, workspaceId: string, min: WorkspaceRole) {
+  const membership = await assertWorkspaceAccess(userId, workspaceId);
+  if (!roleAtLeast(membership.role, min)) {
+    throw new HttpError(403, `Requires ${min} role or higher`);
+  }
   return membership;
 }

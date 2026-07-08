@@ -6,20 +6,22 @@ import {
   proposeMemoriesSchema,
 } from "@cortex/shared";
 import { prisma } from "../db.js";
-import { resolveUser, assertRepoAccess, HttpError, type AuthedUser } from "../auth.js";
+import { resolveUser, assertRepoAccess, requireRepoRole, HttpError, type AuthedUser } from "../auth.js";
 import { searchMemories, writeAuditLog, getAutoThresholds, statusFor } from "../services/memory.js";
 import { recordUsage } from "../services/analytics.js";
 import { loadDedupSet, partitionNew, findDuplicate, similarity, DUP_THRESHOLD } from "../services/dedup.js";
 import { splitMemory } from "../services/split.js";
 import { getWorkspaceKey } from "../services/llm.js";
 
-async function getMemoryWithAccess(userId: string, memoryId: string) {
+async function getMemoryWithAccess(userId: string, memoryId: string, write = false) {
   const memory = await prisma.memory.findUnique({
     where: { id: memoryId },
     include: { repo: true, evidence: true },
   });
   if (!memory) throw new HttpError(404, "Memory not found");
-  await assertRepoAccess(userId, memory.repoId);
+  // Writes (approve/reject/edit) require member+; reads only require access.
+  if (write) await requireRepoRole(userId, memory.repoId, "member");
+  else await assertRepoAccess(userId, memory.repoId);
   return memory;
 }
 
@@ -34,7 +36,7 @@ async function setStatus(
   status: string,
   action: string,
 ) {
-  const memory = await getMemoryWithAccess(user.id, memoryId);
+  const memory = await getMemoryWithAccess(user.id, memoryId, true);
   const updated = await prisma.memory.update({ where: { id: memoryId }, data: { status } });
   await writeAuditLog({
     workspaceId: memory.repo.workspaceId,
@@ -119,7 +121,7 @@ export async function memoryRoutes(app: FastifyInstance) {
     const { repoId } = req.params as { repoId: string };
     let repo;
     try {
-      repo = await assertRepoAccess(user.id, repoId);
+      repo = await requireRepoRole(user.id, repoId, "member");
     } catch (e) {
       return handle(reply, e);
     }
@@ -212,7 +214,7 @@ export async function memoryRoutes(app: FastifyInstance) {
     const { memoryId } = req.params as { memoryId: string };
     let memory;
     try {
-      memory = await getMemoryWithAccess(user.id, memoryId);
+      memory = await getMemoryWithAccess(user.id, memoryId, true);
     } catch (e) {
       return handle(reply, e);
     }
@@ -240,7 +242,7 @@ export async function memoryRoutes(app: FastifyInstance) {
     const { memoryId } = req.params as { memoryId: string };
     let memory;
     try {
-      memory = await getMemoryWithAccess(user.id, memoryId);
+      memory = await getMemoryWithAccess(user.id, memoryId, true);
     } catch (e) {
       return handle(reply, e);
     }

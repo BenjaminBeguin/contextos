@@ -6,6 +6,7 @@ import {
   joinWorkspaceSchema,
   updateWorkspaceSchema,
   inviteMemberSchema,
+  setMemberRoleSchema,
   reviewerSkillSchema,
   updateReviewerSkillSchema,
   billingCheckoutSchema,
@@ -14,7 +15,7 @@ import {
   withinLimit,
 } from "@cortex/shared";
 import { prisma } from "../db.js";
-import { resolveUser, assertWorkspaceAccess, HttpError } from "../auth.js";
+import { resolveUser, assertWorkspaceAccess, requireRole, HttpError } from "../auth.js";
 import { encryptToken } from "../crypto.js";
 import { env } from "../env.js";
 import { getAutoThresholds } from "../services/memory.js";
@@ -231,8 +232,7 @@ export async function workspaceRoutes(app: FastifyInstance) {
     if (!user) return reply.code(401).send({ error: "Unauthorized" });
     const { workspaceId } = req.params as { workspaceId: string };
     try {
-      const membership = await assertWorkspaceAccess(user.id, workspaceId);
-      if (membership.role !== "owner") throw new HttpError(403, "Only owners can add members");
+      await requireRole(user.id, workspaceId, "admin");
     } catch (e) {
       if (e instanceof HttpError) return reply.code(e.statusCode).send({ error: e.message });
       throw e;
@@ -262,19 +262,46 @@ export async function workspaceRoutes(app: FastifyInstance) {
       });
     }
     await prisma.membership.create({
-      data: { userId: target.id, workspaceId, role: "member" },
+      data: { userId: target.id, workspaceId, role: body.role },
     });
     return reply.code(201).send({ ok: true });
   });
 
-  // Remove a member from the workspace (owners only; never the last owner).
+  // Change a member's role (owners only; can't demote the last owner).
+  app.patch("/workspaces/:workspaceId/members/:userId/role", async (req, reply) => {
+    const user = await resolveUser(req);
+    if (!user) return reply.code(401).send({ error: "Unauthorized" });
+    const { workspaceId, userId } = req.params as { workspaceId: string; userId: string };
+    try {
+      await requireRole(user.id, workspaceId, "owner");
+    } catch (e) {
+      if (e instanceof HttpError) return reply.code(e.statusCode).send({ error: e.message });
+      throw e;
+    }
+    const body = setMemberRoleSchema.parse(req.body);
+    const target = await prisma.membership.findUnique({
+      where: { userId_workspaceId: { userId, workspaceId } },
+    });
+    if (!target) return reply.code(404).send({ error: "Not a member." });
+    // Never leave the workspace without an owner.
+    if (target.role === "owner" && body.role !== "owner") {
+      const owners = await prisma.membership.count({ where: { workspaceId, role: "owner" } });
+      if (owners <= 1) return reply.code(400).send({ error: "Can't demote the last owner." });
+    }
+    await prisma.membership.update({
+      where: { userId_workspaceId: { userId, workspaceId } },
+      data: { role: body.role },
+    });
+    return { ok: true, role: body.role };
+  });
+
+  // Remove a member from the workspace (admin+; never the last owner).
   app.delete("/workspaces/:workspaceId/members/:userId", async (req, reply) => {
     const user = await resolveUser(req);
     if (!user) return reply.code(401).send({ error: "Unauthorized" });
     const { workspaceId, userId } = req.params as { workspaceId: string; userId: string };
     try {
-      const membership = await assertWorkspaceAccess(user.id, workspaceId);
-      if (membership.role !== "owner") throw new HttpError(403, "Only owners can remove members");
+      await requireRole(user.id, workspaceId, "admin");
     } catch (e) {
       if (e instanceof HttpError) return reply.code(e.statusCode).send({ error: e.message });
       throw e;

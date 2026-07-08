@@ -38,6 +38,12 @@ export const joinWorkspaceSchema = z.object({
 
 export const inviteMemberSchema = z.object({
   email: z.string().email(),
+  role: z.enum(["admin", "member", "viewer"]).default("member"),
+});
+
+/** Owner changes a member's role. */
+export const setMemberRoleSchema = z.object({
+  role: z.enum(["owner", "admin", "member", "viewer"]),
 });
 
 export const updateWorkspaceSchema = z.object({
