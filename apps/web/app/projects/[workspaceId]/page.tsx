@@ -205,7 +205,7 @@ function ProjectMenu({
   onGoto: (s: SettingsSection) => void;
 }) {
   const [open, setOpen] = useState(false);
-  const sections = SETTINGS_SECTIONS.filter((s) => s !== "Billing" || isOwner);
+  const sections = SETTINGS_SECTIONS;
 
   return (
     <div className="relative">

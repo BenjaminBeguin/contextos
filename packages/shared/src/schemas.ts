@@ -32,6 +32,9 @@ export type DataStoreInput = z.infer<typeof dataStoreSchema>;
 // Reuse a sibling project's connected database within the same org.
 export const dataStoreReuseSchema = z.object({ sourceWorkspaceId: z.string().min(1) });
 
+// Move a project to another organization (caller must manage both).
+export const moveWorkspaceSchema = z.object({ organizationId: z.string().min(1) });
+
 export const createTokenSchema = z.object({
   name: z.string().min(1).max(80).default("cli"),
   scope: tokenScopeSchema.default("both"),

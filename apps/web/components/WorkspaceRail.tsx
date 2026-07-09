@@ -4,7 +4,7 @@ import { useState } from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useQuery } from "@tanstack/react-query";
-import { api, type Me, type Workspace } from "../lib/api";
+import { api, getOrgs, type Me, type Workspace } from "../lib/api";
 import { useActiveWorkspace } from "../lib/workspace";
 import { projectColor } from "../lib/projectColor";
 import { ProjectForms } from "./ProjectForms";
@@ -66,6 +66,7 @@ export function WorkspaceRail() {
     retry: false,
     enabled: !!me,
   });
+  const { data: orgs } = useQuery({ queryKey: ["orgs"], queryFn: getOrgs, retry: false, enabled: !!me });
   const { activeId, setActiveId } = useActiveWorkspace();
   const list = workspaces ?? me?.workspaces ?? [];
   const [newOpen, setNewOpen] = useState(false);
@@ -99,8 +100,42 @@ export function WorkspaceRail() {
       </Link>
       <div className="h-px w-7 bg-[var(--border)]" />
 
-      {/* Projects */}
+      {/* Organizations (squared chips → the billing/company container), then
+          projects (round avatars) beneath. */}
       <nav className="flex min-h-0 flex-1 flex-col items-center gap-2 overflow-y-auto py-2">
+        {(orgs ?? []).map((o) => {
+          const active = pathname.startsWith(`/orgs/${o.id}`);
+          return (
+            <Link
+              key={o.id}
+              href={`/orgs/${o.id}`}
+              title={`${o.name} · organization`}
+              aria-label={`${o.name} organization`}
+              className="group relative flex h-10 w-10 items-center justify-center"
+            >
+              <span
+                className={cn(
+                  "absolute -left-3 w-1 rounded-r-full bg-white transition-all",
+                  active ? "h-6" : "h-0 group-hover:h-3",
+                )}
+                aria-hidden
+              />
+              <span
+                className={cn(
+                  "flex h-10 w-10 items-center justify-center rounded-lg border text-[11px] font-bold uppercase tracking-wide transition",
+                  active
+                    ? "border-[var(--border-strong)] bg-[var(--surface-2)] text-white"
+                    : "border-[var(--border)] bg-[var(--surface-2)]/50 text-[var(--muted)] group-hover:text-white",
+                )}
+              >
+                {initials(o.name)}
+              </span>
+            </Link>
+          );
+        })}
+        {(orgs ?? []).length > 0 && list.length > 0 ? (
+          <div className="h-px w-7 bg-[var(--border)]" />
+        ) : null}
         {list.map((w) => {
           const { color } = projectColor(w.id);
           const active = activeId === w.id && inProject;

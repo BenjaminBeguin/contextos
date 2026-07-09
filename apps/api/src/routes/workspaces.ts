@@ -12,6 +12,7 @@ import {
   requestUpgradeSchema,
   dataStoreSchema,
   dataStoreReuseSchema,
+  moveWorkspaceSchema,
   planLimits,
   withinLimit,
 } from "@cortex/shared";
@@ -24,7 +25,7 @@ import { memoryStore } from "../services/memoryStore.js";
 import { testConnection, provisionExternalStore, dropExternalClient } from "../services/dataStore.js";
 import { createCheckoutSession } from "../services/stripe.js";
 import { retrievalUsageForWorkspace } from "../services/retrievals.js";
-import { orgIdForWorkspace, planForWorkspace } from "../services/orgs.js";
+import { orgIdForWorkspace, planForWorkspace, requireOrgRole } from "../services/orgs.js";
 
 function generateJoinCode(): string {
   // Human-friendly, unambiguous join code, e.g. "WS-7F3K9Q".
@@ -612,6 +613,31 @@ export async function workspaceRoutes(app: FastifyInstance) {
       },
     });
     return { status: "connected" };
+  });
+
+  // Move a project to another organization. The caller must be an owner/admin of
+  // BOTH the current and target org. The project's plan/usage/billing follow the
+  // new org automatically (entitlements resolve via the org).
+  app.post("/workspaces/:workspaceId/move-org", async (req, reply) => {
+    const user = await resolveUser(req);
+    if (!user) return reply.code(401).send({ error: "Unauthorized" });
+    const { workspaceId } = req.params as { workspaceId: string };
+    const { organizationId: targetOrgId } = moveWorkspaceSchema.parse(req.body);
+    const currentOrgId = await orgIdForWorkspace(workspaceId);
+    if (!currentOrgId) return reply.code(404).send({ error: "Workspace not found" });
+    if (currentOrgId === targetOrgId) return { organizationId: targetOrgId };
+    try {
+      await requireOrgRole(user.id, currentOrgId, "admin");
+      await requireOrgRole(user.id, targetOrgId, "admin");
+    } catch (e) {
+      if (e instanceof HttpError) return reply.code(e.statusCode).send({ error: e.message });
+      throw e;
+    }
+    await prisma.workspace.update({
+      where: { id: workspaceId },
+      data: { organizationId: targetOrgId },
+    });
+    return { organizationId: targetOrgId };
   });
 
   // This workspace's billing history (owners) — plan grants/changes, upgrade

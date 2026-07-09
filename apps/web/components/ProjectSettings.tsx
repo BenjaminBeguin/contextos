@@ -5,21 +5,19 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { ROLE_LABELS, PLAN_LIMITS, PLAN_LABELS, type Plan, type WorkspaceRole } from "@cortex/shared";
 import {
   api,
-  getWorkspaceBillingEvents,
   connectDataStore,
   testDataStore,
   disconnectDataStore,
   getReusableDataStores,
   reuseDataStore,
-  timeAgo,
+  getOrgs,
+  moveProjectToOrg,
   type Me,
   type WorkspaceDetail,
-  type BillingEventRow,
 } from "../lib/api";
 import { CopyButton } from "./CopyButton";
 import { Button, Card, Input, Select } from "./ui";
 import { AuditLogCard } from "./AuditLogCard";
-import { PlanCard } from "./PlanCard";
 
 const INVITE_ROLES: WorkspaceRole[] = ["member", "admin", "viewer"];
 const ASSIGNABLE_ROLES: WorkspaceRole[] = ["owner", "admin", "member", "viewer"];
@@ -33,7 +31,6 @@ export const SETTINGS_SECTIONS = [
   "Usage",
   "Data",
   "Subscription",
-  "Billing",
 ] as const;
 export type SettingsSection = (typeof SETTINGS_SECTIONS)[number];
 
@@ -42,8 +39,7 @@ const SECTION_HINT: Record<SettingsSection, string> = {
   Members: "People & roles",
   Usage: "What this project is consuming",
   Data: "Data residency — bring your own DB",
-  Subscription: "Plan & upgrades",
-  Billing: "Payment & plan history",
+  Subscription: "Plan & billing (organization)",
 };
 
 /** Project (workspace) settings with a left side-menu:
@@ -64,8 +60,7 @@ export function ProjectSettings({
     queryFn: () => api<WorkspaceDetail>(`/workspaces/${workspaceId}`),
   });
 
-  // Billing history is owner-only (the API guards it), so hide the tab for others.
-  const sections = SETTINGS_SECTIONS.filter((s) => s !== "Billing" || isOwner);
+  const sections = SETTINGS_SECTIONS;
   const active = sections.includes(section) ? section : "General";
 
   if (!ws) return <Card className="p-6 text-[var(--muted)]">Loading…</Card>;
@@ -113,6 +108,7 @@ export function ProjectSettings({
               reject={ws.autoRejectThreshold ?? null}
               isOwner={isOwner}
             />
+            {isOwner ? <MoveOrgCard workspaceId={workspaceId} ws={ws} /> : null}
           </>
         ) : null}
 
@@ -129,11 +125,7 @@ export function ProjectSettings({
           <DataResidencyCard workspaceId={workspaceId} ws={ws} isOwner={isOwner} />
         ) : null}
 
-        {active === "Subscription" ? (
-          <PlanCard workspaceId={workspaceId} ws={ws} isOwner={isOwner} />
-        ) : null}
-
-        {active === "Billing" && isOwner ? <BillingHistoryCard workspaceId={workspaceId} /> : null}
+        {active === "Subscription" ? <OrgBillingDefer ws={ws} /> : null}
       </div>
     </div>
   );
@@ -203,6 +195,61 @@ function GeneralCard({
           ) : null}
         </div>
       </div>
+    </Card>
+  );
+}
+
+function MoveOrgCard({ workspaceId, ws }: { workspaceId: string; ws: WorkspaceDetail }) {
+  const qc = useQueryClient();
+  const [target, setTarget] = useState("");
+  const { data: orgs } = useQuery({ queryKey: ["orgs"], queryFn: getOrgs });
+  const currentOrgId = ws.organization?.id;
+  // Orgs the user can move INTO: managed (owner/admin) and not the current one.
+  const targets = (orgs ?? []).filter(
+    (o) => o.id !== currentOrgId && (o.role === "owner" || o.role === "admin"),
+  );
+
+  const move = useMutation({
+    mutationFn: () => moveProjectToOrg(workspaceId, target),
+    onSuccess: () => {
+      setTarget("");
+      qc.invalidateQueries({ queryKey: ["workspace", workspaceId] });
+      qc.invalidateQueries({ queryKey: ["orgs"] });
+      qc.invalidateQueries({ queryKey: ["me"] });
+    },
+  });
+
+  if (targets.length === 0) return null;
+
+  return (
+    <Card className="p-6">
+      <h2 className="font-semibold">Organization</h2>
+      <p className="mt-1 text-sm text-[var(--muted)]">
+        This project belongs to{" "}
+        <span className="text-[var(--text)]">{ws.organization?.name ?? "its organization"}</span>. Move
+        it to another organization you manage — its plan and billing follow the new org.
+      </p>
+      <div className="mt-3 flex flex-wrap items-center gap-2">
+        <Select
+          value={target}
+          onChange={(e) => setTarget(e.target.value)}
+          className="min-w-56 flex-1"
+        >
+          <option value="">Move to…</option>
+          {targets.map((o) => (
+            <option key={o.id} value={o.id}>
+              {o.name}
+            </option>
+          ))}
+        </Select>
+        <Button variant="subtle" onClick={() => move.mutate()} disabled={!target} loading={move.isPending}>
+          Move project
+        </Button>
+      </div>
+      {move.isSuccess ? <p className="mt-2 text-xs text-[var(--verify)]">Moved.</p> : null}
+      {move.isError ? (
+        <p className="mt-2 text-sm text-[var(--alert)]">{(move.error as Error).message}</p>
+      ) : null}
     </Card>
   );
 }
@@ -510,59 +557,47 @@ function friendlyDbError(msg: string): string {
   return msg;
 }
 
-function BillingHistoryCard({ workspaceId }: { workspaceId: string }) {
-  const { data, isLoading } = useQuery({
-    queryKey: ["billing-events", workspaceId],
-    queryFn: () => getWorkspaceBillingEvents(workspaceId),
-    retry: false,
-  });
-
-  const fmtAmount = (e: BillingEventRow) =>
-    e.amountCents != null
-      ? `${(e.amountCents / 100).toLocaleString(undefined, {
-          style: "currency",
-          currency: (e.currency ?? "usd").toUpperCase(),
-        })}`
-      : null;
-
+/** Plan, usage, and billing are managed at the organization level — point
+    there instead of duplicating the controls per project. */
+function OrgBillingDefer({ ws }: { ws: WorkspaceDetail }) {
+  const org = ws.organization;
+  const plan = (ws.plan ?? "free") as Plan;
+  const retr = ws.retrievals;
   return (
     <Card className="p-6">
-      <h2 className="font-semibold">Billing history</h2>
-      <p className="mt-1 text-xs text-[var(--muted)]">
-        Plan grants, upgrade requests, and — once Stripe is connected — invoices.
+      <h2 className="font-semibold">Plan &amp; billing</h2>
+      <p className="mt-1 text-sm text-[var(--muted)]">
+        This project runs on the{" "}
+        <span className="font-medium text-[var(--text)]">{PLAN_LABELS[plan]}</span> plan
+        {org ? (
+          <>
+            {" "}
+            — managed for the organization <span className="text-[var(--text)]">{org.name}</span>
+          </>
+        ) : null}
+        . Change the plan, see usage across all projects, and view billing history there.
       </p>
 
-      {isLoading ? (
-        <p className="mt-4 text-sm text-[var(--muted)]">Loading…</p>
-      ) : !data || data.length === 0 ? (
-        <p className="mt-4 text-sm text-[var(--muted)]">
-          No billing activity yet. Plan changes and upgrade requests will show up here.
-        </p>
-      ) : (
-        <ul className="mt-4 divide-y divide-[var(--border)]">
-          {data.map((e) => (
-            <li key={e.id} className="flex items-start justify-between gap-3 py-2.5 text-sm">
-              <div className="min-w-0">
-                <span className="font-medium">{e.type.replace(/_/g, " ")}</span>
-                {e.plan ? <span className="text-[var(--muted)]"> · {e.plan}</span> : null}
-                {e.status ? <span className="text-[var(--faint)]"> · {e.status}</span> : null}
-                {e.note ? (
-                  <div className="truncate text-xs text-[var(--faint)]">{e.note}</div>
-                ) : null}
-                {e.actorEmail ? (
-                  <div className="truncate text-xs text-[var(--faint)]">by {e.actorEmail}</div>
-                ) : null}
-              </div>
-              <div className="shrink-0 text-right">
-                {fmtAmount(e) ? <div className="tabular-nums">{fmtAmount(e)}</div> : null}
-                <div className="text-xs text-[var(--faint)]" title={new Date(e.createdAt).toLocaleString()}>
-                  {timeAgo(e.createdAt)}
-                </div>
-              </div>
-            </li>
-          ))}
-        </ul>
-      )}
+      {retr ? (
+        <div className="mt-4 rounded-lg border border-[var(--border)] p-3 text-sm">
+          <div className="flex items-center justify-between">
+            <span className="text-[var(--muted)]">Org retrievals this month</span>
+            <span className="tabular-nums">
+              {retr.used.toLocaleString()} /{" "}
+              {retr.limit === null ? "∞" : retr.limit.toLocaleString()}
+            </span>
+          </div>
+        </div>
+      ) : null}
+
+      {org ? (
+        <a
+          href={`/orgs/${org.id}`}
+          className="mt-4 inline-flex items-center gap-2 rounded-lg brand-gradient px-4 py-2 text-sm font-semibold text-white transition hover:brightness-110"
+        >
+          Manage plan &amp; billing in {org.name} →
+        </a>
+      ) : null}
     </Card>
   );
 }

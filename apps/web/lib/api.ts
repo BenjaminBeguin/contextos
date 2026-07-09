@@ -77,6 +77,7 @@ export interface WorkspaceDetail {
   retrievals?: { used: number; limit: number | null; hardCap: boolean };
   billingEnabled?: boolean;
   dataStore?: DataStoreStatus;
+  organization?: { id: string; name: string; slug: string };
   repos: { id: string; fullName: string; _count?: { memories: number } }[];
   memberships: {
     role: string;
@@ -176,6 +177,17 @@ export function testDataStore(workspaceId: string): Promise<{ ok: boolean; error
 /** Sibling projects in the same org that already have a connected database. */
 export function getReusableDataStores(workspaceId: string): Promise<{ id: string; name: string }[]> {
   return api(`/workspaces/${workspaceId}/data-store/available`);
+}
+
+/** Move a project to another organization (caller must manage both). */
+export function moveProjectToOrg(
+  workspaceId: string,
+  organizationId: string,
+): Promise<{ organizationId: string }> {
+  return api(`/workspaces/${workspaceId}/move-org`, {
+    method: "POST",
+    body: JSON.stringify({ organizationId }),
+  });
 }
 
 /** Point this project at a sibling project's database (same org). */
