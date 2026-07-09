@@ -136,10 +136,34 @@ export async function requireRole(userId: string, workspaceId: string, min: Work
   return { role };
 }
 
+declare module "fastify" {
+  interface FastifyRequest {
+    /** Set by enforceTokenScope when a project-scoped token authenticates the
+        request; handlers use it to narrow list queries to the token's project. */
+    tokenWorkspaceScope?: string;
+  }
+}
+
+/** Route patterns (Fastify `routeOptions.url` — param names, not values) that a
+    project-scoped token is allowed to reach. Default-deny: a scoped token is a
+    CLI/MCP credential for ONE project, so account/org/admin/cross-project routes
+    are off-limits even when the token's owner could reach them from the web app.
+    Anything allowed here is still confined to the token's workspace below. */
+export function scopedTokenMayReach(pattern: string): boolean {
+  if (pattern === "/health") return true;
+  // Project repos: GET is filtered to the scope; POST is confined by body.workspaceId.
+  if (pattern === "/repos") return true;
+  if (pattern === "/repos/:repoId" || pattern.startsWith("/repos/:repoId/")) return true;
+  // MCP memory tools (repoId travels in the body).
+  if (pattern.startsWith("/mcp/")) return true;
+  return false;
+}
+
 /** Global preHandler: when a request authenticates with a project-scoped API
-    token, confine it to that project. We inspect the workspace/repo the request
-    targets — `:workspaceId`/`:repoId` route params and a `repoId` in the body
-    (the MCP routes) — and reject anything outside the token's workspace. Cookie
+    token, (1) refuse any route outside the CLI/MCP surface (default-deny — this
+    stops a scoped token from minting new tokens via POST /auth/tokens, reaching
+    /orgs, or creating/joining other workspaces), and (2) confine every
+    workspace/repo identifier in the request to the token's workspace. Cookie
     sessions and account-wide tokens are unaffected. */
 export async function enforceTokenScope(req: FastifyRequest, reply: FastifyReply): Promise<void> {
   const authHeader = req.headers.authorization;
@@ -151,13 +175,27 @@ export async function enforceTokenScope(req: FastifyRequest, reply: FastifyReply
   });
   if (!token?.workspaceId) return; // unknown or account-wide token → no confinement here
   const scope = token.workspaceId;
+  req.tokenWorkspaceScope = scope;
+
+  // Default-deny: a scoped token may only reach the CLI/MCP route surface.
+  const pattern = req.routeOptions?.url ?? req.url;
+  if (!scopedTokenMayReach(pattern)) {
+    reply.code(403).send({ error: "token_scope_route" });
+    return;
+  }
 
   const params = (req.params ?? {}) as { workspaceId?: string; repoId?: string };
   if (params.workspaceId && params.workspaceId !== scope) {
     reply.code(403).send({ error: "token_scope_workspace" });
     return;
   }
-  const repoId = params.repoId ?? (req.body as { repoId?: string } | undefined)?.repoId;
+  // POST /repos carries the target workspace in the body, not a route param.
+  const body = (req.body ?? {}) as { repoId?: string; workspaceId?: string };
+  if (body.workspaceId && body.workspaceId !== scope) {
+    reply.code(403).send({ error: "token_scope_workspace" });
+    return;
+  }
+  const repoId = params.repoId ?? body.repoId;
   if (repoId) {
     const repo = await prisma.repo.findUnique({
       where: { id: repoId },

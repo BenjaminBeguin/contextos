@@ -72,8 +72,12 @@ export async function repoRoutes(app: FastifyInstance) {
     if (!user) return reply.code(401).send({ error: "Unauthorized" });
     const memberships = await prisma.membership.findMany({ where: { userId: user.id } });
     const workspaceIds = memberships.map((m) => m.workspaceId);
+    // A project-scoped token only ever sees its own project's repos.
+    const scoped = req.tokenWorkspaceScope
+      ? { in: workspaceIds.filter((id) => id === req.tokenWorkspaceScope) }
+      : { in: workspaceIds };
     const repos = await prisma.repo.findMany({
-      where: { workspaceId: { in: workspaceIds } },
+      where: { workspaceId: scoped },
       orderBy: { createdAt: "desc" },
       include: {
         workspace: { select: { name: true, slug: true } },
