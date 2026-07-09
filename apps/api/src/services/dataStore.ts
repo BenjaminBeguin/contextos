@@ -2,6 +2,7 @@ import { randomUUID } from "node:crypto";
 import { PrismaClient } from "@prisma/client";
 import { prisma } from "../db.js";
 import { decryptToken } from "../crypto.js";
+import { redactSecrets } from "./sanitize.js";
 
 /**
  * Bring-your-own-database (data residency). When a workspace connects its own
@@ -171,8 +172,8 @@ export class ExternalMemoryStore {
       input.workspaceId,
       input.repoId,
       input.type,
-      input.title,
-      input.content,
+      redactSecrets(input.title),
+      redactSecrets(input.content),
       input.paths ?? [],
       input.scope ?? "repo",
       input.confidence ?? 0.7,

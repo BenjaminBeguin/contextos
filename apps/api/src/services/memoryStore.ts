@@ -1,10 +1,23 @@
 import { prisma } from "../db.js";
+import { redactSecrets } from "./sanitize.js";
 import {
   ExternalMemoryStore,
   getExternalClient,
   type MemoryRow,
   type CreateMemoryInput,
 } from "./dataStore.js";
+
+/** Strip secrets from a memory's text before it is persisted (any store). */
+export function redactMemory<T extends { title: string; content: string; evidence?: { kind: string; content: string }[] }>(
+  input: T,
+): T {
+  return {
+    ...input,
+    title: redactSecrets(input.title),
+    content: redactSecrets(input.content),
+    evidence: input.evidence?.map((e) => ({ ...e, content: redactSecrets(e.content) })),
+  };
+}
 
 /**
  * The memory data-access layer. For an ordinary workspace this is the shared
@@ -84,18 +97,19 @@ class SharedMemoryStore implements MemoryStore {
   async create(
     input: CreateMemoryInput & { evidence?: { kind: string; content: string }[] },
   ): Promise<MemoryRow> {
+    const clean = redactMemory(input);
     const m = await prisma.memory.create({
       data: {
         repoId: input.repoId,
         type: input.type,
-        title: input.title,
-        content: input.content,
+        title: clean.title,
+        content: clean.content,
         paths: input.paths ?? [],
         scope: input.scope ?? "repo",
         confidence: input.confidence ?? 0.7,
         status: input.status ?? "proposed",
         source: input.source ?? undefined,
-        evidence: input.evidence?.length ? { create: input.evidence } : undefined,
+        evidence: clean.evidence?.length ? { create: clean.evidence } : undefined,
       },
       include: { evidence: true },
     });

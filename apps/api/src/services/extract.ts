@@ -12,6 +12,10 @@ Rules:
 - Each memory must be specific and self-contained.
 - ATOMIC: one fact per memory — split multi-topic learnings into separate memories.
 - CONCISE: 1–3 sentences, ideally under ~280 characters. State the fact, not a story.
+- NEVER record secrets: passwords, API keys, tokens, or connection strings with credentials.
+- ENVIRONMENT-AGNOSTIC: memory is shared across machines and deployments. Capture the durable
+  fact, not per-environment config — exclude ports, hostnames, container names, local file paths,
+  and dev-machine specifics. (e.g. "uses Postgres and Redis", not "Postgres on :5455, Redis on :6380".)
 - Set confidence 0..1 reflecting how certain and reusable the memory is.
 - Prefer 0-4 memories. If nothing is worth remembering, return [].
 

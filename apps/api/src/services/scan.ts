@@ -134,6 +134,10 @@ Rules:
 - ATOMIC: each memory captures ONE fact, rule, command, entity, or decision. Split anything
   multi-topic into separate memories — never pack a whole subsystem into one.
 - CONCISE: 1–3 sentences, ideally under ~280 characters. State the fact, not an essay. No walls of text.
+- NEVER record secrets: passwords, API keys, tokens, or connection strings with credentials.
+- ENVIRONMENT-AGNOSTIC: capture the durable fact, not per-environment config — exclude ports,
+  hostnames, container names, local file paths, and dev-machine specifics (e.g. "uses Postgres and
+  Redis", not "Postgres on :5455, Redis on :6380").
 - Produce as many small, high-signal memories as the codebase warrants (up to 30). Favor many
   atomic memories over a few long ones.
 - When a memory applies to specific files/areas, add their path globs in "paths" (e.g. "apps/api/src/routes/**").
