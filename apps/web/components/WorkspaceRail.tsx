@@ -6,6 +6,7 @@ import { usePathname, useRouter } from "next/navigation";
 import { useQuery } from "@tanstack/react-query";
 import { api, getOrgs, type Me, type Workspace } from "../lib/api";
 import { useActiveWorkspace } from "../lib/workspace";
+import { useActiveOrg, setActiveOrgId } from "../lib/activeOrg";
 import { projectColor } from "../lib/projectColor";
 import { ProjectForms } from "./ProjectForms";
 import { cn, Modal } from "./ui";
@@ -68,6 +69,7 @@ export function WorkspaceRail() {
   });
   const { data: orgs } = useQuery({ queryKey: ["orgs"], queryFn: getOrgs, retry: false, enabled: !!me });
   const { activeId, setActiveId } = useActiveWorkspace();
+  const activeOrg = useActiveOrg();
   const list = workspaces ?? me?.workspaces ?? [];
   const [newOpen, setNewOpen] = useState(false);
 
@@ -109,6 +111,7 @@ export function WorkspaceRail() {
             <Link
               key={o.id}
               href={`/orgs/${o.id}`}
+              onClick={() => setActiveOrgId(o.id)}
               title={`${o.name} · organization`}
               aria-label={`${o.name} organization`}
               className="group relative flex h-10 w-10 items-center justify-center"
@@ -199,9 +202,14 @@ export function WorkspaceRail() {
         open={newOpen}
         onClose={() => setNewOpen(false)}
         title="New project"
-        description="Create a separate project for another team, or join one with its code."
+        description={
+          activeOrg
+            ? `Added to ${activeOrg.name}. Switch organizations from the sidebar.`
+            : "Create a project for your team, or join one with its code."
+        }
       >
         <ProjectForms
+          org={activeOrg}
           onDone={(id) => {
             setNewOpen(false);
             if (id) {

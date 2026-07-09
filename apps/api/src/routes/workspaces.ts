@@ -160,6 +160,7 @@ export async function workspaceRoutes(app: FastifyInstance) {
       name: m.workspace.name,
       slug: m.workspace.slug,
       joinCode: m.workspace.joinCode,
+      organizationId: m.workspace.organizationId,
       role: m.role,
       repoCount: repoCount.get(m.workspaceId) ?? 0,
       pendingMemories: pending.get(m.workspaceId) ?? 0,

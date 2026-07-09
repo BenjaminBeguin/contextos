@@ -28,6 +28,7 @@ export interface Workspace {
   name: string;
   slug: string;
   joinCode: string;
+  organizationId: string;
   role: string;
   repoCount?: number;
   pendingMemories?: number;

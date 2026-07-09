@@ -187,6 +187,7 @@ export async function authRoutes(app: FastifyInstance) {
         name: m.workspace.name,
         slug: m.workspace.slug,
         joinCode: m.workspace.joinCode,
+        organizationId: m.workspace.organizationId,
         role: m.role,
       })),
     };
