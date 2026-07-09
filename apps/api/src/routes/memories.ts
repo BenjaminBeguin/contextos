@@ -12,6 +12,7 @@ import { loadDedupSet, partitionNew, findDuplicate, similarity, DUP_THRESHOLD } 
 import { memoryStoreForRepo, resolveMemoryById } from "../services/memoryStore.js";
 import { splitMemory } from "../services/split.js";
 import { getWorkspaceKey } from "../services/llm.js";
+import { memoryHealth } from "../services/memoryHealth.js";
 
 /** Resolve a memory by id (BYODB-aware) and enforce access. Writes
     (approve/reject/edit) require member+; reads only require access. */
@@ -93,6 +94,22 @@ export async function memoryRoutes(app: FastifyInstance) {
       const dup = findDuplicate(approved, m, 0.45);
       return dup ? { ...m, duplicateOf: { id: dup.id, title: dup.title } } : m;
     });
+  });
+
+  // Corpus health for a repo: stale (aging-out) approved memories and pairs of
+  // memories that duplicate or contradict each other, so a reviewer can prune.
+  app.get("/repos/:repoId/memory-health", async (req, reply) => {
+    const user = await resolveUser(req);
+    if (!user) return reply.code(401).send({ error: "Unauthorized" });
+    const { repoId } = req.params as { repoId: string };
+    try {
+      await assertRepoAccess(user.id, repoId);
+    } catch (e) {
+      return handle(reply, e);
+    }
+    const { store } = await memoryStoreForRepo(repoId);
+    const memories = await store.listByRepo(repoId);
+    return memoryHealth(memories, new Date());
   });
 
   app.post("/repos/:repoId/memories", async (req, reply) => {
