@@ -620,3 +620,19 @@ export function isStaleMemory(m: Memory): boolean {
   const ref = m.lastUsedAt ?? m.updatedAt;
   return Date.now() - new Date(ref).getTime() > STALE_DAYS * 86_400_000;
 }
+
+/** Server-computed corpus health (GET /repos/:repoId/memory-health). */
+export interface MemoryConflict {
+  a: { id: string; title: string };
+  b: { id: string; title: string };
+  kind: "duplicate" | "divergent";
+  similarity: number;
+}
+export interface MemoryHealthReport {
+  approvedCount: number;
+  fresh: number;
+  aging: number;
+  stale: number;
+  staleMemories: { id: string; title: string; type: string; ageDays: number }[];
+  conflicts: MemoryConflict[];
+}

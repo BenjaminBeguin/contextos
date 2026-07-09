@@ -3,7 +3,7 @@
 import { use, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { MEMORY_STATUSES, MEMORY_TYPES } from "@cortex/shared";
-import { api, isStaleMemory, type Memory } from "../../../../lib/api";
+import { api, isStaleMemory, type Memory, type MemoryHealthReport } from "../../../../lib/api";
 import { AppShell } from "../../../../components/AppShell";
 import { RepoNav } from "../../../../components/RepoNav";
 import { MemoryCard } from "../../../../components/MemoryCard";
@@ -42,6 +42,7 @@ function Library({ repoId }: { repoId: string }) {
   return (
     <div>
       <h1 className="text-2xl font-semibold">Memory library</h1>
+      <MemoryHealthPanel repoId={repoId} />
       <div className="mt-4 flex flex-wrap items-center gap-2">
         <input
           value={search}
@@ -71,6 +72,59 @@ function Library({ repoId }: { repoId: string }) {
         ))}
       </div>
       <Pagination page={page} totalPages={totalPages} total={total} onPage={setPage} label="memories" />
+    </div>
+  );
+}
+
+/**
+ * Corpus health for this repo: how much approved memory is aging out, and pairs
+ * that duplicate or contradict each other. Renders only when there's something
+ * to act on, so a healthy library stays quiet.
+ */
+function MemoryHealthPanel({ repoId }: { repoId: string }) {
+  const { data } = useQuery({
+    queryKey: ["memory-health", repoId],
+    queryFn: () => api<MemoryHealthReport>(`/repos/${repoId}/memory-health`),
+  });
+  if (!data) return null;
+  const needsAttention = data.aging > 0 || data.stale > 0 || data.conflicts.length > 0;
+  if (!needsAttention) return null;
+
+  return (
+    <div className="mt-4 rounded-xl border border-[var(--border)] bg-[var(--surface-2)] p-4">
+      <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-sm">
+        <span className="font-medium">Memory health</span>
+        <span className="text-[var(--muted)]">{data.approvedCount} approved</span>
+        {data.aging > 0 ? <span className="text-yellow-300/90">{data.aging} aging</span> : null}
+        {data.stale > 0 ? <span className="text-orange-300">{data.stale} stale</span> : null}
+        {data.conflicts.length > 0 ? (
+          <span className="text-red-300">{data.conflicts.length} to reconcile</span>
+        ) : null}
+      </div>
+
+      {data.conflicts.length > 0 ? (
+        <ul className="mt-3 space-y-2">
+          {data.conflicts.map((c) => (
+            <li
+              key={`${c.a.id}-${c.b.id}`}
+              className="flex flex-wrap items-center gap-2 text-sm text-[var(--muted)]"
+            >
+              <span
+                className={`rounded px-1.5 py-0.5 text-xs font-medium ${
+                  c.kind === "duplicate"
+                    ? "bg-blue-500/15 text-blue-300"
+                    : "bg-red-500/15 text-red-300"
+                }`}
+              >
+                {c.kind}
+              </span>
+              <span className="text-[var(--fg)]">{c.a.title}</span>
+              <span>↔</span>
+              <span className="text-[var(--fg)]">{c.b.title}</span>
+            </li>
+          ))}
+        </ul>
+      ) : null}
     </div>
   );
 }
