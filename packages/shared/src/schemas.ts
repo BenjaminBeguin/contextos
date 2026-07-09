@@ -83,6 +83,12 @@ export const setMemberRoleSchema = z.object({
   role: z.enum(["owner", "admin", "member", "viewer"]),
 });
 
+/** Assign an existing organization member to a project. People are managed at
+    the org level; projects just get people assigned (no per-project role). */
+export const assignMemberSchema = z.object({
+  userId: z.string().min(1),
+});
+
 export const updateWorkspaceSchema = z.object({
   name: z.string().min(1).max(80).optional(),
   // null disables; a value in [0,1] auto-approves proposals at/above it.

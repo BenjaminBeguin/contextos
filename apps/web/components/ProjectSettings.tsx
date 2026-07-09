@@ -1,8 +1,9 @@
 "use client";
 
 import { useState } from "react";
+import Link from "next/link";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { ROLE_LABELS, PLAN_LIMITS, PLAN_LABELS, type Plan, type WorkspaceRole } from "@cortex/shared";
+import { PLAN_LIMITS, PLAN_LABELS, type Plan } from "@cortex/shared";
 import {
   api,
   connectDataStore,
@@ -19,8 +20,6 @@ import { CopyButton } from "./CopyButton";
 import { Button, Card, Input, Select } from "./ui";
 import { AuditLogCard } from "./AuditLogCard";
 
-const INVITE_ROLES: WorkspaceRole[] = ["member", "admin", "viewer"];
-const ASSIGNABLE_ROLES: WorkspaceRole[] = ["owner", "admin", "member", "viewer"];
 
 // Left-rail sections. Ordered as a natural top-to-bottom flow: identity first,
 // then people, then what they're consuming, then the plan that governs it, then
@@ -114,7 +113,12 @@ export function ProjectSettings({
 
         {active === "Members" ? (
           <>
-            <MembersCard workspaceId={workspaceId} memberships={ws.memberships} isOwner={isOwner} />
+            <MembersCard
+              workspaceId={workspaceId}
+              memberships={ws.memberships}
+              isOwner={isOwner}
+              org={ws.organization}
+            />
             {isOwner ? <AuditLogCard workspaceId={workspaceId} /> : null}
           </>
         ) : null}
@@ -602,49 +606,69 @@ function OrgBillingDefer({ ws }: { ws: WorkspaceDetail }) {
   );
 }
 
+interface OrgMemberOption {
+  id: string;
+  email: string;
+  name: string | null;
+  avatarUrl: string | null;
+  onProject: boolean;
+}
+
 function MembersCard({
   workspaceId,
   memberships,
   isOwner,
+  org,
 }: {
   workspaceId: string;
   memberships: WorkspaceDetail["memberships"];
   isOwner: boolean;
+  org?: { id: string; name: string } | null;
 }) {
   const qc = useQueryClient();
   const { data: me } = useQuery({ queryKey: ["me"], queryFn: () => api<Me>("/me") });
-  const [email, setEmail] = useState("");
-  const [inviteRole, setInviteRole] = useState<WorkspaceRole>("member");
-  const invalidate = () => qc.invalidateQueries({ queryKey: ["workspace", workspaceId] });
+  const invalidate = () => {
+    qc.invalidateQueries({ queryKey: ["workspace", workspaceId] });
+    qc.invalidateQueries({ queryKey: ["org-members-for-project", workspaceId] });
+  };
 
-  const invite = useMutation({
-    mutationFn: () =>
+  // The org's people — the pool we assign from. Managed at the org level.
+  const { data: orgMembers } = useQuery({
+    queryKey: ["org-members-for-project", workspaceId],
+    queryFn: () => api<OrgMemberOption[]>(`/workspaces/${workspaceId}/org-members`),
+    enabled: isOwner,
+  });
+
+  const assign = useMutation({
+    mutationFn: (userId: string) =>
       api(`/workspaces/${workspaceId}/members`, {
         method: "POST",
-        body: JSON.stringify({ email, role: inviteRole }),
+        body: JSON.stringify({ userId }),
       }),
-    onSuccess: () => {
-      setEmail("");
-      invalidate();
-    },
+    onSuccess: invalidate,
   });
   const remove = useMutation({
     mutationFn: (userId: string) =>
       api(`/workspaces/${workspaceId}/members/${userId}`, { method: "DELETE" }),
     onSuccess: invalidate,
   });
-  const setRole = useMutation({
-    mutationFn: ({ userId, role }: { userId: string; role: WorkspaceRole }) =>
-      api(`/workspaces/${workspaceId}/members/${userId}/role`, {
-        method: "PATCH",
-        body: JSON.stringify({ role }),
-      }),
-    onSuccess: invalidate,
-  });
+
+  const assignable = (orgMembers ?? []).filter((m) => !m.onProject);
 
   return (
     <Card className="p-6">
       <h2 className="font-semibold">Members</h2>
+      <p className="mt-1 text-xs text-[var(--muted)]">
+        People are managed in{" "}
+        {org ? (
+          <Link href={`/orgs/${org.id}`} className="text-[var(--fg)] hover:text-[var(--accent)]">
+            {org.name}
+          </Link>
+        ) : (
+          "your organization"
+        )}
+        . Assign them to this project below.
+      </p>
       <ul className="mt-4 space-y-2">
         {memberships.map((m) => (
           <li key={m.user.id} className="flex items-center justify-between text-sm">
@@ -661,22 +685,12 @@ function MembersCard({
               ) : null}
             </span>
             <span className="flex items-center gap-3">
-              {isOwner ? (
-                <Select
-                  value={m.role}
-                  onChange={(e) => setRole.mutate({ userId: m.user.id, role: e.target.value as WorkspaceRole })}
-                  className="text-xs"
-                >
-                  {ASSIGNABLE_ROLES.map((r) => (
-                    <option key={r} value={r}>
-                      {ROLE_LABELS[r]}
-                    </option>
-                  ))}
-                </Select>
-              ) : (
-                <span className="text-xs text-[var(--muted)]">{ROLE_LABELS[m.role as WorkspaceRole] ?? m.role}</span>
-              )}
-              {isOwner ? (
+              {m.role === "owner" ? (
+                <span className="rounded-full border border-[var(--border)] px-2 py-0.5 text-[10px] uppercase tracking-wide text-[var(--muted)]">
+                  Owner
+                </span>
+              ) : null}
+              {isOwner && m.role !== "owner" ? (
                 <Button
                   variant="ghost"
                   size="sm"
@@ -693,34 +707,38 @@ function MembersCard({
 
       {isOwner ? (
         <div className="mt-5 border-t border-[var(--border)] pt-4">
-          <p className="text-sm">Invite a teammate</p>
-          <p className="text-xs text-[var(--muted)]">
-            They need a Cortex account. Otherwise share the join code above so they can sign up and
-            join.
-          </p>
-          <div className="mt-3 flex flex-wrap items-center gap-2">
-            <Input
-              type="email"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              placeholder="teammate@company.com"
-              className="min-w-56 flex-1"
-            />
-            <Select value={inviteRole} onChange={(e) => setInviteRole(e.target.value as WorkspaceRole)}>
-              {INVITE_ROLES.map((r) => (
-                <option key={r} value={r}>
-                  {ROLE_LABELS[r]}
-                </option>
+          <p className="text-sm">Assign from {org?.name ?? "the organization"}</p>
+          {assignable.length === 0 ? (
+            <p className="mt-2 text-xs text-[var(--muted)]">
+              Everyone in the organization is already on this project.
+            </p>
+          ) : (
+            <ul className="mt-3 space-y-2">
+              {assignable.map((o) => (
+                <li key={o.id} className="flex items-center justify-between text-sm">
+                  <span className="flex items-center gap-2">
+                    {o.avatarUrl ? (
+                      // eslint-disable-next-line @next/next/no-img-element
+                      <img src={o.avatarUrl} alt="" className="h-6 w-6 rounded-full" />
+                    ) : (
+                      <span className="h-6 w-6 rounded-full bg-white/10" />
+                    )}
+                    {o.name ?? o.email}
+                  </span>
+                  <Button
+                    size="sm"
+                    onClick={() => assign.mutate(o.id)}
+                    disabled={assign.isPending}
+                  >
+                    Add
+                  </Button>
+                </li>
               ))}
-            </Select>
-            <Button onClick={() => invite.mutate()} disabled={!email} loading={invite.isPending}>
-              Invite
-            </Button>
-          </div>
-          {invite.isError ? (
-            <p className="mt-2 text-sm text-red-400">{(invite.error as Error).message}</p>
+            </ul>
+          )}
+          {assign.isError ? (
+            <p className="mt-2 text-sm text-red-400">{(assign.error as Error).message}</p>
           ) : null}
-          {invite.isSuccess ? <p className="mt-2 text-xs text-emerald-300">Added.</p> : null}
           {remove.isError ? (
             <p className="mt-2 text-sm text-red-400">{(remove.error as Error).message}</p>
           ) : null}

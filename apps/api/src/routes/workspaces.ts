@@ -4,8 +4,7 @@ import {
   createWorkspaceSchema,
   joinWorkspaceSchema,
   updateWorkspaceSchema,
-  inviteMemberSchema,
-  setMemberRoleSchema,
+  assignMemberSchema,
   reviewerSkillSchema,
   updateReviewerSkillSchema,
   billingCheckoutSchema,
@@ -267,7 +266,39 @@ export async function workspaceRoutes(app: FastifyInstance) {
     return { approved, rejected, kept };
   });
 
-  // Add an existing Cortex user to the workspace by email (owners only).
+  // List the org's people and whether each is on this project — the pool the
+  // project owner assigns from. People are managed at the org level.
+  app.get("/workspaces/:workspaceId/org-members", async (req, reply) => {
+    const user = await resolveUser(req);
+    if (!user) return reply.code(401).send({ error: "Unauthorized" });
+    const { workspaceId } = req.params as { workspaceId: string };
+    try {
+      await requireRole(user.id, workspaceId, "admin");
+    } catch (e) {
+      if (e instanceof HttpError) return reply.code(e.statusCode).send({ error: e.message });
+      throw e;
+    }
+    const organizationId = await orgIdForWorkspace(workspaceId);
+    if (!organizationId) return reply.code(404).send({ error: "Project not found" });
+    const [orgMembers, projectMembers] = await Promise.all([
+      prisma.orgMembership.findMany({
+        where: { organizationId },
+        include: { user: { select: { id: true, email: true, name: true, avatarUrl: true } } },
+      }),
+      prisma.membership.findMany({ where: { workspaceId }, select: { userId: true } }),
+    ]);
+    const onProject = new Set(projectMembers.map((m) => m.userId));
+    return orgMembers.map((m) => ({
+      id: m.user.id,
+      email: m.user.email,
+      name: m.user.name,
+      avatarUrl: m.user.avatarUrl,
+      onProject: onProject.has(m.user.id),
+    }));
+  });
+
+  // Assign an existing org member to this project (admin+). Projects have no
+  // per-member roles — the creator is owner, everyone assigned is a member.
   app.post("/workspaces/:workspaceId/members", async (req, reply) => {
     const user = await resolveUser(req);
     if (!user) return reply.code(401).send({ error: "Unauthorized" });
@@ -278,52 +309,23 @@ export async function workspaceRoutes(app: FastifyInstance) {
       if (e instanceof HttpError) return reply.code(e.statusCode).send({ error: e.message });
       throw e;
     }
-    const body = inviteMemberSchema.parse(req.body);
-    const target = await prisma.user.findFirst({
-      where: { email: { equals: body.email, mode: "insensitive" } },
+    const body = assignMemberSchema.parse(req.body);
+    const organizationId = await orgIdForWorkspace(workspaceId);
+    if (!organizationId) return reply.code(404).send({ error: "Project not found" });
+    const inOrg = await prisma.orgMembership.findUnique({
+      where: { userId_organizationId: { userId: body.userId, organizationId } },
     });
-    if (!target) {
-      return reply.code(404).send({
-        error: "No Cortex account with that email yet. Share the join code so they can sign up and join.",
-      });
+    if (!inOrg) {
+      return reply.code(404).send({ error: "Add them to the organization first." });
     }
     const existing = await prisma.membership.findUnique({
-      where: { userId_workspaceId: { userId: target.id, workspaceId } },
+      where: { userId_workspaceId: { userId: body.userId, workspaceId } },
     });
-    if (existing) return reply.code(409).send({ error: "Already a member." });
-    // Seats are unlimited on every tier — invite freely.
+    if (existing) return reply.code(409).send({ error: "Already on this project." });
     await prisma.membership.create({
-      data: { userId: target.id, workspaceId, role: body.role },
+      data: { userId: body.userId, workspaceId, role: "member" },
     });
     return reply.code(201).send({ ok: true });
-  });
-
-  // Change a member's role (owners only; can't demote the last owner).
-  app.patch("/workspaces/:workspaceId/members/:userId/role", async (req, reply) => {
-    const user = await resolveUser(req);
-    if (!user) return reply.code(401).send({ error: "Unauthorized" });
-    const { workspaceId, userId } = req.params as { workspaceId: string; userId: string };
-    try {
-      await requireRole(user.id, workspaceId, "owner");
-    } catch (e) {
-      if (e instanceof HttpError) return reply.code(e.statusCode).send({ error: e.message });
-      throw e;
-    }
-    const body = setMemberRoleSchema.parse(req.body);
-    const target = await prisma.membership.findUnique({
-      where: { userId_workspaceId: { userId, workspaceId } },
-    });
-    if (!target) return reply.code(404).send({ error: "Not a member." });
-    // Never leave the workspace without an owner.
-    if (target.role === "owner" && body.role !== "owner") {
-      const owners = await prisma.membership.count({ where: { workspaceId, role: "owner" } });
-      if (owners <= 1) return reply.code(400).send({ error: "Can't demote the last owner." });
-    }
-    await prisma.membership.update({
-      where: { userId_workspaceId: { userId, workspaceId } },
-      data: { role: body.role },
-    });
-    return { ok: true, role: body.role };
   });
 
   // Remove a member from the workspace (admin+; never the last owner).
