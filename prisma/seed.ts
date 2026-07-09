@@ -49,6 +49,7 @@ async function main() {
     create: {
       name: "Acme Inc",
       slug: "acme-org",
+      joinCode: "ORG-ACME0001",
       members: { create: { userId: devUser.id, role: "owner" } },
     },
   });
@@ -150,6 +151,7 @@ async function main() {
     create: {
       name: "Globex Corp",
       slug: "globex-org",
+      joinCode: "ORG-GLOBEX01",
       members: { create: { userId: otherUser.id, role: "owner" } },
     },
   });

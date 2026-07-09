@@ -3,13 +3,16 @@
 import { useState } from "react";
 import Link from "next/link";
 import { useQuery } from "@tanstack/react-query";
-import { api, type Me, type Workspace } from "../../lib/api";
+import { PLAN_LABELS } from "@cortex/shared";
+import { api, getOrgs, type Me, type Workspace } from "../../lib/api";
 import { AppShell } from "../../components/AppShell";
 import { ProjectForms } from "../../components/ProjectForms";
+import { OrgForms } from "../../components/OrgForms";
+import { CopyButton } from "../../components/CopyButton";
 import { useActiveWorkspace } from "../../lib/workspace";
 import { useActiveOrg } from "../../lib/activeOrg";
 import { projectColor } from "../../lib/projectColor";
-import { Button, Card, PageHeader } from "../../components/ui";
+import { Button, Card, Modal, PageHeader } from "../../components/ui";
 
 export default function DashboardPage() {
   return (
@@ -21,8 +24,11 @@ export default function DashboardPage() {
 
 function Dashboard() {
   const { data: me } = useQuery({ queryKey: ["me"], queryFn: () => api<Me>("/me") });
-  if (!me) return null;
-  if (me.workspaces.length === 0) return <ProjectGate />;
+  const { data: orgs } = useQuery({ queryKey: ["orgs"], queryFn: getOrgs });
+  if (!me || orgs === undefined) return null;
+  // Brand-new users (no org, no project) get the onboarding gate; anyone in an
+  // org sees the org-scoped project list (empty state included).
+  if (me.workspaces.length === 0 && orgs.length === 0) return <ProjectGate />;
   return <ProjectsList me={me} />;
 }
 
@@ -45,18 +51,58 @@ function ProjectsList({ me }: { me: Me }) {
     queryKey: ["workspaces"],
     queryFn: () => api<Workspace[]>("/workspaces"),
   });
+  const { data: orgs } = useQuery({ queryKey: ["orgs"], queryFn: getOrgs });
   const { setActiveId } = useActiveWorkspace();
   const activeOrg = useActiveOrg();
   const [showForm, setShowForm] = useState(false);
-  const list = workspaces ?? me.workspaces;
+  const [showOrg, setShowOrg] = useState(false);
+
+  const allProjects = workspaces ?? me.workspaces;
+  const org = orgs?.find((o) => o.id === activeOrg?.id) ?? null;
+  // Everything on this page is scoped to the org you're currently in.
+  const list = activeOrg
+    ? allProjects.filter((w) => w.organizationId === activeOrg.id)
+    : allProjects;
 
   return (
     <div>
       <PageHeader
-        title="Projects"
-        description="Every project you belong to, across your organizations."
+        title={org?.name ?? activeOrg?.name ?? "Projects"}
+        description={
+          <span className="flex flex-wrap items-center gap-x-3 gap-y-1">
+            {org ? (
+              <span className="rounded-full border border-[var(--border)] px-2 py-0.5 text-[10px] uppercase tracking-wide text-[var(--muted)]">
+                {PLAN_LABELS[org.plan]}
+              </span>
+            ) : null}
+            <span>
+              {list.length} project{list.length === 1 ? "" : "s"}
+            </span>
+            {org ? (
+              <span className="inline-flex items-center gap-1.5">
+                <span className="text-[var(--faint)]">Join code</span>
+                <code className="rounded bg-[var(--surface-2)] px-1.5 py-0.5 text-xs text-[var(--fg)]">
+                  {org.joinCode}
+                </code>
+                <CopyButton value={org.joinCode} />
+              </span>
+            ) : null}
+            {org ? (
+              <Link href={`/orgs/${org.id}`} className="text-[var(--accent)] hover:underline">
+                Manage organization →
+              </Link>
+            ) : null}
+          </span>
+        }
         actions={
-          <Button onClick={() => setShowForm((v) => !v)}>{showForm ? "Cancel" : "New project"}</Button>
+          <div className="flex items-center gap-2">
+            <Button variant="ghost" onClick={() => setShowOrg(true)}>
+              New organization
+            </Button>
+            <Button onClick={() => setShowForm((v) => !v)}>
+              {showForm ? "Cancel" : "New project"}
+            </Button>
+          </div>
         }
       />
 
@@ -65,7 +111,7 @@ function ProjectsList({ me }: { me: Me }) {
           <h2 className="font-semibold">New project</h2>
           <p className="mt-1 text-sm text-[var(--muted)]">
             {activeOrg
-              ? `New projects are added to ${activeOrg.name}. Switch organizations from the sidebar.`
+              ? `Added to ${activeOrg.name}. Switch organizations from the sidebar.`
               : "Create a project for your team, or join one with its code."}
           </p>
           <div className="mt-4">
@@ -78,6 +124,21 @@ function ProjectsList({ me }: { me: Me }) {
             />
           </div>
         </Card>
+      ) : null}
+
+      <Modal
+        open={showOrg}
+        onClose={() => setShowOrg(false)}
+        title="Organizations"
+        description="Create a new organization or join one with a code."
+      >
+        <OrgForms onDone={() => setShowOrg(false)} />
+      </Modal>
+
+      {list.length === 0 ? (
+        <p className="mt-8 text-sm text-[var(--muted)]">
+          No projects in {org?.name ?? "this organization"} yet — create one to get started.
+        </p>
       ) : null}
 
       <div className="mt-8 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">

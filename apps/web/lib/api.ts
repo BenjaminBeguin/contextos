@@ -94,6 +94,7 @@ export interface OrgSummary {
   id: string;
   name: string;
   slug: string;
+  joinCode: string;
   plan: Plan;
   role: OrgRole;
   projectCount: number;
@@ -112,6 +113,7 @@ export interface OrgDetail {
   id: string;
   name: string;
   slug: string;
+  joinCode: string;
   plan: Plan;
   planSource: string;
   planStatus: string;
@@ -131,6 +133,9 @@ export function getOrg(orgId: string): Promise<OrgDetail> {
 }
 export function createOrg(name: string): Promise<OrgSummary> {
   return api<OrgSummary>("/orgs", { method: "POST", body: JSON.stringify({ name }) });
+}
+export function joinOrg(joinCode: string): Promise<OrgSummary> {
+  return api<OrgSummary>("/orgs/join", { method: "POST", body: JSON.stringify({ joinCode }) });
 }
 export function updateOrg(orgId: string, name: string): Promise<{ id: string; name: string }> {
   return api(`/orgs/${orgId}`, { method: "PATCH", body: JSON.stringify({ name }) });

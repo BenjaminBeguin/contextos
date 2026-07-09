@@ -28,6 +28,7 @@ model Organization {
   id               String    @id @default(cuid())
   name             String
   slug             String    @unique
+  joinCode         String    @unique // share to let someone join the org
   plan             String    @default("free") // free | scale | enterprise
   planSource       String    @default("none") // none | stripe | comp | manual
   planStatus       String    @default("active") // active | past_due | canceled

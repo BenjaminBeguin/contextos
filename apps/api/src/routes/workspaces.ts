@@ -176,6 +176,7 @@ export async function workspaceRoutes(app: FastifyInstance) {
       data: {
         name: body.name,
         slug: `${body.slug}-${randomBytes(3).toString("hex")}`,
+        joinCode: `ORG-${randomBytes(4).toString("hex").toUpperCase()}`,
         members: { create: { userId: user.id, role: "owner" } },
       },
     });

@@ -9,6 +9,7 @@ import { useActiveWorkspace } from "../lib/workspace";
 import { useActiveOrg, setActiveOrgId } from "../lib/activeOrg";
 import { projectColor } from "../lib/projectColor";
 import { ProjectForms } from "./ProjectForms";
+import { OrgForms } from "./OrgForms";
 import { cn, Modal } from "./ui";
 
 function initials(name: string): string {
@@ -72,6 +73,7 @@ export function WorkspaceRail() {
   const activeOrg = useActiveOrg();
   const list = workspaces ?? me?.workspaces ?? [];
   const [newOpen, setNewOpen] = useState(false);
+  const [newOrgOpen, setNewOrgOpen] = useState(false);
 
   function open(id: string) {
     setActiveId(id);
@@ -207,6 +209,18 @@ export function WorkspaceRail() {
             {newProjectButton}
           </>
         ) : null}
+
+        {/* New / join organization */}
+        <button
+          onClick={() => setNewOrgOpen(true)}
+          title="New organization"
+          aria-label="New organization"
+          className="mt-1 flex h-10 w-10 items-center justify-center rounded-lg border border-dashed border-[var(--border)] text-[var(--muted)] transition hover:border-[var(--border-strong)] hover:text-white"
+        >
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden>
+            <path d="M12 5v14M5 12h14" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
+          </svg>
+        </button>
       </nav>
 
       <Modal
@@ -227,6 +241,20 @@ export function WorkspaceRail() {
               setActiveId(id);
               router.push(`/projects/${id}`);
             }
+          }}
+        />
+      </Modal>
+
+      <Modal
+        open={newOrgOpen}
+        onClose={() => setNewOrgOpen(false)}
+        title="Organizations"
+        description="Create a new organization or join one with a code."
+      >
+        <OrgForms
+          onDone={(id) => {
+            setNewOrgOpen(false);
+            if (id) router.push("/dashboard");
           }}
         />
       </Modal>

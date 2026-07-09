@@ -3,6 +3,7 @@ import type { FastifyInstance } from "fastify";
 import {
   createOrgSchema,
   updateOrgSchema,
+  joinOrgSchema,
   inviteOrgMemberSchema,
   setOrgRoleSchema,
   createWorkspaceSchema,
@@ -31,6 +32,10 @@ function joinCode(): string {
   return `WS-${randomBytes(4).toString("hex").toUpperCase()}`;
 }
 
+function orgJoinCode(): string {
+  return `ORG-${randomBytes(4).toString("hex").toUpperCase()}`;
+}
+
 function handle(reply: import("fastify").FastifyReply, e: unknown) {
   if (e instanceof HttpError) return reply.code(e.statusCode).send({ error: e.message });
   throw e;
@@ -54,6 +59,7 @@ export async function orgRoutes(app: FastifyInstance) {
       id: m.organization.id,
       name: m.organization.name,
       slug: m.organization.slug,
+      joinCode: m.organization.joinCode,
       plan: m.organization.plan,
       role: m.role,
       projectCount: m.organization._count.workspaces,
@@ -70,10 +76,40 @@ export async function orgRoutes(app: FastifyInstance) {
       data: {
         name: body.name,
         slug: slugify(body.name),
+        joinCode: orgJoinCode(),
         members: { create: { userId: user.id, role: "owner" } },
       },
     });
-    return { id: org.id, name: org.name, slug: org.slug, plan: org.plan, role: "owner" };
+    return {
+      id: org.id,
+      name: org.name,
+      slug: org.slug,
+      joinCode: org.joinCode,
+      plan: org.plan,
+      role: "owner",
+      projectCount: 0,
+      memberCount: 1,
+    };
+  });
+
+  // Join an existing organization with its share code; the caller becomes a member.
+  app.post("/orgs/join", async (req, reply) => {
+    const user = await resolveUser(req);
+    if (!user) return reply.code(401).send({ error: "Unauthorized" });
+    const body = joinOrgSchema.parse(req.body);
+    const org = await prisma.organization.findUnique({
+      where: { joinCode: body.joinCode.trim() },
+    });
+    if (!org) return reply.code(404).send({ error: "Invalid join code" });
+    const existing = await prisma.orgMembership.findUnique({
+      where: { userId_organizationId: { userId: user.id, organizationId: org.id } },
+    });
+    if (!existing) {
+      await prisma.orgMembership.create({
+        data: { userId: user.id, organizationId: org.id, role: "member" },
+      });
+    }
+    return { id: org.id, name: org.name, slug: org.slug, plan: org.plan, role: existing?.role ?? "member" };
   });
 
   // Org detail: plan, usage, projects, members. Any member can read.
@@ -103,6 +139,7 @@ export async function orgRoutes(app: FastifyInstance) {
       id: org.id,
       name: org.name,
       slug: org.slug,
+      joinCode: org.joinCode,
       plan: org.plan,
       planSource: org.planSource,
       planStatus: org.planStatus,

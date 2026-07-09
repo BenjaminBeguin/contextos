@@ -55,6 +55,7 @@ export const ORG_ROLE_LABELS: Record<OrgRole, string> = {
 
 export const createOrgSchema = z.object({ name: z.string().min(1).max(80) });
 export const updateOrgSchema = z.object({ name: z.string().min(1).max(80) });
+export const joinOrgSchema = z.object({ joinCode: z.string().min(1) });
 export const inviteOrgMemberSchema = z.object({
   email: z.string().email(),
   role: orgRoleSchema.default("member"),
