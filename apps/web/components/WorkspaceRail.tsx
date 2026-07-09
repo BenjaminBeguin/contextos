@@ -238,7 +238,7 @@ export function WorkspaceRail() {
             <div className="fixed inset-0 z-40" onClick={() => setMenuOpen(false)} aria-hidden />
             <div
               role="menu"
-              className="absolute bottom-0 left-full z-50 ml-3 w-52 overflow-hidden rounded-xl border border-[var(--border)] bg-[var(--surface-1)] py-1 shadow-xl"
+              className="absolute bottom-0 left-full z-50 ml-3 w-52 overflow-hidden rounded-xl border border-[var(--border)] bg-[var(--surface-2)] py-1 shadow-xl"
             >
               <div className="truncate px-3 py-2 text-xs text-[var(--faint)]">
                 {me?.name ?? me?.email ?? "Account"}
