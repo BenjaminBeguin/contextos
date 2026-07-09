@@ -43,10 +43,20 @@ async function main() {
     create: { email: "dev@cortex.dev", name: "Dev User" },
   });
 
+  const acmeOrg = await prisma.organization.upsert({
+    where: { slug: "acme-org" },
+    update: {},
+    create: {
+      name: "Acme Inc",
+      slug: "acme-org",
+      members: { create: { userId: devUser.id, role: "owner" } },
+    },
+  });
+
   const acme = await prisma.workspace.upsert({
     where: { slug: "acme" },
     update: {},
-    create: { name: "Acme Inc", slug: "acme", joinCode: "WS-ACME0001" },
+    create: { name: "Acme Inc", slug: "acme", joinCode: "WS-ACME0001", organizationId: acmeOrg.id },
   });
 
   await prisma.membership.upsert({
@@ -134,10 +144,20 @@ async function main() {
     create: { email: "other@globex.dev", name: "Globex User" },
   });
 
+  const globexOrg = await prisma.organization.upsert({
+    where: { slug: "globex-org" },
+    update: {},
+    create: {
+      name: "Globex Corp",
+      slug: "globex-org",
+      members: { create: { userId: otherUser.id, role: "owner" } },
+    },
+  });
+
   const globex = await prisma.workspace.upsert({
     where: { slug: "globex" },
     update: {},
-    create: { name: "Globex Corp", slug: "globex", joinCode: "WS-GLOBEX01" },
+    create: { name: "Globex Corp", slug: "globex", joinCode: "WS-GLOBEX01", organizationId: globexOrg.id },
   });
 
   await prisma.membership.upsert({

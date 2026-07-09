@@ -11,12 +11,13 @@ import {
   billingCheckoutSchema,
   requestUpgradeSchema,
   dataStoreSchema,
+  dataStoreReuseSchema,
   planLimits,
   withinLimit,
 } from "@cortex/shared";
 import { prisma } from "../db.js";
 import { resolveUser, assertWorkspaceAccess, requireRole, HttpError } from "../auth.js";
-import { encryptToken } from "../crypto.js";
+import { encryptToken, decryptToken } from "../crypto.js";
 import { env } from "../env.js";
 import { getAutoThresholds } from "../services/memory.js";
 import { memoryStore } from "../services/memoryStore.js";
@@ -531,6 +532,86 @@ export async function workspaceRoutes(app: FastifyInstance) {
       },
     });
     return { status: "unconfigured" };
+  });
+
+  // Other projects in the same org that already have a connected database — so
+  // this project can reuse an existing connection instead of re-entering a URL.
+  app.get("/workspaces/:workspaceId/data-store/available", async (req, reply) => {
+    const user = await resolveUser(req);
+    if (!user) return reply.code(401).send({ error: "Unauthorized" });
+    const { workspaceId } = req.params as { workspaceId: string };
+    try {
+      await requireRole(user.id, workspaceId, "owner");
+    } catch (e) {
+      if (e instanceof HttpError) return reply.code(e.statusCode).send({ error: e.message });
+      throw e;
+    }
+    const organizationId = await orgIdForWorkspace(workspaceId);
+    if (!organizationId) return [];
+    return prisma.workspace.findMany({
+      where: { organizationId, id: { not: workspaceId }, externalDbStatus: "connected" },
+      select: { id: true, name: true },
+      orderBy: { name: "asc" },
+    });
+  });
+
+  // Reuse a sibling project's database (same org). Points this project at the
+  // same Postgres — memories stay isolated by workspaceId in CortexMemory.
+  app.post("/workspaces/:workspaceId/data-store/reuse", async (req, reply) => {
+    const user = await resolveUser(req);
+    if (!user) return reply.code(401).send({ error: "Unauthorized" });
+    const { workspaceId } = req.params as { workspaceId: string };
+    try {
+      await requireRole(user.id, workspaceId, "owner");
+    } catch (e) {
+      if (e instanceof HttpError) return reply.code(e.statusCode).send({ error: e.message });
+      throw e;
+    }
+    if (!planLimits(await planForWorkspace(workspaceId)).byodb) {
+      return reply.code(402).send({ error: "plan_limit_byodb" });
+    }
+    const { sourceWorkspaceId } = dataStoreReuseSchema.parse(req.body);
+    const organizationId = await orgIdForWorkspace(workspaceId);
+    const source = await prisma.workspace.findUnique({
+      where: { id: sourceWorkspaceId },
+      select: { organizationId: true, externalDbUrl: true, externalDbStatus: true },
+    });
+    // Must be a connected DB belonging to the same organization.
+    if (
+      !source ||
+      source.organizationId !== organizationId ||
+      source.externalDbStatus !== "connected" ||
+      !source.externalDbUrl
+    ) {
+      return reply.code(400).send({ error: "invalid_source" });
+    }
+    const url = decryptToken(source.externalDbUrl);
+    if (!url) return reply.code(400).send({ error: "invalid_source" });
+    // Idempotent — ensures the CortexMemory table exists on the shared DB.
+    const prov = await provisionExternalStore(url);
+    if (!prov.ok) {
+      return reply.code(400).send({ error: "provision_failed", detail: prov.error });
+    }
+    await prisma.workspace.update({
+      where: { id: workspaceId },
+      data: {
+        externalDbUrl: source.externalDbUrl,
+        externalDbStatus: "connected",
+        externalDbError: null,
+        externalDbCheckedAt: new Date(),
+      },
+    });
+    await prisma.billingEvent.create({
+      data: {
+        organizationId,
+        workspaceId,
+        type: "datastore.connected",
+        status: "active",
+        note: "Reused an existing database in the organization",
+        actorEmail: user.email,
+      },
+    });
+    return { status: "connected" };
   });
 
   // This workspace's billing history (owners) — plan grants/changes, upgrade

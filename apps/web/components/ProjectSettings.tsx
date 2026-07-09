@@ -9,6 +9,8 @@ import {
   connectDataStore,
   testDataStore,
   disconnectDataStore,
+  getReusableDataStores,
+  reuseDataStore,
   timeAgo,
   type Me,
   type WorkspaceDetail,
@@ -300,15 +302,31 @@ function DataResidencyCard({
 }) {
   const qc = useQueryClient();
   const [url, setUrl] = useState("");
+  const [source, setSource] = useState("");
   const entitled = ws.limits?.byodb ?? false;
   const ds = ws.dataStore;
   const connected = ds?.status === "connected";
   const invalidate = () => qc.invalidateQueries({ queryKey: ["workspace", workspaceId] });
 
+  // Sibling projects in the same org that already have a database — reuse one
+  // instead of re-entering a URL.
+  const { data: reusable } = useQuery({
+    queryKey: ["data-store-available", workspaceId],
+    queryFn: () => getReusableDataStores(workspaceId),
+    enabled: entitled && !connected && isOwner,
+  });
+
   const connect = useMutation({
     mutationFn: () => connectDataStore(workspaceId, url),
     onSuccess: () => {
       setUrl("");
+      invalidate();
+    },
+  });
+  const reuse = useMutation({
+    mutationFn: () => reuseDataStore(workspaceId, source),
+    onSuccess: () => {
+      setSource("");
       invalidate();
     },
   });
@@ -401,6 +419,49 @@ function DataResidencyCard({
             </div>
           ) : isOwner ? (
             <div>
+              {reusable && reusable.length > 0 ? (
+                <div className="mb-5">
+                  <label className="mb-1.5 block text-xs font-medium text-[var(--muted)]">
+                    Reuse a database from this organization
+                  </label>
+                  <div className="flex flex-wrap items-center gap-2">
+                    <Select
+                      value={source}
+                      onChange={(e) => setSource(e.target.value)}
+                      className="min-w-56 flex-1"
+                    >
+                      <option value="">Select a project…</option>
+                      {reusable.map((r) => (
+                        <option key={r.id} value={r.id}>
+                          {r.name}
+                        </option>
+                      ))}
+                    </Select>
+                    <Button
+                      variant="subtle"
+                      onClick={() => reuse.mutate()}
+                      disabled={!source}
+                      loading={reuse.isPending}
+                    >
+                      Use this database
+                    </Button>
+                  </div>
+                  <p className="mt-1.5 text-xs text-[var(--faint)]">
+                    Points this project at the same Postgres — each project&apos;s memory stays
+                    isolated.
+                  </p>
+                  {reuse.isError ? (
+                    <p className="mt-2 text-sm text-[var(--alert)]">
+                      {friendlyDbError((reuse.error as Error).message)}
+                    </p>
+                  ) : null}
+                  <div className="mt-4 flex items-center gap-3 text-[10px] uppercase tracking-wide text-[var(--faint)]">
+                    <span className="h-px flex-1 bg-[var(--border)]" />
+                    or connect a new one
+                    <span className="h-px flex-1 bg-[var(--border)]" />
+                  </div>
+                </div>
+              ) : null}
               <label className="mb-1.5 block text-xs font-medium text-[var(--muted)]">
                 Postgres connection string
               </label>

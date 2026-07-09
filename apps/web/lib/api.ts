@@ -173,6 +173,22 @@ export function testDataStore(workspaceId: string): Promise<{ ok: boolean; error
   return api(`/workspaces/${workspaceId}/data-store/test`, { method: "POST" });
 }
 
+/** Sibling projects in the same org that already have a connected database. */
+export function getReusableDataStores(workspaceId: string): Promise<{ id: string; name: string }[]> {
+  return api(`/workspaces/${workspaceId}/data-store/available`);
+}
+
+/** Point this project at a sibling project's database (same org). */
+export function reuseDataStore(
+  workspaceId: string,
+  sourceWorkspaceId: string,
+): Promise<{ status: string }> {
+  return api(`/workspaces/${workspaceId}/data-store/reuse`, {
+    method: "POST",
+    body: JSON.stringify({ sourceWorkspaceId }),
+  });
+}
+
 export function disconnectDataStore(workspaceId: string): Promise<{ status: string }> {
   return api(`/workspaces/${workspaceId}/data-store`, { method: "DELETE" });
 }
