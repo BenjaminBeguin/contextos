@@ -18,6 +18,7 @@ interface HookInput {
   hook_event_name?: string;
   tool_name?: string;
   tool_input?: Record<string, unknown>;
+  prompt?: string; // UserPromptSubmit: the task the user just submitted
 }
 
 async function readStdin(): Promise<string> {
@@ -74,6 +75,33 @@ async function sessionStart(
   process.stdout.write(
     JSON.stringify({
       hookSpecificOutput: { hookEventName: "SessionStart", additionalContext: text },
+    }),
+  );
+}
+
+/**
+ * UserPromptSubmit: the moment the user states a task, inject the memories most
+ * relevant to it. This is the task-aware counterpart to SessionStart's generic
+ * priming — the API ranks by relevance to the prompt, so the agent starts with
+ * the risks/commands/decisions that bear on what it's about to do.
+ */
+async function userPrompt(input: HookInput, env: { client: ApiClientOptions; config: ProjectConfig }) {
+  const prompt = (input.prompt ?? "").trim();
+  if (prompt.length < 4) return; // too short to retrieve anything meaningful
+
+  const { memories } = await apiFetch<{
+    memories: { type: string; title: string; content: string }[];
+  }>(env.client, "/mcp/search_memory", {
+    method: "POST",
+    body: JSON.stringify({ repoId: env.config.repoId, query: prompt, limit: 4 }),
+  });
+  if (!memories.length) return;
+
+  const body = memories.map((m) => `- [${m.type}] ${m.title}: ${m.content}`).join("\n");
+  const text = `Cortex memories relevant to this task:\n${body}`;
+  process.stdout.write(
+    JSON.stringify({
+      hookSpecificOutput: { hookEventName: "UserPromptSubmit", additionalContext: text },
     }),
   );
 }
@@ -193,6 +221,7 @@ export async function hookCommand(event: string) {
     if (!env) process.exit(0); // not set up here — stay invisible
 
     if (event === "session-start") await sessionStart(input, env);
+    else if (event === "user-prompt") await userPrompt(input, env);
     else if (event === "pre-edit") await preEdit(input, env);
     else if (event === "session-end") await sessionEnd(input, env);
   } catch {

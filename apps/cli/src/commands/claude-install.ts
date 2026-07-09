@@ -25,6 +25,7 @@ Important:
 type HookEntry = { matcher?: string; hooks: { type: string; command: string }[] };
 const HOOK_EVENTS: Record<string, HookEntry> = {
   SessionStart: { hooks: [{ type: "command", command: "cortex hook session-start" }] },
+  UserPromptSubmit: { hooks: [{ type: "command", command: "cortex hook user-prompt" }] },
   PreToolUse: {
     matcher: "Edit|Write|MultiEdit|NotebookEdit",
     hooks: [{ type: "command", command: "cortex hook pre-edit" }],
