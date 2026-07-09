@@ -33,6 +33,7 @@ function Tool({ name, desc }: { name: string; desc: string }) {
 const NAV = [
   ["how", "How it works"],
   ["quickstart", "Quick start"],
+  ["claude-code", "Add to Claude Code"],
   ["cli", "CLI commands"],
   ["mcp", "MCP tools"],
   ["hooks", "Automatic hooks"],
@@ -90,6 +91,25 @@ cortex status      # verify the setup`}</Code>
             <p>
               Open Claude Code in that repo — it discovers the <code>cortex</code> MCP server and the
               hooks start working automatically.
+            </p>
+          </Section>
+
+          <Section id="claude-code" title="Add Cortex to Claude Code">
+            <p>
+              <code>cortex init</code> already writes a project <code>.mcp.json</code>, so Claude Code
+              picks Cortex up the moment you open the repo — nothing else to do. To register it
+              yourself, or to make it available across every repo, use the built-in command:
+            </p>
+            <Code>{`# this repo only (same as cortex init)
+claude mcp add cortex -- cortex mcp
+
+# every repo you open (user scope)
+claude mcp add --scope user cortex -- cortex mcp`}</Code>
+            <p>
+              Verify it in Claude Code with <code>/mcp</code> — <code>cortex</code> should show as
+              connected, exposing the tools below. On Claude Desktop, point the server at a repo with{" "}
+              <code>--repo &lt;repoId&gt;</code> (or the <code>CORTEX_REPO_ID</code> env var), since
+              Desktop has no per-repo working directory.
             </p>
           </Section>
 
