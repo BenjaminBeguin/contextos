@@ -27,6 +27,8 @@ export interface MemoryStore {
     approvedOnly?: boolean;
     countUsage?: boolean;
   }): Promise<MemoryRow[]>;
+  /** Stamp lastUsedAt (and, when countUsage, bump usageCount) for served memories. */
+  markRetrieved(ids: string[], countUsage: boolean): Promise<void>;
   setStatus(id: string, status: string): Promise<MemoryRow>;
   archiveMany(ids: string[]): Promise<void>;
   update(
@@ -161,6 +163,14 @@ class SharedMemoryStore implements MemoryStore {
     return rows.map((m) => mapPrisma(m, this.workspaceId));
   }
 
+  async markRetrieved(ids: string[], countUsage: boolean): Promise<void> {
+    if (ids.length === 0) return;
+    await prisma.memory.updateMany({
+      where: { id: { in: ids } },
+      data: { lastUsedAt: new Date(), ...(countUsage ? { usageCount: { increment: 1 } } : {}) },
+    });
+  }
+
   async setStatus(id: string, status: string): Promise<MemoryRow> {
     const m = await prisma.memory.update({ where: { id }, data: { status }, include: { evidence: true } });
     return mapPrisma(m, this.workspaceId);
@@ -207,6 +217,9 @@ class ExternalStore implements MemoryStore {
     countUsage?: boolean;
   }) {
     return this.inner.search(opts);
+  }
+  markRetrieved(ids: string[], countUsage: boolean) {
+    return this.inner.markRetrieved(ids, countUsage);
   }
   setStatus(id: string, status: string) {
     return this.inner.setStatus(id, status);

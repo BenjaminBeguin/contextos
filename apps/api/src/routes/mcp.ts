@@ -10,6 +10,7 @@ import { memoryStoreForRepo } from "../services/memoryStore.js";
 import { recordUsage } from "../services/analytics.js";
 import { retrievalBlockedForWorkspace } from "../services/retrievals.js";
 import { relevantToFiles } from "../services/relevance.js";
+import { rankMemories, budgetByChars } from "../services/ranking.js";
 
 function handle(reply: import("fastify").FastifyReply, e: unknown) {
   if (e instanceof HttpError) return reply.code(e.statusCode).send({ error: e.message });
@@ -69,13 +70,14 @@ export async function mcpRoutes(app: FastifyInstance) {
     }
     const { store } = await memoryStoreForRepo(body.repoId);
     const approved = await store.listByRepo(body.repoId, { status: "approved" });
-    const byConfidence = (a: { confidence: number }, b: { confidence: number }) =>
-      b.confidence - a.confidence;
-    const warnings = approved
-      .filter((m) => m.type === "risk" || m.type === "failure")
-      .sort(byConfidence)
-      .slice(0, 5);
-    const commands = approved.filter((m) => m.type === "command").sort(byConfidence).slice(0, 5);
+    const now = new Date();
+    // No query here — rank by confidence × recency × impact, then keep the
+    // strongest few within a compact character budget so the injected context
+    // stays small.
+    const rank = (ms: typeof approved) =>
+      budgetByChars(rankMemories("", ms, { limit: 5, now }), 1200);
+    const warnings = rank(approved.filter((m) => m.type === "risk" || m.type === "failure"));
+    const commands = rank(approved.filter((m) => m.type === "command"));
     // "served" = we actually had context to inject (not just that the hook fired).
     const served =
       (repo.stack?.length ?? 0) > 0 ||
@@ -115,10 +117,15 @@ export async function mcpRoutes(app: FastifyInstance) {
       return { warnings: [], capped: true };
     }
     const { store } = await memoryStoreForRepo(body.repoId);
-    const risks = (await store.listByRepo(body.repoId, { status: "approved" }))
-      .filter((m) => m.type === "risk" || m.type === "failure")
-      .sort((a, b) => b.confidence - a.confidence);
-    const matched = relevantToFiles(risks, body.files);
+    const risks = (await store.listByRepo(body.repoId, { status: "approved" })).filter(
+      (m) => m.type === "risk" || m.type === "failure",
+    );
+    // Filter to the files being edited, then order by the blended score (a risk
+    // that has fired before / is fresh outranks a stale high-confidence one).
+    const matched = rankMemories("", relevantToFiles(risks, body.files), {
+      limit: 8,
+      now: new Date(),
+    });
     await recordUsage("mcp.get_relevant_warnings", {
       workspaceId: repo.workspaceId,
       repoId: repo.id,

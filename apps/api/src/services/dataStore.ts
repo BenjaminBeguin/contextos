@@ -242,13 +242,18 @@ export class ExternalMemoryStore {
     const rows = (await this.c.$queryRawUnsafe(sql, ...params)) as Record<string, unknown>[];
     const out = rows.map(toRow);
     if (out.length > 0) {
-      const inc = opts.countUsage ? `, "usageCount" = "usageCount" + 1` : "";
-      await this.c.$executeRawUnsafe(
-        `UPDATE "CortexMemory" SET "lastUsedAt" = now()${inc} WHERE "id" = ANY($1)`,
-        out.map((m) => m.id),
-      );
+      await this.markRetrieved(out.map((m) => m.id), opts.countUsage ?? false);
     }
     return out;
+  }
+
+  async markRetrieved(ids: string[], countUsage: boolean): Promise<void> {
+    if (ids.length === 0) return;
+    const inc = countUsage ? `, "usageCount" = "usageCount" + 1` : "";
+    await this.c.$executeRawUnsafe(
+      `UPDATE "CortexMemory" SET "lastUsedAt" = now()${inc} WHERE "id" = ANY($1)`,
+      ids,
+    );
   }
 
   async setStatus(id: string, status: string): Promise<MemoryRow> {

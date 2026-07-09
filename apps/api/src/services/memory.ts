@@ -1,6 +1,7 @@
 import { Prisma } from "@prisma/client";
 import { prisma } from "../db.js";
 import { memoryStoreForRepo } from "./memoryStore.js";
+import { rankMemories } from "./ranking.js";
 
 export interface SearchParams {
   repoId: string;
@@ -11,15 +12,28 @@ export interface SearchParams {
   countUsage?: boolean;
 }
 
+// Most memories we score in-process for a single query. Repo-scale corpora sit
+// well under this; the pgvector/indexed-candidate path (roadmap) lifts the cap.
+const CANDIDATE_CAP = 500;
+
 /**
- * Keyword search over a repo's memories using case-insensitive matching on
- * title/content. Ordered by confidence then freshness. Routed through the
- * workspace's memory store, so a bring-your-own-database project searches its
- * own Postgres. pgvector semantic search is a deferred enhancement (see plan).
+ * Retrieve a repo's memories most relevant to `query`, ranked by the blended
+ * score (relevance × confidence × recency × impact — see ranking.ts) rather than
+ * confidence alone. We pull the candidate set from the workspace's memory store
+ * (so a bring-your-own-database project searches its own Postgres), rank them,
+ * and mark the winners retrieved. An empty query ranks by confidence/recency/
+ * impact, which is what the context-injection and review flows want.
  */
 export async function searchMemories({ repoId, query, limit, approvedOnly, countUsage }: SearchParams) {
   const { store } = await memoryStoreForRepo(repoId);
-  return store.search({ repoId, query, limit, approvedOnly, countUsage });
+  const candidates = (
+    await store.listByRepo(repoId, approvedOnly ? { status: "approved" } : {})
+  ).slice(0, CANDIDATE_CAP);
+  const ranked = rankMemories(query, candidates, { limit, now: new Date() });
+  if (ranked.length > 0) {
+    await store.markRetrieved(ranked.map((m) => m.id), countUsage ?? false);
+  }
+  return ranked;
 }
 
 export interface AutoThresholds {
