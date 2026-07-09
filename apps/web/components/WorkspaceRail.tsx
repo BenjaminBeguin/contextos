@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { Fragment, useState } from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useQuery } from "@tanstack/react-query";
@@ -89,6 +89,60 @@ export function WorkspaceRail() {
   const PROJECT_SCOPED = ["/projects/", "/repos/", "/search", "/chat", "/graph", "/usage", "/settings"];
   const inProject = PROJECT_SCOPED.some((p) => pathname.startsWith(p));
 
+  const renderProject = (w: Workspace) => {
+    const { color } = projectColor(w.id);
+    const active = activeId === w.id && inProject;
+    const pending = w.pendingMemories ?? 0;
+    return (
+      <button
+        key={w.id}
+        onClick={() => open(w.id)}
+        title={w.name}
+        aria-label={w.name}
+        aria-current={active ? "page" : undefined}
+        className="group relative flex h-9 w-9 items-center justify-center"
+      >
+        <span
+          className={cn(
+            "absolute -left-3.5 w-1 rounded-r-full bg-white transition-all",
+            active ? "h-5" : "h-0 group-hover:h-3",
+          )}
+          aria-hidden
+        />
+        <span
+          className={cn(
+            "flex h-9 w-9 items-center justify-center border text-xs font-semibold transition-all group-hover:rounded-xl",
+            active ? "rounded-xl" : "rounded-2xl",
+          )}
+          style={{ background: projectColor(w.id).soft, color, borderColor: active ? color : "transparent" }}
+        >
+          {initials(w.name)}
+        </span>
+        {pending > 0 ? (
+          <span
+            className="absolute -right-0.5 -top-0.5 flex h-4 min-w-4 items-center justify-center rounded-full border-2 border-[var(--background)] bg-amber-500 px-1 text-[9px] font-bold text-black"
+            title={`${pending} memories awaiting review`}
+          >
+            {pending}
+          </span>
+        ) : null}
+      </button>
+    );
+  };
+
+  const newProjectButton = (
+    <button
+      onClick={() => setNewOpen(true)}
+      title="New project"
+      aria-label="New project"
+      className="flex h-9 w-9 items-center justify-center rounded-2xl border border-dashed border-[var(--border)] text-[var(--muted)] transition hover:rounded-xl hover:border-[var(--border-strong)] hover:text-white"
+    >
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" aria-hidden>
+        <path d="M12 5v14M5 12h14" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
+      </svg>
+    </button>
+  );
+
   return (
     <aside className="sticky top-0 z-30 flex h-screen w-16 shrink-0 flex-col items-center gap-1.5 border-r border-[var(--border)] bg-[var(--background)]/95 py-3 backdrop-blur">
       {/* Logo */}
@@ -102,100 +156,57 @@ export function WorkspaceRail() {
       </Link>
       <div className="h-px w-7 bg-[var(--border)]" />
 
-      {/* Organizations (squared chips → the billing/company container), then
-          projects (round avatars) beneath. */}
+      {/* Organizations (squared chips). The open org expands to reveal its
+          projects (round avatars) nested beneath it; other orgs stay collapsed. */}
       <nav className="flex min-h-0 flex-1 flex-col items-center gap-2 overflow-y-auto py-2">
         {(orgs ?? []).map((o) => {
           const active = pathname.startsWith(`/orgs/${o.id}`);
+          const isOpen = activeOrg?.id === o.id;
+          const projects = isOpen ? list.filter((w) => w.organizationId === o.id) : [];
           return (
-            <Link
-              key={o.id}
-              href={`/orgs/${o.id}`}
-              onClick={() => setActiveOrgId(o.id)}
-              title={`${o.name} · organization`}
-              aria-label={`${o.name} organization`}
-              className="group relative flex h-10 w-10 items-center justify-center"
-            >
-              <span
-                className={cn(
-                  "absolute -left-3 w-1 rounded-r-full bg-white transition-all",
-                  active ? "h-6" : "h-0 group-hover:h-3",
-                )}
-                aria-hidden
-              />
-              <span
-                className={cn(
-                  "flex h-10 w-10 items-center justify-center rounded-lg border text-[11px] font-bold uppercase tracking-wide transition",
-                  active
-                    ? "border-[var(--border-strong)] bg-[var(--surface-2)] text-white"
-                    : "border-[var(--border)] bg-[var(--surface-2)]/50 text-[var(--muted)] group-hover:text-white",
-                )}
+            <Fragment key={o.id}>
+              <Link
+                href={`/orgs/${o.id}`}
+                onClick={() => setActiveOrgId(o.id)}
+                title={`${o.name} · organization`}
+                aria-label={`${o.name} organization`}
+                className="group relative flex h-10 w-10 items-center justify-center"
               >
-                {initials(o.name)}
-              </span>
-            </Link>
-          );
-        })}
-        {(orgs ?? []).length > 0 && list.length > 0 ? (
-          <div className="h-px w-7 bg-[var(--border)]" />
-        ) : null}
-        {list.map((w) => {
-          const { color } = projectColor(w.id);
-          const active = activeId === w.id && inProject;
-          const pending = w.pendingMemories ?? 0;
-          return (
-            <button
-              key={w.id}
-              onClick={() => open(w.id)}
-              title={w.name}
-              aria-label={w.name}
-              aria-current={active ? "page" : undefined}
-              className="group relative flex h-10 w-10 items-center justify-center"
-            >
-              {/* active / hover indicator pill */}
-              <span
-                className={cn(
-                  "absolute -left-3 w-1 rounded-r-full bg-white transition-all",
-                  active ? "h-6" : "h-0 group-hover:h-3",
-                )}
-                aria-hidden
-              />
-              <span
-                className={cn(
-                  "flex h-10 w-10 items-center justify-center border text-sm font-semibold transition-all group-hover:rounded-xl",
-                  active ? "rounded-xl" : "rounded-2xl",
-                )}
-                style={{
-                  background: projectColor(w.id).soft,
-                  color,
-                  borderColor: active ? color : "transparent",
-                }}
-              >
-                {initials(w.name)}
-              </span>
-              {pending > 0 ? (
                 <span
-                  className="absolute -right-0.5 -top-0.5 flex h-4 min-w-4 items-center justify-center rounded-full border-2 border-[var(--background)] bg-amber-500 px-1 text-[9px] font-bold text-black"
-                  title={`${pending} memories awaiting review`}
+                  className={cn(
+                    "absolute -left-3 w-1 rounded-r-full bg-white transition-all",
+                    active ? "h-6" : "h-0 group-hover:h-3",
+                  )}
+                  aria-hidden
+                />
+                <span
+                  className={cn(
+                    "flex h-10 w-10 items-center justify-center rounded-lg border text-[11px] font-bold uppercase tracking-wide transition",
+                    isOpen
+                      ? "border-[var(--border-strong)] bg-[var(--surface-2)] text-white"
+                      : "border-[var(--border)] bg-[var(--surface-2)]/50 text-[var(--muted)] group-hover:text-white",
+                  )}
                 >
-                  {pending}
+                  {initials(o.name)}
                 </span>
+              </Link>
+              {isOpen ? (
+                <>
+                  {projects.map(renderProject)}
+                  {newProjectButton}
+                </>
               ) : null}
-            </button>
+            </Fragment>
           );
         })}
 
-        {/* New project — opens a modal with the create/join form */}
-        <button
-          onClick={() => setNewOpen(true)}
-          title="New project"
-          aria-label="New project"
-          className="flex h-10 w-10 items-center justify-center rounded-2xl border border-dashed border-[var(--border)] text-[var(--muted)] transition hover:rounded-xl hover:border-[var(--border-strong)] hover:text-white"
-        >
-          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden>
-            <path d="M12 5v14M5 12h14" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
-          </svg>
-        </button>
+        {/* No orgs yet — show projects flat so nothing is unreachable. */}
+        {(orgs ?? []).length === 0 ? (
+          <>
+            {list.map(renderProject)}
+            {newProjectButton}
+          </>
+        ) : null}
       </nav>
 
       <Modal
