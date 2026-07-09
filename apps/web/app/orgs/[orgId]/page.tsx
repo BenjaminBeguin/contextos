@@ -19,7 +19,7 @@ import {
   type OrgDetail,
 } from "../../../lib/api";
 import { AppShell } from "../../../components/AppShell";
-import { Breadcrumb, Button, Card, EmptyState, Input, Select, Spinner } from "../../../components/ui";
+import { Button, Card, EmptyState, Input, Select, Spinner } from "../../../components/ui";
 
 const SECTIONS = ["Projects", "Members", "Usage", "Subscription", "Billing"] as const;
 type Section = (typeof SECTIONS)[number];
@@ -48,7 +48,6 @@ function Org({ orgId }: { orgId: string }) {
 
   return (
     <div>
-      <Breadcrumb items={[{ label: "Projects", href: "/dashboard" }, { label: org.name }]} />
       <div className="mb-6 flex flex-wrap items-center justify-between gap-3">
         <div>
           <h1 className="font-display text-2xl font-semibold tracking-tight">{org.name}</h1>
