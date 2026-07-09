@@ -134,20 +134,6 @@ function Project({ workspaceId }: { workspaceId: string }) {
             ))}
           </nav>
 
-          <div className="flex shrink-0 items-stretch">
-            <button onClick={() => setTab("Settings")} className={tabCls(tab === "Settings")}>
-              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" aria-hidden>
-                <circle cx="12" cy="12" r="3" stroke="currentColor" strokeWidth="1.6" />
-                <path
-                  d="M19.4 13a7.8 7.8 0 0 0 0-2l2-1.5-2-3.4-2.4 1a7.8 7.8 0 0 0-1.7-1l-.4-2.6h-3.8l-.4 2.6a7.8 7.8 0 0 0-1.7 1l-2.4-1-2 3.4L4.6 11a7.8 7.8 0 0 0 0 2l-2 1.5 2 3.4 2.4-1a7.8 7.8 0 0 0 1.7 1l.4 2.6h3.8l.4-2.6a7.8 7.8 0 0 0 1.7-1l2.4 1 2-3.4-2-1.5Z"
-                  stroke="currentColor"
-                  strokeWidth="1.4"
-                  strokeLinejoin="round"
-                />
-              </svg>
-              Settings
-            </button>
-          </div>
         </div>
       </header>
 
