@@ -105,6 +105,16 @@ body::before {
     color: inherit;
     text-decoration: none;
   }
+  /* Buttons don't get a pointer cursor by default — make every enabled button
+     (and role=button) feel clickable. */
+  button:not(:disabled),
+  [role="button"]:not([aria-disabled="true"]) {
+    cursor: pointer;
+  }
+  button:disabled,
+  [role="button"][aria-disabled="true"] {
+    cursor: not-allowed;
+  }
 }
 
 /* Consistent, accessible focus ring across all interactive elements. */
