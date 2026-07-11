@@ -1146,8 +1146,8 @@ function SetupTab({
       <Card className="p-6">
         <h2 className="font-display font-semibold">Connect Claude Code</h2>
         <p className="mt-1 text-sm text-[var(--muted)]">
-          Install the CLI once, then open a repo above to get its <code className="text-[var(--text)]">cortex init</code>{" "}
-          command. Full reference in{" "}
+          Install the CLI, sign in, and run <code className="text-[var(--text)]">cortex init</code> from
+          the repo&apos;s root. Full reference in{" "}
           <Link href="/docs" className="text-[var(--accent)] hover:underline">
             Documentation
           </Link>
@@ -1156,10 +1156,36 @@ function SetupTab({
         <div className="mt-4">
           <Code label="shell">{`npm install -g @mxbenjaminbeguin/cortex
 cortex login
+cortex init      # link this repo + write .mcp.json, CLAUDE.md, hooks
 cortex status    # verify the connection`}</Code>
         </div>
+        <p className="mt-4 text-sm text-[var(--muted)]">
+          <code className="text-[var(--text)]">cortex init</code> writes a project{" "}
+          <code className="text-[var(--text)]">.mcp.json</code>, so Claude Code connects the{" "}
+          <code className="text-[var(--text)]">cortex</code> MCP server automatically — confirm it with{" "}
+          <code className="text-[var(--text)]">/mcp</code>. To register it yourself, or across every
+          repo you open:
+        </p>
+        <div className="mt-2">
+          <Code label="shell">{`claude mcp add cortex -- cortex mcp                 # this repo
+claude mcp add --scope user cortex -- cortex mcp   # every repo`}</Code>
+        </div>
+        <p className="mt-4 text-sm text-[var(--muted)]">
+          <strong className="text-[var(--text)]">Claude Desktop</strong> has no per-repo working
+          directory, so point the server at a specific repo. Add it in{" "}
+          <em>Settings → Developer → Edit Config</em>:
+        </p>
+        <div className="mt-2">
+          <Code label="claude_desktop_config.json">{`{
+  "mcpServers": {
+    "cortex": { "command": "cortex", "args": ["mcp", "--repo", "<repoId>"] }
+  }
+}`}</Code>
+        </div>
         <p className="mt-3 text-xs text-[var(--faint)]">
-          Select a repo above to connect it and toggle its PR reviewer — right in a drawer.
+          Select a repo above to grab its <code className="text-[var(--text)]">repoId</code> and the
+          exact <code className="text-[var(--text)]">cortex init</code> command, and to toggle its PR
+          reviewer — right in a drawer.
         </p>
       </Card>
 
