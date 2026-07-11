@@ -9,6 +9,10 @@ risks, dependencies, testing practices, deployment steps, or business context.
 
 Rules:
 - Only extract high-signal, durable facts. Ignore one-off trivia and noise.
+- Capture the WHY, not just the what. The human's instructions/corrections and the agent's
+  reasoning are the best source of durable knowledge: extract decisions (with their rationale),
+  project_rules the human insisted on (a correction — "no, do X instead" — is a STRONG signal),
+  and failures together with how they were resolved.
 - Each memory must be specific and self-contained.
 - ATOMIC: one fact per memory — split multi-topic learnings into separate memories.
 - CONCISE: 1–3 sentences, ideally under ~280 characters. State the fact, not a story.
@@ -25,9 +29,17 @@ dependency, testing, deployment, business_context.
 Output ONLY a JSON array, no prose. Each item:
 {"type": <type>, "title": <short title>, "content": <the memory>, "confidence": <0..1>, "evidence": <optional short quote>}`;
 
-function renderSession(input: RecordSessionInput): string {
+export function renderSession(input: RecordSessionInput): string {
   const parts: string[] = [];
   if (input.task) parts.push(`Task: ${input.task}`);
+  if (input.userMessages?.length) {
+    parts.push(
+      `Human instructions & corrections (their steering — strong signal for decisions & rules):\n- ${input.userMessages.join(
+        "\n- ",
+      )}`,
+    );
+  }
+  if (input.reasoning) parts.push(`Agent's reasoning & decisions:\n${input.reasoning}`);
   if (input.summary) parts.push(`Summary: ${input.summary}`);
   if (input.commandsRun?.length) parts.push(`Commands run:\n- ${input.commandsRun.join("\n- ")}`);
   if (input.filesChanged?.length) parts.push(`Files changed:\n- ${input.filesChanged.join("\n- ")}`);

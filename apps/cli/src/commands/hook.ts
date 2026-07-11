@@ -48,6 +48,18 @@ function uniq(arr: string[]): string[] {
   return [...new Set(arr.filter(Boolean))];
 }
 
+/** Join lines until a character budget is spent (keeps the reasoning digest bounded). */
+function capToBudget(lines: string[], maxChars: number): string {
+  const kept: string[] = [];
+  let used = 0;
+  for (const line of lines) {
+    if (used + line.length > maxChars && kept.length > 0) break;
+    kept.push(line);
+    used += line.length;
+  }
+  return kept.join("\n\n");
+}
+
 /** SessionStart: prime the agent with repo context (stack, risks, key commands). */
 async function sessionStart(
   input: HookInput,
@@ -149,6 +161,8 @@ async function sessionEnd(input: HookInput, env: { client: ApiClientOptions; con
   const filesChanged: string[] = [];
   const commandsRun: string[] = [];
   const errors: string[] = [];
+  const userTexts: string[] = [];
+  const agentTexts: string[] = [];
   let task: string | undefined;
 
   for (const line of raw.split("\n")) {
@@ -176,8 +190,15 @@ async function sessionEnd(input: HookInput, env: { client: ApiClientOptions; con
       } else if (item.type === "tool_result" && item.is_error) {
         const t = typeof item.content === "string" ? item.content : JSON.stringify(item.content);
         if (t) errors.push(t.slice(0, 300));
-      } else if (item.type === "text" && msg?.role === "user" && !task) {
-        task = (item.text as string)?.slice(0, 280);
+      } else if (item.type === "text" && typeof item.text === "string") {
+        const text = (item.text as string).trim();
+        if (!text) continue;
+        if (msg?.role === "user") {
+          if (!task) task = text.slice(0, 280);
+          userTexts.push(text.slice(0, 400)); // the human's steering + corrections
+        } else if (msg?.role === "assistant" && text.length > 40) {
+          agentTexts.push(text.slice(0, 600)); // the agent's reasoning
+        }
       }
     }
   }
@@ -185,6 +206,10 @@ async function sessionEnd(input: HookInput, env: { client: ApiClientOptions; con
   const files = uniq(filesChanged).slice(0, 50);
   const cmds = uniq(commandsRun).slice(0, 50);
   const errs = uniq(errors).slice(0, 20);
+  // The human's instructions/corrections — strong signal for decisions & rules.
+  const userMessages = uniq(userTexts).slice(0, 15);
+  // A bounded digest of the agent's reasoning (later turns tend to summarize).
+  const reasoning = capToBudget(agentTexts.slice(-10), 3000);
 
   // Nothing meaningful happened — don't create noise.
   if (files.length === 0 && cmds.length === 0 && errs.length === 0) return;
@@ -203,6 +228,8 @@ async function sessionEnd(input: HookInput, env: { client: ApiClientOptions; con
       filesChanged: files,
       commandsRun: cmds,
       errors: errs,
+      userMessages,
+      reasoning,
     }),
   });
 }

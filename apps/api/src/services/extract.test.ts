@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { extractMemories } from "./extract.js";
+import { extractMemories, renderSession } from "./extract.js";
 
 // Called without an API key → deterministic heuristic path (offline).
 
@@ -32,5 +32,20 @@ describe("extractMemories (heuristic fallback)", () => {
       errors: ["e1", "e2", "e3", "e4", "e5"],
     });
     expect(out.length).toBeLessThanOrEqual(4);
+  });
+});
+
+describe("renderSession — reasoning arc", () => {
+  it("includes the human's corrections and the agent's reasoning", () => {
+    const rendered = renderSession({
+      agent: "claude-code",
+      task: "add caching",
+      userMessages: ["add caching", "no — don't cache writes, only reads"],
+      reasoning: "Decided to cache only GET responses because writes must stay consistent.",
+      commandsRun: ["pnpm test"],
+    });
+    expect(rendered).toContain("no — don't cache writes");
+    expect(rendered).toContain("Agent's reasoning");
+    expect(rendered).toContain("cache only GET responses");
   });
 });

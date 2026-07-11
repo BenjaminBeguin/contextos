@@ -279,6 +279,11 @@ export const recordSessionSchema = z.object({
   filesChanged: z.array(z.string()).optional(),
   commandsRun: z.array(z.string()).optional(),
   errors: z.array(z.string()).optional(),
+  // The reasoning arc — the human's steering (instructions + corrections) and a
+  // digest of the agent's reasoning — so the extractor captures the *why*, not
+  // just the mechanics.
+  userMessages: z.array(z.string()).optional(),
+  reasoning: z.string().optional(),
   events: z.array(sessionEventSchema).optional(),
 });
 
