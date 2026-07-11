@@ -21,6 +21,7 @@ import {
 } from "../../../lib/api";
 import { AppShell } from "../../../components/AppShell";
 import { MemoryCard } from "../../../components/MemoryCard";
+import { ConnectorCommand } from "../../../components/ConnectorCommand";
 import {
   ProjectSettings,
   SETTINGS_SECTIONS,
@@ -1145,9 +1146,22 @@ function SetupTab({
       {/* Install / connect instructions. */}
       <Card className="p-6">
         <h2 className="font-display font-semibold">Connect Claude Code</h2>
+
         <p className="mt-1 text-sm text-[var(--muted)]">
-          Install the CLI, sign in, and run <code className="text-[var(--text)]">cortex init</code> from
-          the repo&apos;s root. Full reference in{" "}
+          <strong className="text-[var(--text)]">Hosted connector</strong> — one command, no local
+          install. Adds Cortex as a remote MCP server for every repo you can access (the agent picks
+          the repo per call, or run <code className="text-[var(--text)]">list_repos</code>).
+        </p>
+        <div className="mt-3">
+          <ConnectorCommand />
+        </div>
+
+        <div className="my-5 h-px bg-[var(--border)]" />
+
+        <p className="text-sm text-[var(--muted)]">
+          <strong className="text-[var(--text)]">Or install the CLI</strong> — sign in and run{" "}
+          <code className="text-[var(--text)]">cortex init</code> from the repo&apos;s root. This
+          also wires the automatic hooks. Full reference in{" "}
           <Link href="/docs" className="text-[var(--accent)] hover:underline">
             Documentation
           </Link>
