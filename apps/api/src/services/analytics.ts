@@ -8,6 +8,7 @@ export type UsageType =
   | "memory.approved"
   | "memory.created"
   | "session.recorded"
+  | "github.pr_merged"
   | "repo.scanned"
   | "repo.pr_reviewed"
   | "review.feedback";

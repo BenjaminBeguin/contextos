@@ -22,6 +22,7 @@ import { chatRoutes } from "./routes/chat.js";
 import { adminRoutes } from "./routes/admin.js";
 import { auditRoutes } from "./routes/audit.js";
 import { stripeRoutes } from "./routes/stripe.js";
+import { githubWebhookRoutes } from "./routes/githubWebhook.js";
 import { enforceTokenScope } from "./auth.js";
 
 // trustProxy so req.ip reflects the real client behind Railway's proxy (used by rate limiting).
@@ -66,6 +67,7 @@ await app.register(chatRoutes);
 await app.register(adminRoutes);
 await app.register(auditRoutes);
 await app.register(stripeRoutes);
+await app.register(githubWebhookRoutes);
 
 app
   .listen({ port: env.port, host: "0.0.0.0" })

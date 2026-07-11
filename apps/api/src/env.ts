@@ -26,6 +26,8 @@ export const env = {
   github: {
     clientId: process.env.GITHUB_CLIENT_ID ?? "",
     clientSecret: process.env.GITHUB_CLIENT_SECRET ?? "",
+    // Shared secret for the merged-PR → memory webhook (X-Hub-Signature-256).
+    webhookSecret: process.env.GITHUB_WEBHOOK_SECRET ?? "",
     get configured() {
       return Boolean(this.clientId && this.clientSecret);
     },

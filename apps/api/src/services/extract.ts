@@ -66,6 +66,15 @@ function parseJsonArray(raw: string): unknown {
 /** Deterministic fallback when no LLM key is configured. */
 function heuristic(input: RecordSessionInput): ExtractedMemory[] {
   const out: ExtractedMemory[] = [];
+  // A merged PR is itself a decision — capture a thin one even without an LLM.
+  if (input.agent === "github" && input.task) {
+    out.push({
+      type: "decision",
+      title: input.task.slice(0, 120),
+      content: `Merged: ${input.task}.${input.reasoning ? ` ${input.reasoning.slice(0, 200)}` : ""}`,
+      confidence: 0.5,
+    });
+  }
   for (const err of input.errors ?? []) {
     out.push({
       type: "failure",
