@@ -26,7 +26,7 @@ export function ChatTool({ workspaceId }: { workspaceId: string }) {
     queryFn: () => api<WorkspaceDetail>(`/workspaces/${workspaceId}`),
     enabled: !!workspaceId,
   });
-  const hasKey = ws?.hasAnthropicKey ?? false;
+  const hasKey = ws?.hasLlmKey ?? false;
   const ready = !!ws; // wait for the flag before deciding
 
   const [messages, setMessages] = useState<Msg[]>([]);

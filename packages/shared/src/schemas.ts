@@ -338,3 +338,19 @@ export type JoinWorkspaceInput = z.infer<typeof joinWorkspaceSchema>;
 export type CreateRepoInput = z.infer<typeof createRepoSchema>;
 export type CreateMemoryInput = z.infer<typeof createMemorySchema>;
 export type UpdateMemoryInput = z.infer<typeof updateMemorySchema>;
+
+// Provider-agnostic LLM (BYOK) config for a workspace. Anthropic is native;
+// everything else is spoken over the OpenAI-compatible Chat Completions API.
+export const setLlmSchema = z
+  .object({
+    provider: z.enum(["anthropic", "openai", "google", "custom"]),
+    key: z.string().min(1, "Missing key"),
+    model: z.string().trim().min(1).optional(),
+    baseUrl: z.string().url("Base URL must be a valid URL").optional(),
+  })
+  .refine((v) => v.provider !== "custom" || (!!v.baseUrl && !!v.model), {
+    message: "A custom provider needs both a base URL and a model.",
+    path: ["baseUrl"],
+  });
+
+export type SetLlmInput = z.infer<typeof setLlmSchema>;

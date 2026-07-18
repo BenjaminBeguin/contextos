@@ -17,7 +17,7 @@ import {
   selectSourceFiles,
   summarizeStructure,
 } from "../services/scan.js";
-import { getWorkspaceKey } from "../services/llm.js";
+import { getWorkspaceLlm } from "../services/llm.js";
 import { recordUsage } from "../services/analytics.js";
 import { loadDedupSet, partitionNew } from "../services/dedup.js";
 import { getAutoThresholds, statusFor, searchMemories } from "../services/memory.js";
@@ -280,7 +280,7 @@ export async function repoRoutes(app: FastifyInstance) {
       if (batch.length < 100) break;
     }
 
-    const apiKey = await getWorkspaceKey(repo.workspaceId);
+    const llm = await getWorkspaceLlm(repo.workspaceId);
     const drafts = await scanRepo(
       {
         fullName: repo.fullName,
@@ -290,7 +290,7 @@ export async function repoRoutes(app: FastifyInstance) {
         files,
         commits,
       },
-      apiKey,
+      llm,
     );
 
     // Drop drafts that duplicate existing proposed/approved memories.
@@ -496,8 +496,8 @@ export async function repoRoutes(app: FastifyInstance) {
     const token = account?.githubAccessToken ? decryptToken(account.githubAccessToken) : null;
     if (!token) return reply.code(409).send({ error: "github_not_connected" });
 
-    const apiKey = await getWorkspaceKey(repo.workspaceId);
-    if (!apiKey) return reply.code(409).send({ error: "llm_not_configured" });
+    const llm = await getWorkspaceLlm(repo.workspaceId);
+    if (!llm) return reply.code(409).send({ error: "llm_not_configured" });
 
     const headers = {
       authorization: `Bearer ${token}`,
@@ -537,7 +537,7 @@ export async function repoRoutes(app: FastifyInstance) {
         instructions: repo.reviewerInstructions,
         skills: skills.map((s) => ({ name: s.name, instructions: s.instructions, paths: s.paths })),
       },
-      apiKey,
+      llm,
     );
 
     let posted = false;
@@ -597,8 +597,8 @@ export async function repoRoutes(app: FastifyInstance) {
     // The UI toggle is the CI kill-switch: skip cleanly when the reviewer is disabled.
     if (!repo.reviewerEnabled) return { skipped: true, reason: "reviewer_disabled" };
 
-    const apiKey = await getWorkspaceKey(repo.workspaceId);
-    if (!apiKey) return reply.code(409).send({ error: "llm_not_configured" });
+    const llm = await getWorkspaceLlm(repo.workspaceId);
+    if (!llm) return reply.code(409).send({ error: "llm_not_configured" });
 
     const memories = await searchMemories({ repoId, query: "", limit: 40, approvedOnly: true });
     const skills = await prisma.reviewerSkill.findMany({
@@ -620,7 +620,7 @@ export async function repoRoutes(app: FastifyInstance) {
         instructions: repo.reviewerInstructions,
         skills: skills.map((s) => ({ name: s.name, instructions: s.instructions, paths: s.paths })),
       },
-      apiKey,
+      llm,
     );
 
     await recordUsage("repo.pr_reviewed", {

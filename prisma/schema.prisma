@@ -63,7 +63,12 @@ model Workspace {
   name           String
   slug           String   @unique
   joinCode       String   @unique
-  anthropicKey String? // encrypted; BYOK for this workspace's AI features
+  // BYOK for this workspace's AI features. Provider-agnostic: Anthropic (native),
+  // or any OpenAI-compatible endpoint (OpenAI, Google Gemini, or a custom base URL).
+  llmProvider  String   @default("anthropic") // anthropic | openai | google | custom
+  llmKey       String? // encrypted API key
+  llmModel     String? // optional model override; else the provider default
+  llmBaseUrl   String? // for custom / self-hosted OpenAI-compatible endpoints
   autoApproveThreshold Float? // if set, proposed memories with confidence >= this are auto-approved
   autoRejectThreshold  Float? // if set, proposed memories with confidence < this are auto-rejected
   // Bring-your-own-database (data residency, Enterprise). When connected, this

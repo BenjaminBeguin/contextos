@@ -100,7 +100,14 @@ export function ProjectSettings({
         {active === "General" ? (
           <>
             <GeneralCard workspaceId={workspaceId} ws={ws} isOwner={isOwner} />
-            <AiKeyCard workspaceId={workspaceId} hasKey={!!ws.hasAnthropicKey} isOwner={isOwner} />
+            <AiKeyCard
+              workspaceId={workspaceId}
+              hasKey={!!ws.hasLlmKey}
+              provider={ws.llmProvider ?? "anthropic"}
+              model={ws.llmModel ?? ""}
+              baseUrl={ws.llmBaseUrl ?? ""}
+              isOwner={isOwner}
+            />
             <AutoTriageCard
               workspaceId={workspaceId}
               approve={ws.autoApproveThreshold ?? null}
@@ -748,24 +755,81 @@ function MembersCard({
   );
 }
 
+type LlmProvider = "anthropic" | "openai" | "google" | "custom";
+
+const LLM_PROVIDERS: {
+  value: LlmProvider;
+  label: string;
+  keyPlaceholder: string;
+  modelPlaceholder: string;
+  keyHint: string;
+}[] = [
+  {
+    value: "anthropic",
+    label: "Anthropic (Claude)",
+    keyPlaceholder: "sk-ant-…",
+    modelPlaceholder: "claude-sonnet-4-6",
+    keyHint: "Get a key at console.anthropic.com.",
+  },
+  {
+    value: "openai",
+    label: "OpenAI",
+    keyPlaceholder: "sk-…",
+    modelPlaceholder: "gpt-4o",
+    keyHint: "Get a key at platform.openai.com.",
+  },
+  {
+    value: "google",
+    label: "Google Gemini",
+    keyPlaceholder: "AIza…",
+    modelPlaceholder: "gemini-2.0-flash",
+    keyHint: "Get a key at aistudio.google.com.",
+  },
+  {
+    value: "custom",
+    label: "Custom (OpenAI-compatible)",
+    keyPlaceholder: "API key",
+    modelPlaceholder: "model name (required)",
+    keyHint: "Any OpenAI-compatible endpoint — Azure, OpenRouter, Together, Groq, a local server…",
+  },
+];
+
 function AiKeyCard({
   workspaceId,
   hasKey,
+  provider: savedProvider,
+  model: savedModel,
+  baseUrl: savedBaseUrl,
   isOwner,
 }: {
   workspaceId: string;
   hasKey: boolean;
+  provider: LlmProvider;
+  model: string;
+  baseUrl: string;
   isOwner: boolean;
 }) {
   const qc = useQueryClient();
+  const [provider, setProvider] = useState<LlmProvider>(savedProvider);
   const [key, setKey] = useState("");
+  const [model, setModel] = useState(savedModel);
+  const [baseUrl, setBaseUrl] = useState(savedBaseUrl);
   const invalidate = () => qc.invalidateQueries({ queryKey: ["workspace", workspaceId] });
+
+  const meta = LLM_PROVIDERS.find((p) => p.value === provider) ?? LLM_PROVIDERS[0];
+  const isCustom = provider === "custom";
+  const canSave = !!key && (!isCustom || (!!baseUrl.trim() && !!model.trim()));
 
   const save = useMutation({
     mutationFn: () =>
-      api(`/workspaces/${workspaceId}/anthropic-key`, {
+      api(`/workspaces/${workspaceId}/llm`, {
         method: "PUT",
-        body: JSON.stringify({ key }),
+        body: JSON.stringify({
+          provider,
+          key,
+          model: model.trim() || undefined,
+          baseUrl: isCustom ? baseUrl.trim() : undefined,
+        }),
       }),
     onSuccess: () => {
       setKey("");
@@ -773,52 +837,101 @@ function AiKeyCard({
     },
   });
   const remove = useMutation({
-    mutationFn: () => api(`/workspaces/${workspaceId}/anthropic-key`, { method: "DELETE" }),
-    onSuccess: invalidate,
+    mutationFn: () => api(`/workspaces/${workspaceId}/llm`, { method: "DELETE" }),
+    onSuccess: () => {
+      setProvider("anthropic");
+      setModel("");
+      setBaseUrl("");
+      invalidate();
+    },
   });
 
   return (
     <Card className="p-6">
-      <h2 className="font-semibold">AI provider (Anthropic key)</h2>
+      <h2 className="font-semibold">AI provider</h2>
       <p className="mt-1 text-sm text-[var(--muted)]">
-        Add your own Anthropic API key to power AI features — codebase scan, session extraction,
-        living docs, and chat — on your own billing. Without a key, those run a deterministic
-        fallback (no AI cost).
+        Bring your own AI provider to power codebase scan, session extraction, living docs, and
+        chat — on your own billing. Works with Anthropic, OpenAI, Google Gemini, or any
+        OpenAI-compatible endpoint. Without a key, those run a deterministic fallback (no AI cost).
       </p>
       <p className="mt-3 text-sm">
         {hasKey ? (
-          <span className="text-emerald-300">✓ Key configured for this project</span>
+          <span className="text-emerald-300">
+            ✓ {LLM_PROVIDERS.find((p) => p.value === savedProvider)?.label ?? savedProvider}
+            {savedModel ? ` · ${savedModel}` : ""} configured
+          </span>
         ) : (
-          <span className="text-[var(--muted)]">No key set</span>
+          <span className="text-[var(--muted)]">No provider configured</span>
         )}
       </p>
 
       {isOwner ? (
-        <div className="mt-4 space-y-2">
-          <div className="flex flex-wrap items-center gap-2">
-            <Input
-              type="password"
-              value={key}
-              onChange={(e) => setKey(e.target.value)}
-              placeholder="sk-ant-…"
-              className="min-w-64 flex-1"
-            />
-            <Button onClick={() => save.mutate()} disabled={!key || save.isPending}>
-              {save.isPending ? "Saving…" : hasKey ? "Replace" : "Save key"}
-            </Button>
-            {hasKey ? (
-              <Button variant="danger" onClick={() => remove.mutate()} disabled={remove.isPending}>
-                Remove
-              </Button>
-            ) : null}
+        <div className="mt-4 space-y-3">
+          <div>
+            <span className="mb-1.5 block text-xs font-medium text-[var(--muted)]">Provider</span>
+            <select
+              value={provider}
+              onChange={(e) => setProvider(e.target.value as LlmProvider)}
+              className="w-full cursor-pointer rounded-lg border border-[var(--border)] bg-[var(--surface-2)] px-3 py-2 text-sm outline-none focus:border-[var(--accent)]"
+            >
+              {LLM_PROVIDERS.map((p) => (
+                <option key={p.value} value={p.value}>
+                  {p.label}
+                </option>
+              ))}
+            </select>
           </div>
-          {save.isError ? <p className="text-sm text-red-400">{(save.error as Error).message}</p> : null}
-          <p className="text-xs text-[var(--muted)]">
-            Stored encrypted; never shown again. Get a key at console.anthropic.com.
-          </p>
+
+          {isCustom ? (
+            <div>
+              <span className="mb-1.5 block text-xs font-medium text-[var(--muted)]">Base URL</span>
+              <Input
+                value={baseUrl}
+                onChange={(e) => setBaseUrl(e.target.value)}
+                placeholder="https://your-endpoint.example/v1"
+              />
+            </div>
+          ) : null}
+
+          <div>
+            <span className="mb-1.5 block text-xs font-medium text-[var(--muted)]">
+              Model {isCustom ? "(required)" : "(optional override)"}
+            </span>
+            <Input
+              value={model}
+              onChange={(e) => setModel(e.target.value)}
+              placeholder={meta.modelPlaceholder}
+            />
+          </div>
+
+          <div>
+            <span className="mb-1.5 block text-xs font-medium text-[var(--muted)]">API key</span>
+            <div className="flex flex-wrap items-center gap-2">
+              <Input
+                type="password"
+                value={key}
+                onChange={(e) => setKey(e.target.value)}
+                placeholder={meta.keyPlaceholder}
+                className="min-w-64 flex-1"
+              />
+              <Button onClick={() => save.mutate()} disabled={!canSave || save.isPending}>
+                {save.isPending ? "Saving…" : hasKey ? "Replace" : "Save"}
+              </Button>
+              {hasKey ? (
+                <Button variant="danger" onClick={() => remove.mutate()} disabled={remove.isPending}>
+                  Remove
+                </Button>
+              ) : null}
+            </div>
+          </div>
+
+          {save.isError ? (
+            <p className="text-sm text-red-400">{(save.error as Error).message}</p>
+          ) : null}
+          <p className="text-xs text-[var(--muted)]">Stored encrypted; never shown again. {meta.keyHint}</p>
         </div>
       ) : (
-        <p className="mt-3 text-xs text-[var(--muted)]">Only owners can manage the API key.</p>
+        <p className="mt-3 text-xs text-[var(--muted)]">Only owners can manage the AI provider.</p>
       )}
     </Card>
   );

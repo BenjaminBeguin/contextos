@@ -2,7 +2,7 @@ import type { FastifyInstance } from "fastify";
 import { env } from "../env.js";
 import { prisma } from "../db.js";
 import { extractMemories } from "../services/extract.js";
-import { getWorkspaceKey } from "../services/llm.js";
+import { getWorkspaceLlm } from "../services/llm.js";
 import { recordUsage } from "../services/analytics.js";
 import { loadDedupSet, partitionNew } from "../services/dedup.js";
 import { getAutoThresholds, statusFor } from "../services/memory.js";
@@ -51,8 +51,8 @@ export async function githubWebhookRoutes(app: FastifyInstance) {
     const repos = await prisma.repo.findMany({ where: { fullName }, select: { id: true, workspaceId: true } });
     let created = 0;
     for (const repo of repos) {
-      const apiKey = await getWorkspaceKey(repo.workspaceId);
-      const extracted = await extractMemories(input, apiKey);
+      const llm = await getWorkspaceLlm(repo.workspaceId);
+      const extracted = await extractMemories(input, llm);
       const { fresh } = partitionNew(await loadDedupSet(repo.id), extracted);
       const thresholds = await getAutoThresholds(repo.workspaceId);
       for (const m of fresh) {

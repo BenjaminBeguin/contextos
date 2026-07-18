@@ -1,6 +1,6 @@
 import { DOC_TITLES, DOC_TYPES, type DocType } from "@memmo/shared";
 import { prisma } from "../db.js";
-import { complete } from "./llm.js";
+import { complete, type LlmConfig } from "./llm.js";
 import { memoryStoreForRepo } from "./memoryStore.js";
 
 interface MemoryLite {
@@ -82,15 +82,15 @@ Use short sections: overview, conventions, how to run/test, and what to watch ou
 async function buildOnboarding(
   repo: RepoForDocs,
   memories: MemoryLite[],
-  apiKey?: string,
+  llm?: LlmConfig | null,
 ): Promise<string> {
-  if (!apiKey) return buildOnboardingHeuristic(repo, memories);
+  if (!llm) return buildOnboardingHeuristic(repo, memories);
   try {
     const payload = JSON.stringify({
       repo: { fullName: repo.fullName, stack: repo.stack, packageManager: repo.packageManager },
       memories: memories.map((m) => ({ type: m.type, title: m.title, content: m.content })),
     });
-    const md = await complete(apiKey, ONBOARDING_SYSTEM, payload, 1500);
+    const md = await complete(llm, ONBOARDING_SYSTEM, payload, 1500);
     return md.trim() || buildOnboardingHeuristic(repo, memories);
   } catch {
     return buildOnboardingHeuristic(repo, memories);
@@ -108,7 +108,7 @@ interface RepoForDocs {
 /** (Re)generate the standard doc set for a repo from its approved memories. */
 export async function generateDocs(
   repo: RepoForDocs,
-  apiKey?: string,
+  llm?: LlmConfig | null,
 ): Promise<{ type: DocType; title: string }[]> {
   // Routed through the repo's memory store (BYODB reads the customer's DB).
   const { store } = await memoryStoreForRepo(repo.id);
@@ -120,7 +120,7 @@ export async function generateDocs(
     overview: buildOverview(repo, memories),
     commands: buildCommands(memories),
     risks: buildRisks(memories),
-    onboarding: await buildOnboarding(repo, memories, apiKey),
+    onboarding: await buildOnboarding(repo, memories, llm),
   };
 
   await prisma.$transaction(

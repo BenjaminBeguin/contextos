@@ -12,6 +12,7 @@ import {
   dataStoreSchema,
   dataStoreReuseSchema,
   moveWorkspaceSchema,
+  setLlmSchema,
   planLimits,
   withinLimit,
 } from "@memmo/shared";
@@ -396,14 +397,15 @@ export async function workspaceRoutes(app: FastifyInstance) {
     }
 
     // Never return the encrypted key or DB URL — just whether each is set.
-    const { anthropicKey, organization, ...rest } = workspace;
+    // Provider/model/baseUrl are safe to expose (they drive the settings UI).
+    const { llmKey, organization, ...rest } = workspace;
     delete (rest as { externalDbUrl?: string | null }).externalDbUrl;
     const limits = planLimits(organization.plan);
     const retrievals = await retrievalUsageForWorkspace(workspaceId);
     return {
       ...rest,
       repos,
-      hasAnthropicKey: Boolean(anthropicKey),
+      hasLlmKey: Boolean(llmKey),
       pendingMemories,
       // Plan/billing are org-level; surface them here so the project UI keeps working.
       plan: organization.plan,
@@ -764,8 +766,10 @@ export async function workspaceRoutes(app: FastifyInstance) {
     return ws;
   });
 
-  // Set or clear this workspace's Anthropic API key (BYOK, owners only).
-  app.put("/workspaces/:workspaceId/anthropic-key", async (req, reply) => {
+  // Set this workspace's LLM provider + BYOK key (owners only). Provider-agnostic:
+  // Anthropic (native) or any OpenAI-compatible endpoint (OpenAI, Google Gemini,
+  // or a custom base URL).
+  app.put("/workspaces/:workspaceId/llm", async (req, reply) => {
     const user = await resolveUser(req);
     if (!user) return reply.code(401).send({ error: "Unauthorized" });
     const { workspaceId } = req.params as { workspaceId: string };
@@ -776,20 +780,26 @@ export async function workspaceRoutes(app: FastifyInstance) {
       if (e instanceof HttpError) return reply.code(e.statusCode).send({ error: e.message });
       throw e;
     }
-    const { key } = (req.body ?? {}) as { key?: string };
-    const trimmed = key?.trim();
-    if (!trimmed) return reply.code(400).send({ error: "Missing key" });
-    if (!trimmed.startsWith("sk-ant-")) {
-      return reply.code(400).send({ error: "That doesn't look like an Anthropic API key (sk-ant-…)" });
+    const parsed = setLlmSchema.safeParse(req.body);
+    if (!parsed.success) {
+      return reply.code(400).send({ error: parsed.error.issues[0]?.message ?? "Invalid config" });
     }
+    const body = parsed.data;
+    const model = body.model?.trim() || null;
+    const baseUrl = body.provider === "custom" ? body.baseUrl!.trim() : null;
     await prisma.workspace.update({
       where: { id: workspaceId },
-      data: { anthropicKey: encryptToken(trimmed) },
+      data: {
+        llmProvider: body.provider,
+        llmKey: encryptToken(body.key.trim()),
+        llmModel: model,
+        llmBaseUrl: baseUrl,
+      },
     });
-    return { ok: true, hasAnthropicKey: true };
+    return { ok: true, hasLlmKey: true, llmProvider: body.provider, llmModel: model, llmBaseUrl: baseUrl };
   });
 
-  app.delete("/workspaces/:workspaceId/anthropic-key", async (req, reply) => {
+  app.delete("/workspaces/:workspaceId/llm", async (req, reply) => {
     const user = await resolveUser(req);
     if (!user) return reply.code(401).send({ error: "Unauthorized" });
     const { workspaceId } = req.params as { workspaceId: string };
@@ -800,8 +810,11 @@ export async function workspaceRoutes(app: FastifyInstance) {
       if (e instanceof HttpError) return reply.code(e.statusCode).send({ error: e.message });
       throw e;
     }
-    await prisma.workspace.update({ where: { id: workspaceId }, data: { anthropicKey: null } });
-    return { ok: true, hasAnthropicKey: false };
+    await prisma.workspace.update({
+      where: { id: workspaceId },
+      data: { llmKey: null, llmModel: null, llmBaseUrl: null, llmProvider: "anthropic" },
+    });
+    return { ok: true, hasLlmKey: false, llmProvider: "anthropic" };
   });
 
   // Rotate the join code (owners only) — invalidates the old one.

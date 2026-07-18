@@ -1,5 +1,5 @@
 import { extractedMemoriesSchema, type ExtractedMemory } from "@memmo/shared";
-import { complete } from "./llm.js";
+import { complete, type LlmConfig } from "./llm.js";
 
 export interface SplitInput {
   type: string;
@@ -60,11 +60,11 @@ function heuristic(m: SplitInput): ExtractedMemory[] {
 }
 
 /** Split a memory into atomic, concise memories (LLM if a key is set, else heuristic). */
-export async function splitMemory(m: SplitInput, apiKey?: string): Promise<ExtractedMemory[]> {
-  if (apiKey) {
+export async function splitMemory(m: SplitInput, llm?: LlmConfig | null): Promise<ExtractedMemory[]> {
+  if (llm) {
     try {
       const raw = await complete(
-        apiKey,
+        llm,
         SYSTEM,
         `Type: ${m.type}\nTitle: ${m.title}\nContent: ${m.content}`,
         2048,

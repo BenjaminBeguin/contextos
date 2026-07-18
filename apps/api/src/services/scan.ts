@@ -1,5 +1,5 @@
 import { extractedMemoriesSchema, type ExtractedMemory } from "@memmo/shared";
-import { complete } from "./llm.js";
+import { complete, type LlmConfig } from "./llm.js";
 
 export interface ScanFile {
   path: string;
@@ -258,10 +258,10 @@ function heuristic(input: ScanInput): ExtractedMemory[] {
   return out.slice(0, 12);
 }
 
-export async function scanRepo(input: ScanInput, apiKey?: string): Promise<ExtractedMemory[]> {
-  if (apiKey && (input.files.length > 0 || (input.commits?.length ?? 0) > 0)) {
+export async function scanRepo(input: ScanInput, llm?: LlmConfig | null): Promise<ExtractedMemory[]> {
+  if (llm && (input.files.length > 0 || (input.commits?.length ?? 0) > 0)) {
     try {
-      const raw = await complete(apiKey, SYSTEM, render(input), 4096);
+      const raw = await complete(llm, SYSTEM, render(input), 4096);
       const parsed = extractedMemoriesSchema.safeParse(parseJsonArray(raw));
       if (parsed.success && parsed.data.length > 0) return parsed.data;
     } catch {

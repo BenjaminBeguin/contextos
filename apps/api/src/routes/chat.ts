@@ -2,7 +2,7 @@ import type { FastifyInstance } from "fastify";
 import { chatSchema } from "@memmo/shared";
 import { prisma } from "../db.js";
 import { resolveUser, assertWorkspaceAccess, HttpError } from "../auth.js";
-import { complete, getWorkspaceKey } from "../services/llm.js";
+import { complete, getWorkspaceLlm } from "../services/llm.js";
 import { memoryStore } from "../services/memoryStore.js";
 import { rateLimit } from "../rate-limit.js";
 
@@ -71,8 +71,8 @@ export async function chatRoutes(app: FastifyInstance) {
       .map((m) => `- [${m.type}] ${m.title} (${repoName.get(m.repoId)}): ${m.content}`)
       .join("\n");
 
-    const apiKey = await getWorkspaceKey(workspaceId);
-    if (!apiKey) {
+    const llm = await getWorkspaceLlm(workspaceId);
+    if (!llm) {
       return {
         answer:
           "AI answers are off — add an Anthropic API key in workspace settings. Most relevant memories:\n\n" +
@@ -83,7 +83,7 @@ export async function chatRoutes(app: FastifyInstance) {
 
     try {
       const answer = await complete(
-        apiKey,
+        llm,
         SYSTEM,
         `Question: ${message}\n\nMemories:\n${context}`,
         1024,

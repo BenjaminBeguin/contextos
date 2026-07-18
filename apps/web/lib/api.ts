@@ -65,7 +65,10 @@ export interface WorkspaceDetail {
   name: string;
   slug: string;
   joinCode: string;
-  hasAnthropicKey?: boolean;
+  hasLlmKey?: boolean;
+  llmProvider?: "anthropic" | "openai" | "google" | "custom";
+  llmModel?: string | null;
+  llmBaseUrl?: string | null;
   autoApproveThreshold?: number | null;
   autoRejectThreshold?: number | null;
   pendingMemories?: number;

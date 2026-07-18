@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { complete } from "./llm.js";
+import { complete, type LlmConfig } from "./llm.js";
 
 export interface ReviewMemory {
   type: string;
@@ -112,8 +112,8 @@ function parseJsonObject(raw: string): unknown {
 }
 
 /** Generate a memory-grounded review of a pull request diff. Requires an LLM key. */
-export async function reviewPullRequest(input: ReviewInput, apiKey: string): Promise<PrReview> {
-  const raw = await complete(apiKey, SYSTEM, render(input), 2048);
+export async function reviewPullRequest(input: ReviewInput, llm: LlmConfig): Promise<PrReview> {
+  const raw = await complete(llm, SYSTEM, render(input), 2048);
   const parsed = reviewSchema.safeParse(parseJsonObject(raw));
   if (parsed.success) return parsed.data;
   return { summary: raw.trim().slice(0, 1000) || "No review produced.", findings: [] };

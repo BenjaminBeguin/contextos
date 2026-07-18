@@ -11,7 +11,7 @@ import { recordUsage } from "../services/analytics.js";
 import { loadDedupSet, partitionNew, findDuplicate, similarity, DUP_THRESHOLD } from "../services/dedup.js";
 import { memoryStoreForRepo, resolveMemoryById } from "../services/memoryStore.js";
 import { splitMemory } from "../services/split.js";
-import { getWorkspaceKey } from "../services/llm.js";
+import { getWorkspaceLlm } from "../services/llm.js";
 import { memoryHealth } from "../services/memoryHealth.js";
 
 /** Resolve a memory by id (BYODB-aware) and enforce access. Writes
@@ -237,7 +237,7 @@ export async function memoryRoutes(app: FastifyInstance) {
       return handle(reply, e);
     }
     const { memory, store, workspaceId, repoId } = resolved;
-    const apiKey = await getWorkspaceKey(workspaceId);
+    const llm = await getWorkspaceLlm(workspaceId);
     const parts = await splitMemory(
       {
         type: memory.type,
@@ -246,7 +246,7 @@ export async function memoryRoutes(app: FastifyInstance) {
         paths: memory.paths,
         confidence: memory.confidence,
       },
-      apiKey,
+      llm,
     );
     if (parts.length <= 1) {
       return reply.code(400).send({ error: "Nothing to split — this memory is already atomic." });
