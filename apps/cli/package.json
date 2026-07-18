@@ -5,6 +5,14 @@
   "license": "MIT",
   "author": "Benjamin Beguin",
   "homepage": "https://memmo.dev",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/memmohq/memmo-core.git",
+    "directory": "apps/cli"
+  },
+  "bugs": {
+    "url": "https://github.com/memmohq/memmo-core/issues"
+  },
   "type": "module",
   "bin": {
     "memmo": "dist/index.js"
