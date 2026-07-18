@@ -142,7 +142,7 @@ get_repo_context()        → stack, commands, risks, warnings`}</Code>
       </main>
 
       <footer className="border-t border-white/5 py-8 text-center text-sm text-[var(--muted)]">
-        Memmo — Never explain your codebase to AI twice.
+        Memmo — Long-term memory for AI coding agents.
       </footer>
     </div>
   );
