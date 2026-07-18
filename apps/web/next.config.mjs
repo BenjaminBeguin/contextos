@@ -1,6 +1,6 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
-  transpilePackages: ["@cortex/shared"],
+  transpilePackages: ["@memmo/shared"],
   webpack: (config) => {
     // The shared package uses NodeNext-style ".js" extensions in its TS source
     // (required by the API). Teach webpack to resolve those to ".ts"/".tsx".

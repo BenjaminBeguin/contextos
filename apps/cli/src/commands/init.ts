@@ -16,7 +16,7 @@ interface RepoSummary {
 export async function initCommand(opts: { repo?: string; yes?: boolean; scan?: boolean }) {
   const creds = loadCredentials();
   if (!creds) {
-    throw new Error("Not logged in. Run `cortex login` first.");
+    throw new Error("Not logged in. Run `memmo login` first.");
   }
 
   const client = { baseUrl: creds.apiBaseUrl, token: creds.token };
@@ -48,7 +48,7 @@ export async function initCommand(opts: { repo?: string; yes?: boolean; scan?: b
 
   // Confirm the directory before writing anything — `init` should run at your repo root.
   if (!opts.yes) {
-    console.log("\nSet up Cortex in this directory?");
+    console.log("\nSet up Memmo in this directory?");
     console.log(`  directory: ${cwd}`);
     console.log(`  repo:      ${repo.fullName}`);
     if (!existsSync(join(cwd, ".git"))) {
@@ -68,7 +68,7 @@ export async function initCommand(opts: { repo?: string; yes?: boolean; scan?: b
     repoId,
     repoFullName: repo.fullName,
   });
-  console.log(`\nConnected ${repo.fullName} → .cortex/config.json`);
+  console.log(`\nConnected ${repo.fullName} → .memmo/config.json`);
 
   const actions = writeClaudeAssets(cwd);
   for (const a of actions) console.log("  - " + a);
@@ -91,7 +91,7 @@ export async function initCommand(opts: { repo?: string; yes?: boolean; scan?: b
       await scanCommand();
     } catch (e) {
       console.log(`Scan skipped: ${e instanceof Error ? e.message : String(e)}`);
-      console.log("Run it later with `cortex scan`.");
+      console.log("Run it later with `memmo scan`.");
     }
   }
 }

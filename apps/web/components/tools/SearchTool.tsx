@@ -3,7 +3,7 @@
 import { useState } from "react";
 import Link from "next/link";
 import { useQuery } from "@tanstack/react-query";
-import { MEMORY_STATUSES, MEMORY_TYPES } from "@cortex/shared";
+import { MEMORY_STATUSES, MEMORY_TYPES } from "@memmo/shared";
 import { api, isStaleMemory, type WorkspaceMemory } from "../../lib/api";
 import { usePagination, Pagination } from "../Pagination";
 import {

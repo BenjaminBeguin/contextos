@@ -48,7 +48,7 @@ function Docs() {
     <div>
       <PageHeader
         title="Documentation"
-        description="How Cortex captures, curates, and serves your team's operational memory to AI coding agents."
+        description="How Memmo captures, curates, and serves your team's operational memory to AI coding agents."
       />
 
       <div className="grid gap-8 lg:grid-cols-[180px_1fr]">
@@ -70,7 +70,7 @@ function Docs() {
         <div className="max-w-2xl space-y-10">
           <Section id="how" title="How it works">
             <p>
-              Cortex is an operational-memory layer for AI coding agents. The loop:{" "}
+              Memmo is an operational-memory layer for AI coding agents. The loop:{" "}
               <strong className="text-white">agents work → knowledge is captured → a human approves
               it → it&apos;s injected back</strong>{" "}
               into the next session through the Model Context Protocol (MCP).
@@ -84,45 +84,45 @@ function Docs() {
 
           <Section id="quickstart" title="Quick start">
             <p>Install the CLI, sign in, and connect a repo from its root:</p>
-            <Code>{`npm install -g @mxbenjaminbeguin/cortex
-cortex login
-cortex init        # writes .mcp.json, CLAUDE.md, and Claude Code hooks
-cortex status      # verify the setup`}</Code>
+            <Code>{`npm install -g memmo
+memmo login
+memmo init        # writes .mcp.json, CLAUDE.md, and Claude Code hooks
+memmo status      # verify the setup`}</Code>
             <p>
-              Open Claude Code in that repo — it discovers the <code>cortex</code> MCP server and the
+              Open Claude Code in that repo — it discovers the <code>memmo</code> MCP server and the
               hooks start working automatically.
             </p>
           </Section>
 
-          <Section id="claude-code" title="Add Cortex to Claude Code">
+          <Section id="claude-code" title="Add Memmo to Claude Code">
             <p>
-              <code>cortex init</code> already writes a project <code>.mcp.json</code>, so Claude Code
-              picks Cortex up the moment you open the repo — nothing else to do. To register it
+              <code>memmo init</code> already writes a project <code>.mcp.json</code>, so Claude Code
+              picks Memmo up the moment you open the repo — nothing else to do. To register it
               yourself, or to make it available across every repo, use the built-in command:
             </p>
-            <Code>{`# this repo only (same as cortex init)
-claude mcp add cortex -- cortex mcp
+            <Code>{`# this repo only (same as memmo init)
+claude mcp add memmo -- memmo mcp
 
 # every repo you open (user scope)
-claude mcp add --scope user cortex -- cortex mcp`}</Code>
+claude mcp add --scope user memmo -- memmo mcp`}</Code>
             <p>
-              Verify it in Claude Code with <code>/mcp</code> — <code>cortex</code> should show as
+              Verify it in Claude Code with <code>/mcp</code> — <code>memmo</code> should show as
               connected, exposing the tools below. On Claude Desktop, point the server at a repo with{" "}
-              <code>--repo &lt;repoId&gt;</code> (or the <code>CORTEX_REPO_ID</code> env var), since
+              <code>--repo &lt;repoId&gt;</code> (or the <code>MEMMO_REPO_ID</code> env var), since
               Desktop has no per-repo working directory.
             </p>
           </Section>
 
           <Section id="cli" title="CLI commands">
             <Card className="p-4">
-              <Tool name="cortex login" desc="Authenticate and store an API token in ~/.cortex." />
-              <Tool name="cortex init" desc="Connect this repo and generate Claude Code assets." />
-              <Tool name="cortex status" desc="Check whether Cortex is set up in this repo." />
-              <Tool name="cortex scan" desc="Scan the codebase and propose starter memories (--agent uses local Claude Code, --server uses the workspace key)." />
-              <Tool name="cortex chat [q]" desc="Chat with this repo's memory using your own Anthropic key or Claude subscription." />
-              <Tool name="cortex claude install" desc="(Re)generate CLAUDE.md, .mcp.json, and hooks." />
-              <Tool name="cortex mcp" desc="Run the MCP stdio server (launched by Claude Code / Desktop)." />
-              <Tool name="cortex uninstall" desc="Remove all Cortex wiring from this repo." />
+              <Tool name="memmo login" desc="Authenticate and store an API token in ~/.memmo." />
+              <Tool name="memmo init" desc="Connect this repo and generate Claude Code assets." />
+              <Tool name="memmo status" desc="Check whether Memmo is set up in this repo." />
+              <Tool name="memmo scan" desc="Scan the codebase and propose starter memories (--agent uses local Claude Code, --server uses the workspace key)." />
+              <Tool name="memmo chat [q]" desc="Chat with this repo's memory using your own Anthropic key or Claude subscription." />
+              <Tool name="memmo claude install" desc="(Re)generate CLAUDE.md, .mcp.json, and hooks." />
+              <Tool name="memmo mcp" desc="Run the MCP stdio server (launched by Claude Code / Desktop)." />
+              <Tool name="memmo uninstall" desc="Remove all Memmo wiring from this repo." />
             </Card>
           </Section>
 
@@ -133,13 +133,13 @@ claude mcp add --scope user cortex -- cortex mcp`}</Code>
               <Tool name="search_memory" desc="Search approved memories relevant to a task." />
               <Tool name="get_relevant_warnings" desc="Risk/failure memories for the files about to be edited." />
               <Tool name="propose_memories" desc="Record durable knowledge as proposed memories for review." />
-              <Tool name="record_session_summary" desc="Submit a session summary so Cortex proposes new memories." />
+              <Tool name="record_session_summary" desc="Submit a session summary so Memmo proposes new memories." />
             </Card>
           </Section>
 
           <Section id="hooks" title="Automatic hooks">
             <p>
-              <code>cortex init</code> registers Claude Code hooks in{" "}
+              <code>memmo init</code> registers Claude Code hooks in{" "}
               <code>.claude/settings.json</code> so the loop runs without manual calls:
             </p>
             <ul className="list-disc space-y-1 pl-5">
@@ -157,7 +157,7 @@ claude mcp add --scope user cortex -- cortex mcp`}</Code>
               </li>
             </ul>
             <p>
-              Hooks fail open: if Cortex isn&apos;t set up or is offline, they exit silently and
+              Hooks fail open: if Memmo isn&apos;t set up or is offline, they exit silently and
               never block your session.
             </p>
           </Section>
@@ -186,13 +186,13 @@ claude mcp add --scope user cortex -- cortex mcp`}</Code>
 
           <Section id="desktop" title="Claude Desktop">
             <p>
-              Claude Desktop runs MCP servers globally, so point Cortex at a repo with{" "}
+              Claude Desktop runs MCP servers globally, so point Memmo at a repo with{" "}
               <code>--repo</code> (the repo ID is on its page). Add to your Desktop config:
             </p>
             <Code>{`// ~/Library/Application Support/Claude/claude_desktop_config.json
 {
   "mcpServers": {
-    "cortex": { "command": "cortex", "args": ["mcp", "--repo", "<repoId>"] }
+    "memmo": { "command": "memmo", "args": ["mcp", "--repo", "<repoId>"] }
   }
 }`}</Code>
             <p>

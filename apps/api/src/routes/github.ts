@@ -31,7 +31,7 @@ export async function githubRoutes(app: FastifyInstance) {
         headers: {
           authorization: `Bearer ${token}`,
           accept: "application/vnd.github+json",
-          "user-agent": "cortex",
+          "user-agent": "memmo",
         },
       },
     );

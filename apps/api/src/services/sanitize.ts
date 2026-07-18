@@ -1,5 +1,5 @@
 /**
- * Redact secrets from memory text. Cortex stores durable, shareable knowledge;
+ * Redact secrets from memory text. Memmo stores durable, shareable knowledge;
  * memories must never carry credentials, tokens, or connection strings. This is
  * a deterministic safety net applied to every memory write, independent of how
  * the memory was produced (LLM extraction, propose_memories, scan, or manual).
@@ -24,8 +24,8 @@ const PATTERNS: [RegExp, string][] = [
   ],
   // Authorization: Bearer <token>
   [/\b(Bearer)\s+[A-Za-z0-9._~+/-]+=*/g, `$1 ${REDACTED}`],
-  // Well-known token shapes (Cortex, GitHub, OpenAI, Slack, Stripe, Google).
-  [/\b(?:ctxos_|ghp_|gho_|ghs_|github_pat_|sk-[a-zA-Z]*-|xox[baprs]-|AIza)[A-Za-z0-9._-]{8,}/g, REDACTED],
+  // Well-known token shapes (Memmo, GitHub, OpenAI, Slack, Stripe, Google).
+  [/\b(?:memmo_|ghp_|gho_|ghs_|github_pat_|sk-[a-zA-Z]*-|xox[baprs]-|AIza)[A-Za-z0-9._-]{8,}/g, REDACTED],
   // AWS access key id.
   [/\bAKIA[0-9A-Z]{16}\b/g, REDACTED],
 ];

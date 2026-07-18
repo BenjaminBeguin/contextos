@@ -14,7 +14,7 @@ import {
   moveWorkspaceSchema,
   planLimits,
   withinLimit,
-} from "@cortex/shared";
+} from "@memmo/shared";
 import { prisma } from "../db.js";
 import { resolveUser, assertWorkspaceAccess, requireRole, HttpError } from "../auth.js";
 import { encryptToken, decryptToken } from "../crypto.js";
@@ -561,7 +561,7 @@ export async function workspaceRoutes(app: FastifyInstance) {
   });
 
   // Reuse a sibling project's database (same org). Points this project at the
-  // same Postgres — memories stay isolated by workspaceId in CortexMemory.
+  // same Postgres — memories stay isolated by workspaceId in MemmoMemory.
   app.post("/workspaces/:workspaceId/data-store/reuse", async (req, reply) => {
     const user = await resolveUser(req);
     if (!user) return reply.code(401).send({ error: "Unauthorized" });
@@ -592,7 +592,7 @@ export async function workspaceRoutes(app: FastifyInstance) {
     }
     const url = decryptToken(source.externalDbUrl);
     if (!url) return reply.code(400).send({ error: "invalid_source" });
-    // Idempotent — ensures the CortexMemory table exists on the shared DB.
+    // Idempotent — ensures the MemmoMemory table exists on the shared DB.
     const prov = await provisionExternalStore(url);
     if (!prov.ok) {
       return reply.code(400).send({ error: "provision_failed", detail: prov.error });

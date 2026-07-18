@@ -97,7 +97,7 @@ export async function metricsRoutes(app: FastifyInstance) {
     }
     const reposWithMemory = approvedByRepo.length;
 
-    // Measured with/without: compare error rates of sessions that used Cortex
+    // Measured with/without: compare error rates of sessions that used Memmo
     // memory (a hook retrieval/warning carried their session id) vs those that didn't.
     const [sessionList, memoryUseEvents] = await Promise.all([
       prisma.agentSession.findMany({

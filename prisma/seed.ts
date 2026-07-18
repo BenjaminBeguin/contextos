@@ -29,7 +29,7 @@ const { PrismaClient } = pkg;
 const prisma = new PrismaClient();
 
 // Fixed dev token so local verification (CLI/MCP) is reproducible.
-export const DEV_TOKEN = "ctxos_dev_fixed_token_for_local_testing";
+export const DEV_TOKEN = "memmo_dev_fixed_token_for_local_testing";
 
 function hashToken(token: string): string {
   return createHash("sha256").update(token).digest("hex");
@@ -38,9 +38,9 @@ function hashToken(token: string): string {
 async function main() {
   // --- Org A (dev user) ---------------------------------------------------
   const devUser = await prisma.user.upsert({
-    where: { email: "dev@cortex.dev" },
+    where: { email: "dev@memmo.dev" },
     update: {},
-    create: { email: "dev@cortex.dev", name: "Dev User" },
+    create: { email: "dev@memmo.dev", name: "Dev User" },
   });
 
   const acmeOrg = await prisma.organization.upsert({
@@ -194,7 +194,7 @@ async function main() {
   });
 
   console.log("Seed complete.");
-  console.log(`Dev user:        dev@cortex.dev`);
+  console.log(`Dev user:        dev@memmo.dev`);
   console.log(`Dev token:       ${DEV_TOKEN}`);
   console.log(`Acme workspace:  ${acme.id} (join code ${acme.joinCode})`);
   console.log(`Acme repo:       ${billingRepo.id} (acme/billing-api)`);

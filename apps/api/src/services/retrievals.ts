@@ -1,5 +1,5 @@
 import { prisma } from "../db.js";
-import { planLimits } from "@cortex/shared";
+import { planLimits } from "@memmo/shared";
 
 /**
  * Usage metering. Pricing is on memory retrievals — every time an agent pulls

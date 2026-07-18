@@ -1,6 +1,6 @@
 import { randomBytes } from "node:crypto";
 import type { FastifyInstance } from "fastify";
-import { loginSchema, createTokenSchema } from "@cortex/shared";
+import { loginSchema, createTokenSchema } from "@memmo/shared";
 import { prisma } from "../db.js";
 import { env } from "../env.js";
 import {
@@ -14,7 +14,7 @@ import {
 } from "../auth.js";
 import { encryptToken } from "../crypto.js";
 
-const OAUTH_STATE_COOKIE = "cortex_oauth_state";
+const OAUTH_STATE_COOKIE = "memmo_oauth_state";
 // `repo` lets the dashboard list the user's repositories (incl. private).
 const GITHUB_SCOPE = "repo read:user user:email";
 
@@ -57,7 +57,7 @@ async function fetchGitHubIdentity(token: string): Promise<{ user: GitHubUser; e
   const headers = {
     authorization: `Bearer ${token}`,
     accept: "application/vnd.github+json",
-    "user-agent": "cortex",
+    "user-agent": "memmo",
   };
   const user = (await (await fetch("https://api.github.com/user", { headers })).json()) as GitHubUser;
   let email = user.email;

@@ -37,7 +37,7 @@ function Usage() {
       <ToolBreadcrumb section="Impact" />
       <PageHeader
         title="Impact"
-        description="What Cortex is doing for this project — what your agents would be missing without it."
+        description="What Memmo is doing for this project — what your agents would be missing without it."
       />
       <ImpactTool workspaceId={activeId} />
     </div>

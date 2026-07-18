@@ -1,5 +1,5 @@
 import type { FastifyInstance } from "fastify";
-import { waitlistSchema } from "@cortex/shared";
+import { waitlistSchema } from "@memmo/shared";
 import { prisma } from "../db.js";
 import { rateLimit } from "../rate-limit.js";
 

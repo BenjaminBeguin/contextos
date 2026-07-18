@@ -110,7 +110,7 @@
 | `GET` | `/repos/:repoId/reviews` | List a repo's persisted reviews (newest first), each with its findings. |
 | `GET` | `/reviews/:reviewId` | Fetch a single persisted review (authorized via its repo). |
 | `POST` | `/findings/:findingId/feedback` | Give feedback on a single finding; may adjust the grounding memory's confidence. |
-| `POST` | `/repos/:repoId/review-feedback` | Bulk feedback keyed by finding dedup key (used by `cortex review-sync`). |
+| `POST` | `/repos/:repoId/review-feedback` | Bulk feedback keyed by finding dedup key (used by `memmo review-sync`). |
 
 ## sessions
 
@@ -137,7 +137,7 @@
 | `POST` | `/workspaces` | — |
 | `POST` | `/workspaces/join` | Join an existing workspace using its join code. |
 | `POST` | `/workspaces/:workspaceId/triage` | Re-apply the saved confidence band to all currently-proposed memories (owners only). |
-| `POST` | `/workspaces/:workspaceId/members` | Add an existing Cortex user to the workspace by email (owners only). |
+| `POST` | `/workspaces/:workspaceId/members` | Add an existing Memmo user to the workspace by email (owners only). |
 | `PATCH` | `/workspaces/:workspaceId/members/:userId/role` | Change a member's role (owners only; can't demote the last owner). |
 | `DELETE` | `/workspaces/:workspaceId/members/:userId` | Remove a member from the workspace (admin+; never the last owner). |
 | `GET` | `/workspaces/:workspaceId` | — |

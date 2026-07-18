@@ -46,7 +46,7 @@ describe("buildReviewPayload", () => {
     const p = buildReviewPayload("Summary here", findings, commentable);
     expect(p.comments).toHaveLength(1);
     expect(p.comments[0]).toMatchObject({ path: "src/app.ts", line: 2, side: "RIGHT" });
-    expect(p.comments[0]!.body).toContain("cortex-review:");
+    expect(p.comments[0]!.body).toContain("memmo-review:");
     // the no-line and off-diff findings go to the body
     expect(p.body).toContain("No line");
     expect(p.body).toContain("Off-diff");
@@ -62,9 +62,9 @@ describe("buildReviewPayload", () => {
 });
 
 describe("extractMarkers", () => {
-  it("pulls cortex keys out of existing comment bodies", () => {
+  it("pulls memmo keys out of existing comment bodies", () => {
     const keys = extractMarkers([
-      "some text <!-- cortex-review:src/app.ts:2:bad-b -->",
+      "some text <!-- memmo-review:src/app.ts:2:bad-b -->",
       "no marker here",
     ]);
     expect(keys.has("src/app.ts:2:bad-b")).toBe(true);

@@ -28,14 +28,14 @@ async function tokenScope(req: FastifyRequest): Promise<string | null> {
 
 const REPO_ARG = z
   .string()
-  .describe("This repo's git remote or owner/name, e.g. 'BenjaminBeguin/contextos'. Call list_repos if unsure.");
+  .describe("This repo's git remote or owner/name, e.g. 'BenjaminBeguin/memmo'. Call list_repos if unsure.");
 
 function textResult(payload: unknown) {
   return { content: [{ type: "text" as const, text: JSON.stringify(payload) }] };
 }
 
 function buildServer(user: AuthedUser, scope: string | null): McpServer {
-  const server = new McpServer({ name: "cortex", version: "1.0.0" });
+  const server = new McpServer({ name: "memmo", version: "1.0.0" });
 
   async function repoRow(identifier: string): Promise<ToolRepo | null> {
     const resolved = await resolveRepoForUser(user.id, identifier, scope);
@@ -55,7 +55,7 @@ function buildServer(user: AuthedUser, scope: string | null): McpServer {
   server.registerTool(
     "list_repos",
     {
-      title: "List Cortex repos",
+      title: "List Memmo repos",
       description: "List the repos this token can access (id, owner/name, project). Use to find the repo identifier.",
       inputSchema: {},
     },
@@ -65,7 +65,7 @@ function buildServer(user: AuthedUser, scope: string | null): McpServer {
   server.registerTool(
     "search_memory",
     {
-      title: "Search Cortex memory",
+      title: "Search Memmo memory",
       description: "Search approved operational memories (conventions, risks, commands, decisions) for a repo.",
       inputSchema: { repo: REPO_ARG, query: z.string().describe("What to search for"), limit: z.number().optional() },
     },
@@ -113,7 +113,7 @@ export async function mcpRemoteRoutes(app: FastifyInstance) {
     if (!user) {
       return reply.code(401).send({
         jsonrpc: "2.0",
-        error: { code: -32001, message: "Unauthorized — provide a Cortex API token" },
+        error: { code: -32001, message: "Unauthorized — provide a Memmo API token" },
         id: null,
       });
     }

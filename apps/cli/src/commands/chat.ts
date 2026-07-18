@@ -6,7 +6,7 @@ import Anthropic from "@anthropic-ai/sdk";
 import { loadCredentials, loadProjectConfig } from "../config.js";
 import { apiFetch, type ApiClientOptions } from "../api.js";
 
-const SYSTEM = `You are Cortex, answering questions about a software repository using ONLY the
+const SYSTEM = `You are Memmo, answering questions about a software repository using ONLY the
 approved operational memories and repo context provided. Be concise and concrete, reference memory
 titles when relevant, and if the provided context doesn't answer the question, say so plainly
 instead of guessing.`;
@@ -96,8 +96,8 @@ async function answerWithClaude(claudeBin: string, context: string, question: st
 export async function chatCommand(questionArgs: string[] = []) {
   const creds = loadCredentials();
   const config = loadProjectConfig();
-  if (!creds) throw new Error("Not logged in. Run `cortex login` first.");
-  if (!config) throw new Error("Repo not initialized. Run `cortex init` first.");
+  if (!creds) throw new Error("Not logged in. Run `memmo login` first.");
+  if (!config) throw new Error("Repo not initialized. Run `memmo init` first.");
   const client: ApiClientOptions = { baseUrl: config.apiBaseUrl ?? creds.apiBaseUrl, token: creds.token };
 
   // Use the user's own Anthropic: their API key if present, else their Claude Code subscription.
@@ -125,7 +125,7 @@ export async function chatCommand(questionArgs: string[] = []) {
   }
 
   // Interactive REPL.
-  console.log(`Cortex chat — grounded in ${config.repoFullName ?? config.repoId} (via ${via}).`);
+  console.log(`Memmo chat — grounded in ${config.repoFullName ?? config.repoId} (via ${via}).`);
   console.log("Ask a question, or type 'exit' to quit.\n");
   const rl = createInterface({ input: process.stdin, output: process.stdout });
   try {
@@ -133,7 +133,7 @@ export async function chatCommand(questionArgs: string[] = []) {
       const q = (await rl.question("you › ")).trim();
       if (!q) continue;
       if (q === "exit" || q === "quit") break;
-      process.stdout.write("\ncortex › ");
+      process.stdout.write("\nmemmo › ");
       await answer(q);
       process.stdout.write("\n");
     }

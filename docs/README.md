@@ -1,4 +1,4 @@
-# Cortex documentation
+# Memmo documentation
 
 Operational memory for AI coding agents — capture what agents learn, review it,
 and inject the right context back into future sessions (and PR reviews).

@@ -23,7 +23,7 @@ export function ConnectorCommand() {
       }),
     onSuccess: (d) => {
       setCommand(
-        `claude mcp add --transport http cortex ${API_BASE_URL}/mcp --header "Authorization: Bearer ${d.token}"`,
+        `claude mcp add --transport http memmo ${API_BASE_URL}/mcp --header "Authorization: Bearer ${d.token}"`,
       );
     },
   });
@@ -61,7 +61,7 @@ export function ConnectorCommand() {
       </p>
       {isLocal ? (
         <p className="mt-1 text-xs text-amber-300/90">
-          The URL points at {API_BASE_URL} — a hosted connector needs the Cortex API reachable at a
+          The URL points at {API_BASE_URL} — a hosted connector needs the Memmo API reachable at a
           public URL.
         </p>
       ) : null}

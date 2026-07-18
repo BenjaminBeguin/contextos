@@ -1,18 +1,18 @@
 import { createHash, randomBytes } from "node:crypto";
 import jwt from "jsonwebtoken";
 import type { FastifyRequest, FastifyReply } from "fastify";
-import { roleAtLeast, type WorkspaceRole } from "@cortex/shared";
+import { roleAtLeast, type WorkspaceRole } from "@memmo/shared";
 import { prisma } from "./db.js";
 import { env } from "./env.js";
 
-export const SESSION_COOKIE = "cortex_session";
+export const SESSION_COOKIE = "memmo_session";
 
 export function hashToken(token: string): string {
   return createHash("sha256").update(token).digest("hex");
 }
 
 export function generateToken(): string {
-  return `ctxos_${randomBytes(24).toString("hex")}`;
+  return `memmo_${randomBytes(24).toString("hex")}`;
 }
 
 export function signSession(userId: string): string {

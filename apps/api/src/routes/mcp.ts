@@ -3,7 +3,7 @@ import {
   mcpSearchMemorySchema,
   mcpRepoContextSchema,
   mcpRelevantWarningsSchema,
-} from "@cortex/shared";
+} from "@memmo/shared";
 import { resolveUser, assertRepoAccess, HttpError } from "../auth.js";
 import { toolSearchMemory, toolRepoContext, toolRelevantWarnings } from "../services/mcpTools.js";
 

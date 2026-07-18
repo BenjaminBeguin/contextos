@@ -8,7 +8,7 @@ import { redactSecrets } from "./sanitize.js";
  * Bring-your-own-database (data residency). When a workspace connects its own
  * Postgres, that project's memories are stored in the customer's database
  * instead of the shared control plane. We keep only metadata (status, the
- * encrypted URL) in the control plane; the memory rows live in the CortexMemory
+ * encrypted URL) in the control plane; the memory rows live in the MemmoMemory
  * table we provision on the customer's DB.
  *
  * The external table is standalone (no cross-database foreign keys — those
@@ -17,7 +17,7 @@ import { redactSecrets } from "./sanitize.js";
  */
 
 const DDL = `
-CREATE TABLE IF NOT EXISTS "CortexMemory" (
+CREATE TABLE IF NOT EXISTS "MemmoMemory" (
   "id"          TEXT PRIMARY KEY,
   "workspaceId" TEXT NOT NULL,
   "repoId"      TEXT NOT NULL,
@@ -34,8 +34,8 @@ CREATE TABLE IF NOT EXISTS "CortexMemory" (
   "updatedAt"   TIMESTAMPTZ NOT NULL DEFAULT now(),
   "lastUsedAt"  TIMESTAMPTZ
 );
-CREATE INDEX IF NOT EXISTS "CortexMemory_repo_status_idx" ON "CortexMemory" ("repoId", "status");
-CREATE INDEX IF NOT EXISTS "CortexMemory_ws_idx" ON "CortexMemory" ("workspaceId");
+CREATE INDEX IF NOT EXISTS "MemmoMemory_repo_status_idx" ON "MemmoMemory" ("repoId", "status");
+CREATE INDEX IF NOT EXISTS "MemmoMemory_ws_idx" ON "MemmoMemory" ("workspaceId");
 `;
 
 /** Plain, relation-free shape both the shared and external stores return. */
@@ -96,7 +96,7 @@ export async function testConnection(url: string): Promise<{ ok: boolean; error?
   }
 }
 
-/** Connect and ensure the CortexMemory table exists (idempotent). */
+/** Connect and ensure the MemmoMemory table exists (idempotent). */
 export async function provisionExternalStore(url: string): Promise<{ ok: boolean; error?: string }> {
   const c = clientFor(url);
   try {
@@ -164,7 +164,7 @@ export class ExternalMemoryStore {
   async create(input: CreateMemoryInput): Promise<MemoryRow> {
     const id = `cm_${randomUUID().replace(/-/g, "")}`;
     const rows = (await this.c.$queryRawUnsafe(
-      `INSERT INTO "CortexMemory"
+      `INSERT INTO "MemmoMemory"
         ("id","workspaceId","repoId","type","title","content","paths","scope","confidence","status","source")
        VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11)
        RETURNING *`,
@@ -185,7 +185,7 @@ export class ExternalMemoryStore {
 
   async findById(id: string): Promise<MemoryRow | null> {
     const rows = (await this.c.$queryRawUnsafe(
-      `SELECT * FROM "CortexMemory" WHERE "id" = $1 LIMIT 1`,
+      `SELECT * FROM "MemmoMemory" WHERE "id" = $1 LIMIT 1`,
       id,
     )) as Record<string, unknown>[];
     return rows[0] ? toRow(rows[0]) : null;
@@ -197,7 +197,7 @@ export class ExternalMemoryStore {
   ): Promise<MemoryRow[]> {
     if (repoIds.length === 0) return [];
     const params: unknown[] = [repoIds];
-    let sql = `SELECT * FROM "CortexMemory" WHERE "repoId" = ANY($1)`;
+    let sql = `SELECT * FROM "MemmoMemory" WHERE "repoId" = ANY($1)`;
     if (opts.status) {
       params.push(opts.status);
       sql += ` AND "status" = $${params.length}`;
@@ -214,7 +214,7 @@ export class ExternalMemoryStore {
   async countByRepos(repoIds: string[], opts: { status?: string } = {}): Promise<number> {
     if (repoIds.length === 0) return 0;
     const params: unknown[] = [repoIds];
-    let sql = `SELECT COUNT(*)::int AS n FROM "CortexMemory" WHERE "repoId" = ANY($1)`;
+    let sql = `SELECT COUNT(*)::int AS n FROM "MemmoMemory" WHERE "repoId" = ANY($1)`;
     if (opts.status) {
       params.push(opts.status);
       sql += ` AND "status" = $${params.length}`;
@@ -231,7 +231,7 @@ export class ExternalMemoryStore {
     countUsage?: boolean;
   }): Promise<MemoryRow[]> {
     const params: unknown[] = [opts.repoId];
-    let sql = `SELECT * FROM "CortexMemory" WHERE "repoId" = $1`;
+    let sql = `SELECT * FROM "MemmoMemory" WHERE "repoId" = $1`;
     if (opts.approvedOnly) sql += ` AND "status" = 'approved'`;
     const q = opts.query.trim();
     if (q) {
@@ -252,14 +252,14 @@ export class ExternalMemoryStore {
     if (ids.length === 0) return;
     const inc = countUsage ? `, "usageCount" = "usageCount" + 1` : "";
     await this.c.$executeRawUnsafe(
-      `UPDATE "CortexMemory" SET "lastUsedAt" = now()${inc} WHERE "id" = ANY($1)`,
+      `UPDATE "MemmoMemory" SET "lastUsedAt" = now()${inc} WHERE "id" = ANY($1)`,
       ids,
     );
   }
 
   async setStatus(id: string, status: string): Promise<MemoryRow> {
     const rows = (await this.c.$queryRawUnsafe(
-      `UPDATE "CortexMemory" SET "status" = $2, "updatedAt" = now() WHERE "id" = $1 RETURNING *`,
+      `UPDATE "MemmoMemory" SET "status" = $2, "updatedAt" = now() WHERE "id" = $1 RETURNING *`,
       id,
       status,
     )) as Record<string, unknown>[];
@@ -269,7 +269,7 @@ export class ExternalMemoryStore {
   async archiveMany(ids: string[]): Promise<void> {
     if (ids.length === 0) return;
     await this.c.$executeRawUnsafe(
-      `UPDATE "CortexMemory" SET "status" = 'archived', "updatedAt" = now() WHERE "id" = ANY($1)`,
+      `UPDATE "MemmoMemory" SET "status" = 'archived', "updatedAt" = now() WHERE "id" = ANY($1)`,
       ids,
     );
   }
@@ -287,7 +287,7 @@ export class ExternalMemoryStore {
     }
     sets.push(`"updatedAt" = now()`);
     const rows = (await this.c.$queryRawUnsafe(
-      `UPDATE "CortexMemory" SET ${sets.join(", ")} WHERE "id" = $1 RETURNING *`,
+      `UPDATE "MemmoMemory" SET ${sets.join(", ")} WHERE "id" = $1 RETURNING *`,
       ...params,
     )) as Record<string, unknown>[];
     return toRow(rows[0]!);

@@ -6,7 +6,7 @@ import { createToken } from "../lib/api";
 import { CopyButton } from "./CopyButton";
 import { Button, Card, Code } from "./ui";
 
-const PKG = "@mxbenjaminbeguin/cortex";
+const PKG = "memmo";
 
 /** First-run guide for a project with no repos yet. Walks install → a
     project-scoped token generated inline → connect a repo, so a new owner can
@@ -50,7 +50,7 @@ export function ProjectOnboarding({
         <OnboardingStep n={1} title="Install the CLI">
           <CommandRow command={`npm install -g ${PKG}`} />
           <p className="mt-2 text-xs text-[var(--faint)]">
-            Installs the <code className="text-[var(--muted)]">cortex</code> command. Requires Node 20+.
+            Installs the <code className="text-[var(--muted)]">memmo</code> command. Requires Node 20+.
           </p>
         </OnboardingStep>
 
@@ -64,7 +64,7 @@ export function ProjectOnboarding({
 
         <OnboardingStep n={3} title="Connect your first repo" last>
           <p className="text-sm text-[var(--muted)]">
-            Link a repository, then run <code className="text-[var(--text)]">cortex init</code> in it
+            Link a repository, then run <code className="text-[var(--text)]">memmo init</code> in it
             to write the memory hooks and MCP config.
           </p>
           <div className="mt-3">
@@ -102,7 +102,7 @@ function ProjectTokenGenerator({
         </div>
         <div>
           <p className="mb-1 text-xs text-[var(--muted)]">Authenticate the CLI:</p>
-          <CommandRow command={`cortex login --token ${token}`} />
+          <CommandRow command={`memmo login --token ${token}`} />
         </div>
       </div>
     );

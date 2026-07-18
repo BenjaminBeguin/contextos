@@ -1,4 +1,4 @@
-# Cortex — Design Identity
+# Memmo — Design Identity
 
 > One identity, applied everywhere. The landing (`apps/landing`) and the product
 > (`apps/web`) must always share the same palette, gradient, and type system.
@@ -6,11 +6,11 @@
 
 ## The idea
 
-Cortex is **living memory for AI agents** — a mind that lights up as it recalls.
+Memmo is **living memory for AI agents** — a mind that lights up as it recalls.
 The visual language is **"synaptic warmth on deep ink"**: a warm, near-black plum
 base (not the cold black-and-white every AI dashboard ships), a violet core, and a
 signature **amber "synapse"** that stands for a memory firing — recall, energy, a
-signal traveling. This warm amber is the thing that makes Cortex look like Cortex
+signal traveling. This warm amber is the thing that makes Memmo look like Memmo
 and nothing else.
 
 Principles:

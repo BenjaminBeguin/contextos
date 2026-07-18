@@ -1,8 +1,8 @@
 import type { Metadata } from "next";
 
 export const metadata: Metadata = {
-  title: "Cortex — Privacy & Cookies",
-  description: "How Cortex's website handles your data and cookies.",
+  title: "Memmo — Privacy & Cookies",
+  description: "How Memmo's website handles your data and cookies.",
 };
 
 export default function PrivacyPage() {
@@ -13,7 +13,7 @@ export default function PrivacyPage() {
         <div className="mx-auto flex max-w-3xl items-center justify-between px-6 py-4">
           <a href="/" className="flex items-center gap-2 font-semibold tracking-tight">
             <span className="inline-block h-4 w-4 rotate-45 rounded-sm bg-gradient-to-br from-violet-400 to-cyan-400" />
-            Cortex
+            Memmo
           </a>
           <a href="/" className="text-sm text-[var(--muted)] hover:text-white">
             ← Back
@@ -30,7 +30,7 @@ export default function PrivacyPage() {
           <section>
             <h2 className="text-lg font-semibold text-white">What this page covers</h2>
             <p className="mt-2">
-              This policy explains how the Cortex marketing website handles your data and cookies.
+              This policy explains how the Memmo marketing website handles your data and cookies.
               It applies to this site only.
             </p>
           </section>
@@ -70,8 +70,8 @@ export default function PrivacyPage() {
             <p className="mt-2">
               Under the GDPR you can access, correct, export, or delete your data, and withdraw
               consent at any time. To exercise any of these, email{" "}
-              <a href="mailto:privacy@cortex.dev" className="text-cyan-300 hover:underline">
-                privacy@cortex.dev
+              <a href="mailto:privacy@memmo.dev" className="text-cyan-300 hover:underline">
+                privacy@memmo.dev
               </a>
               .
             </p>
@@ -81,8 +81,8 @@ export default function PrivacyPage() {
             <h2 className="text-lg font-semibold text-white">Contact</h2>
             <p className="mt-2">
               Questions about this policy? Email{" "}
-              <a href="mailto:privacy@cortex.dev" className="text-cyan-300 hover:underline">
-                privacy@cortex.dev
+              <a href="mailto:privacy@memmo.dev" className="text-cyan-300 hover:underline">
+                privacy@memmo.dev
               </a>
               .
             </p>

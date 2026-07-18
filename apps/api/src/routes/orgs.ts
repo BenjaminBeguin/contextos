@@ -11,7 +11,7 @@ import {
   billingCheckoutSchema,
   planLimits,
   type OrgRole,
-} from "@cortex/shared";
+} from "@memmo/shared";
 import { prisma } from "../db.js";
 import { resolveUser, HttpError } from "../auth.js";
 import { requireOrgRole, orgRole } from "../services/orgs.js";
@@ -218,7 +218,7 @@ export async function orgRoutes(app: FastifyInstance) {
     const body = inviteOrgMemberSchema.parse(req.body);
     const target = await prisma.user.findUnique({ where: { email: body.email.toLowerCase() } });
     if (!target) {
-      return reply.code(404).send({ error: "No Cortex account with that email yet." });
+      return reply.code(404).send({ error: "No Memmo account with that email yet." });
     }
     const existing = await prisma.orgMembership.findUnique({
       where: { userId_organizationId: { userId: target.id, organizationId: orgId } },

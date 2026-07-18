@@ -2,7 +2,7 @@
 
 import { use, useEffect, useRef, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import type { PrReviewDTO, PrReviewFindingDTO, ReviewFeedback, ReviewSeverity } from "@cortex/shared";
+import type { PrReviewDTO, PrReviewFindingDTO, ReviewFeedback, ReviewSeverity } from "@memmo/shared";
 import {
   getReviews,
   sendFindingFeedback,

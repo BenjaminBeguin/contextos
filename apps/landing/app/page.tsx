@@ -48,7 +48,7 @@ const pricingTiers = [
     period: "talk to us",
     tagline: "For regulated teams that need control.",
     cta: "Talk to us",
-    href: "mailto:sales@cortex.dev?subject=Cortex%20Enterprise",
+    href: "mailto:sales@memmo.dev?subject=Memmo%20Enterprise",
     features: [
       "Everything in Scale",
       "Unlimited retrievals",
@@ -98,7 +98,7 @@ const features = [
 ];
 
 const steps = [
-  "Install Cortex in your repo",
+  "Install Memmo in your repo",
   "Connect Claude Code through MCP and hooks",
   "Let agents work normally",
   "Review proposed memories",
@@ -205,7 +205,7 @@ export default function LandingPage() {
             Give Claude Code your team&apos;s memory.
           </h1>
           <p className="mx-auto mt-6 max-w-2xl text-lg text-[var(--muted)]">
-            Cortex turns your repo, agent sessions, docs, and past mistakes into living
+            Memmo turns your repo, agent sessions, docs, and past mistakes into living
             operational context — injected into Claude Code before it acts.
           </p>
 
@@ -219,9 +219,9 @@ export default function LandingPage() {
           </div>
 
           <div className="mx-auto mt-2 max-w-2xl">
-            <Terminal title="cortex · session">
+            <Terminal title="memmo · session">
               {`> claude code session
-  ↳ Cortex learns
+  ↳ Memmo learns
   ↳ memory approved
   ↳ future agents get smarter ✦`}
             </Terminal>
@@ -241,7 +241,7 @@ export default function LandingPage() {
           </div>
           <div className="rounded-2xl border border-red-500/15 bg-red-500/[0.03] p-8">
             <p className="text-xs font-medium uppercase tracking-widest text-red-300/80">
-              Without Cortex
+              Without Memmo
             </p>
             <h2 className="mt-3 text-2xl font-semibold sm:text-3xl">
               Agents forget how your company works.
@@ -252,12 +252,12 @@ export default function LandingPage() {
             </p>
           </div>
           <div className="conic-border glass rounded-2xl p-8">
-            <p className="text-xs font-medium uppercase tracking-widest text-[var(--signal)]">With Cortex</p>
+            <p className="text-xs font-medium uppercase tracking-widest text-[var(--signal)]">With Memmo</p>
             <h2 className="font-display mt-3 text-2xl font-semibold sm:text-3xl">
               Every session makes the next one smarter.
             </h2>
             <p className="mt-4 text-[var(--muted)]">
-              Cortex captures what works from real engineering, turns it into structured memory, and
+              Memmo captures what works from real engineering, turns it into structured memory, and
               injects the right context into Claude Code exactly when it acts.
             </p>
           </div>
@@ -291,7 +291,7 @@ export default function LandingPage() {
               The learning loop
             </p>
             <h2 className="font-display mt-4 text-3xl font-semibold sm:text-4xl">
-              Cortex doesn&apos;t just remember — it learns from your reviews.
+              Memmo doesn&apos;t just remember — it learns from your reviews.
             </h2>
             <p className="mt-4 text-[var(--muted)]">
               Every finding from the memory-grounded PR reviewer is anchored to the memory that
@@ -323,7 +323,7 @@ export default function LandingPage() {
               </li>
             </ul>
           </div>
-          <Terminal title="cortex review · acme/billing-api#482">
+          <Terminal title="memmo review · acme/billing-api#482">
             {`▸ finding · idempotency key missing on refund path
   ↳ grounded in: "Duplicate invoice outage — March"
   ✓ accepted by @maya
@@ -362,7 +362,7 @@ reviews get sharper every PR ✦`}
               Connected to Claude Code in under a minute.
             </h2>
             <p className="mt-3 text-[var(--muted)]">
-              Install the CLI, sign in, and link your repo. Cortex registers an MCP
+              Install the CLI, sign in, and link your repo. Memmo registers an MCP
               server so Claude Code can retrieve your team&apos;s memory automatically.
             </p>
             <ul className="mt-5 space-y-2 text-sm text-[var(--muted)]">
@@ -387,13 +387,13 @@ reviews get sharper every PR ✦`}
           <div className="space-y-4">
             <Terminal title="your-repo — setup">
               {`# 1 · install the CLI
-npm install -g @mxbenjaminbeguin/cortex
+npm install -g memmo
 
 # 2 · authenticate
-cortex login
+memmo login
 
 # 3 · connect this repo
-cortex init
+memmo init
 
 ✓ wrote .mcp.json, CLAUDE.md, hooks
 ✓ Claude Code now has your repo's memory`}
@@ -471,7 +471,7 @@ cortex init
               </h2>
               <p className="mt-4 text-[var(--muted)]">
                 Bring your own Postgres and your team&apos;s memory is stored in{" "}
-                <span className="text-[var(--text)]">your</span> infrastructure — Cortex keeps only
+                <span className="text-[var(--text)]">your</span> infrastructure — Memmo keeps only
                 routing metadata. Pair it with self-hosting to keep everything inside your VPC. Built
                 for teams with real compliance and data-sovereignty requirements.
               </p>
@@ -493,7 +493,7 @@ cortex init
               {`▸ connect your database
   postgres://…@db.internal.acme.com
 
-✓ CortexMemory table provisioned
+✓ MemmoMemory table provisioned
 ✓ this project's memory now lives in
   YOUR database — not ours
 
@@ -583,7 +583,7 @@ your knowledge never leaves your infra ✓`}
       </section>
 
       <footer className="border-t border-white/5 py-8 text-center text-sm text-[var(--muted)]">
-        <p>Cortex — Operational memory for AI coding agents.</p>
+        <p>Memmo — Operational memory for AI coding agents.</p>
         <div className="mt-2 flex items-center justify-center gap-4">
           <a href="/privacy" className="hover:text-white">
             Privacy &amp; Cookies

@@ -1,5 +1,5 @@
 import { createHmac, timingSafeEqual } from "node:crypto";
-import type { RecordSessionInput } from "@cortex/shared";
+import type { RecordSessionInput } from "@memmo/shared";
 
 /**
  * Merged-PR → memory. GitHub PRs are a curated, low-noise source of "decision"

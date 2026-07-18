@@ -20,7 +20,7 @@ export const tokenScopeSchema = z.enum(TOKEN_SCOPES);
 export type TokenScope = (typeof TOKEN_SCOPES)[number];
 
 // Bring-your-own-database (data residency). The customer supplies a Postgres
-// connection string; Cortex stores that project's memory in it.
+// connection string; Memmo stores that project's memory in it.
 export const dataStoreSchema = z.object({
   url: z
     .string()

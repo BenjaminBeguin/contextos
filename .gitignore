@@ -4,7 +4,7 @@ dist/
 .env
 *.log
 .DS_Store
-.cortex/
+.memmo/
 .claude/settings.local.json
 prisma/migrations/.lock
 

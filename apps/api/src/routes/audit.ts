@@ -1,5 +1,5 @@
 import type { FastifyInstance } from "fastify";
-import { planLimits } from "@cortex/shared";
+import { planLimits } from "@memmo/shared";
 import { prisma } from "../db.js";
 import { resolveUser, requireRole, HttpError } from "../auth.js";
 
@@ -92,7 +92,7 @@ export async function auditRoutes(app: FastifyInstance) {
     ];
     reply
       .header("content-type", "text/csv; charset=utf-8")
-      .header("content-disposition", `attachment; filename="cortex-audit-${workspaceId}.csv"`)
+      .header("content-disposition", `attachment; filename="memmo-audit-${workspaceId}.csv"`)
       .send(lines.join("\n"));
   });
 }

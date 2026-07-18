@@ -4,7 +4,7 @@ import { use, useEffect, useState } from "react";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { MEMORY_TYPES, MEMORY_STATUSES } from "@cortex/shared";
+import { MEMORY_TYPES, MEMORY_STATUSES } from "@memmo/shared";
 import { RepoPicker } from "../../../components/RepoPicker";
 import { RepoSetupDrawer } from "../../../components/RepoSetupDrawer";
 import { SessionTimeline } from "../../../components/SessionTimeline";
@@ -656,7 +656,7 @@ function DecisionsTab({
         ) : decisions.length === 0 ? (
           <EmptyState
             title="No decisions yet"
-            description="Record one above, or use the cortex decision command from your repo."
+            description="Record one above, or use the memmo decision command from your repo."
           />
         ) : (
           <>
@@ -1012,7 +1012,7 @@ function DocsTab({ workspaceId, repoId }: { workspaceId: string; repoId: string 
           <span className="text-[var(--text)]">Docs</span> tab, or from the CLI:
         </p>
         <div className="mt-4">
-          <Code>{`cortex scan          # propose starter memories from the repo
+          <Code>{`memmo scan          # propose starter memories from the repo
 # approve a few in the inbox, then in the repo's Docs tab:
 #   Generate living docs`}</Code>
         </div>
@@ -1149,7 +1149,7 @@ function SetupTab({
 
         <p className="mt-1 text-sm text-[var(--muted)]">
           <strong className="text-[var(--text)]">Hosted connector</strong> — one command, no local
-          install. Adds Cortex as a remote MCP server for every repo you can access (the agent picks
+          install. Adds Memmo as a remote MCP server for every repo you can access (the agent picks
           the repo per call, or run <code className="text-[var(--text)]">list_repos</code>).
         </p>
         <div className="mt-3">
@@ -1160,7 +1160,7 @@ function SetupTab({
 
         <p className="text-sm text-[var(--muted)]">
           <strong className="text-[var(--text)]">Or install the CLI</strong> — sign in and run{" "}
-          <code className="text-[var(--text)]">cortex init</code> from the repo&apos;s root. This
+          <code className="text-[var(--text)]">memmo init</code> from the repo&apos;s root. This
           also wires the automatic hooks. Full reference in{" "}
           <Link href="/docs" className="text-[var(--accent)] hover:underline">
             Documentation
@@ -1168,21 +1168,21 @@ function SetupTab({
           .
         </p>
         <div className="mt-4">
-          <Code label="shell">{`npm install -g @mxbenjaminbeguin/cortex
-cortex login
-cortex init      # link this repo + write .mcp.json, CLAUDE.md, hooks
-cortex status    # verify the connection`}</Code>
+          <Code label="shell">{`npm install -g memmo
+memmo login
+memmo init      # link this repo + write .mcp.json, CLAUDE.md, hooks
+memmo status    # verify the connection`}</Code>
         </div>
         <p className="mt-4 text-sm text-[var(--muted)]">
-          <code className="text-[var(--text)]">cortex init</code> writes a project{" "}
+          <code className="text-[var(--text)]">memmo init</code> writes a project{" "}
           <code className="text-[var(--text)]">.mcp.json</code>, so Claude Code connects the{" "}
-          <code className="text-[var(--text)]">cortex</code> MCP server automatically — confirm it with{" "}
+          <code className="text-[var(--text)]">memmo</code> MCP server automatically — confirm it with{" "}
           <code className="text-[var(--text)]">/mcp</code>. To register it yourself, or across every
           repo you open:
         </p>
         <div className="mt-2">
-          <Code label="shell">{`claude mcp add cortex -- cortex mcp                 # this repo
-claude mcp add --scope user cortex -- cortex mcp   # every repo`}</Code>
+          <Code label="shell">{`claude mcp add memmo -- memmo mcp                 # this repo
+claude mcp add --scope user memmo -- memmo mcp   # every repo`}</Code>
         </div>
         <p className="mt-4 text-sm text-[var(--muted)]">
           <strong className="text-[var(--text)]">Claude Desktop</strong> has no per-repo working
@@ -1192,13 +1192,13 @@ claude mcp add --scope user cortex -- cortex mcp   # every repo`}</Code>
         <div className="mt-2">
           <Code label="claude_desktop_config.json">{`{
   "mcpServers": {
-    "cortex": { "command": "cortex", "args": ["mcp", "--repo", "<repoId>"] }
+    "memmo": { "command": "memmo", "args": ["mcp", "--repo", "<repoId>"] }
   }
 }`}</Code>
         </div>
         <p className="mt-3 text-xs text-[var(--faint)]">
           Select a repo above to grab its <code className="text-[var(--text)]">repoId</code> and the
-          exact <code className="text-[var(--text)]">cortex init</code> command, and to toggle its PR
+          exact <code className="text-[var(--text)]">memmo init</code> command, and to toggle its PR
           reviewer — right in a drawer.
         </p>
       </Card>

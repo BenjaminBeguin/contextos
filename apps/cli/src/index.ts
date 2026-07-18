@@ -19,7 +19,7 @@ import { VERSION } from "./version.js";
 const program = new Command();
 
 program
-  .name("cortex")
+  .name("memmo")
   .description("Operational memory for AI coding agents")
   .version(VERSION);
 
@@ -32,7 +32,7 @@ program
 
 program
   .command("init")
-  .description("Connect this repo to Cortex and generate Claude Code assets")
+  .description("Connect this repo to Memmo and generate Claude Code assets")
   .option("-r, --repo <repoId>", "Repo ID to connect")
   .option("-y, --yes", "Skip the directory confirmation prompt")
   .option("--scan", "Run an initial codebase scan after connecting")
@@ -47,8 +47,8 @@ program
 
 program
   .command("mcp")
-  .description("Run the Cortex MCP stdio server (used by Claude Code / Claude Desktop)")
-  .option("-r, --repo <repoId>", "Repo to serve (for Claude Desktop; defaults to .cortex/config.json)")
+  .description("Run the Memmo MCP stdio server (used by Claude Code / Claude Desktop)")
+  .option("-r, --repo <repoId>", "Repo to serve (for Claude Desktop; defaults to .memmo/config.json)")
   .option("--api <url>", "API base URL")
   .action((opts) => run(() => mcpCommand(opts)));
 
@@ -72,19 +72,19 @@ program
 
 program
   .command("status")
-  .description("Check whether Cortex is set up in this repo")
+  .description("Check whether Memmo is set up in this repo")
   .action(() => run(() => statusCommand()));
 
 program
   .command("uninstall")
-  .description("Remove Cortex wiring (MCP server, hooks, CLAUDE.md section) from this repo")
+  .description("Remove Memmo wiring (MCP server, hooks, CLAUDE.md section) from this repo")
   .option("-y, --yes", "Skip the confirmation prompt")
   .action((opts) => run(() => uninstallCommand(opts)));
 
 // Internal: invoked by Claude Code hooks registered in .claude/settings.json.
 program
   .command("hook <event>", { hidden: true })
-  .description("Run a Cortex Claude Code hook (internal)")
+  .description("Run a Memmo Claude Code hook (internal)")
   .action((event: string) => hookCommand(event));
 
 program
@@ -94,7 +94,7 @@ program
 
 program
   .command("review")
-  .description("Review the current PR's diff with Cortex (inline comments in CI, or Markdown output)")
+  .description("Review the current PR's diff with Memmo (inline comments in CI, or Markdown output)")
   .option("--base <ref>", "Base branch to diff against (default: $GITHUB_BASE_REF or main)")
   .option("--title <title>", "PR title (default: from the GitHub event or last commit)")
   .option("--body <body>", "PR description")
@@ -105,13 +105,13 @@ program
 
 program
   .command("review-sync")
-  .description("Sync GitHub 👍/👎 reactions on Cortex review comments back as finding feedback")
+  .description("Sync GitHub 👍/👎 reactions on Memmo review comments back as finding feedback")
   .option("--api <url>", "API base URL")
   .action((opts) => run(() => reviewSyncCommand(opts)));
 
 program
   .command("ci")
-  .description("Generate a GitHub Actions workflow that runs the Cortex PR reviewer")
+  .description("Generate a GitHub Actions workflow that runs the Memmo PR reviewer")
   .option("-f, --force", "Overwrite an existing workflow file")
   .action((opts) => run(() => ciCommand(opts)));
 
@@ -121,7 +121,7 @@ for (const stub of ["list", "propose"]) {
     .command(stub)
     .description(`(coming soon) memory ${stub}`)
     .action(() => {
-      console.error(`\`cortex memory ${stub}\` is not implemented in this MVP pass.`);
+      console.error(`\`memmo memory ${stub}\` is not implemented in this MVP pass.`);
       process.exit(1);
     });
 }

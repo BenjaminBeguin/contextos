@@ -1,6 +1,6 @@
 # Self-hosting
 
-Cortex is a pnpm monorepo: `apps/landing`, `apps/web`, `apps/api`, `apps/cli`, and
+Memmo is a pnpm monorepo: `apps/landing`, `apps/web`, `apps/api`, `apps/cli`, and
 `packages/shared`, backed by Postgres + Redis.
 
 ## Prerequisites

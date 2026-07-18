@@ -10,12 +10,12 @@ const url = process.env.DATABASE_URL;
 try {
   if (url) {
     const u = new URL(url);
-    console.log(`[cortex] DB target: ${u.protocol}//${u.username}@${u.host}${u.pathname}`);
+    console.log(`[memmo] DB target: ${u.protocol}//${u.username}@${u.host}${u.pathname}`);
   } else {
-    console.warn("[cortex] DATABASE_URL is (unset) — .env was not loaded");
+    console.warn("[memmo] DATABASE_URL is (unset) — .env was not loaded");
   }
 } catch {
-  console.warn("[cortex] DATABASE_URL is malformed");
+  console.warn("[memmo] DATABASE_URL is malformed");
 }
 
 export const prisma = new PrismaClient();

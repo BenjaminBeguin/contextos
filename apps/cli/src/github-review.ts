@@ -1,8 +1,8 @@
 /**
- * Pure helpers for turning Cortex review findings into a GitHub pull-request review
+ * Pure helpers for turning Memmo review findings into a GitHub pull-request review
  * with inline comments — plus diff parsing and dedup so re-runs stay quiet.
  */
-import { type Finding, type ReviewSeverity, findingKey } from "@cortex/shared";
+import { type Finding, type ReviewSeverity, findingKey } from "@memmo/shared";
 
 export { type Finding, type ReviewSeverity, findingKey };
 
@@ -59,9 +59,9 @@ export function parseDiffNewLines(diff: string): Map<string, Set<number>> {
   return out;
 }
 
-const MARKER_RE = /<!-- cortex-review:(.+?) -->/g;
+const MARKER_RE = /<!-- memmo-review:(.+?) -->/g;
 
-/** Collect cortex dedup keys already present in existing comment bodies. */
+/** Collect memmo dedup keys already present in existing comment bodies. */
 export function extractMarkers(bodies: string[]): Set<string> {
   const keys = new Set<string>();
   for (const b of bodies) {
@@ -104,14 +104,14 @@ export function buildReviewPayload(
         path: f.path,
         line: f.line,
         side: "RIGHT",
-        body: `${findingLine(f)}\n\n<!-- cortex-review:${findingKey(f)} -->`,
+        body: `${findingLine(f)}\n\n<!-- memmo-review:${findingKey(f)} -->`,
       });
     } else {
       leftover.push(f);
     }
   }
 
-  const bodyParts = ["### 🧠 Cortex Reviewer", "", summary || "_No summary._"];
+  const bodyParts = ["### 🧠 Memmo Reviewer", "", summary || "_No summary._"];
   if (leftover.length > 0) {
     bodyParts.push("");
     for (const f of leftover) {
@@ -119,10 +119,10 @@ export function buildReviewPayload(
       const mem = f.memory ? ` _(memory: ${f.memory})_` : "";
       bodyParts.push(`- **${SEVERITY_LABEL[f.severity]}**${where}: ${f.title}${mem}`);
       if (f.detail) bodyParts.push(`  ${f.detail}`);
-      bodyParts.push(`  <!-- cortex-review:${findingKey(f)} -->`);
+      bodyParts.push(`  <!-- memmo-review:${findingKey(f)} -->`);
     }
   }
-  bodyParts.push("", "_Grounded in this repo's approved Cortex memories._");
+  bodyParts.push("", "_Grounded in this repo's approved Memmo memories._");
 
   return { body: bodyParts.join("\n"), event: "COMMENT", comments, newCount: fresh.length };
 }

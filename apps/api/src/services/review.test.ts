@@ -10,7 +10,7 @@ describe("formatReviewComment", () => {
         { severity: "praise", title: "Nice refactor", detail: "Clean." },
       ],
     });
-    expect(md).toContain("Cortex Reviewer");
+    expect(md).toContain("Memmo Reviewer");
     expect(md).toContain("Looks mostly good.");
     expect(md).toContain("Blocker");
     expect(md).toContain("`src/billing.ts`");

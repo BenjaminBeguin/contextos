@@ -7,7 +7,7 @@ import {
   PLAN_LABELS,
   PLAN_TAGLINES,
   planLimits,
-} from "@cortex/shared";
+} from "@memmo/shared";
 import { prisma } from "../db.js";
 import { resolveUser, isSuperAdmin } from "../auth.js";
 import { RETRIEVAL_TYPES, retrievalHistoryForOrg } from "../services/retrievals.js";
@@ -269,7 +269,7 @@ export async function adminRoutes(app: FastifyInstance) {
     const target = await prisma.user.findFirst({
       where: { email: { equals: body.email, mode: "insensitive" } },
     });
-    if (!target) return reply.code(404).send({ error: "No Cortex account with that email." });
+    if (!target) return reply.code(404).send({ error: "No Memmo account with that email." });
     const existing = await prisma.membership.findUnique({
       where: { userId_workspaceId: { userId: target.id, workspaceId } },
     });

@@ -2,7 +2,7 @@ import { loadCredentials, loadProjectConfig } from "../config.js";
 import { apiFetch, type ApiClientOptions } from "../api.js";
 import { extractMarkers } from "../github-review.js";
 import { readEvent, ghContext, gh, type GhContext } from "../github.js";
-import type { ReviewFeedback } from "@cortex/shared";
+import type { ReviewFeedback } from "@memmo/shared";
 
 export interface ReviewSyncOptions {
   api?: string;
@@ -33,17 +33,17 @@ function verdictFromReactions(reactions: GhReaction[]): ReviewFeedback | null {
   return null;
 }
 
-/** Read GitHub 👍/👎 reactions on Cortex review comments and push them back as feedback. */
+/** Read GitHub 👍/👎 reactions on Memmo review comments and push them back as feedback. */
 export async function reviewSyncCommand(opts: ReviewSyncOptions = {}) {
   const config = loadProjectConfig();
   if (!config) {
-    throw new Error("Repo not initialized. Run `cortex init` and commit .cortex/config.json.");
+    throw new Error("Repo not initialized. Run `memmo init` and commit .memmo/config.json.");
   }
   const creds = loadCredentials();
-  const token = process.env.CORTEX_TOKEN ?? creds?.token;
-  if (!token) throw new Error("No API token. Set CORTEX_TOKEN (CI) or run `cortex login`.");
-  const baseUrl = opts.api ?? process.env.CORTEX_API_URL ?? config.apiBaseUrl ?? creds?.apiBaseUrl;
-  if (!baseUrl) throw new Error("No API base URL. Set CORTEX_API_URL or pass --api.");
+  const token = process.env.MEMMO_TOKEN ?? creds?.token;
+  if (!token) throw new Error("No API token. Set MEMMO_TOKEN (CI) or run `memmo login`.");
+  const baseUrl = opts.api ?? process.env.MEMMO_API_URL ?? config.apiBaseUrl ?? creds?.apiBaseUrl;
+  if (!baseUrl) throw new Error("No API base URL. Set MEMMO_API_URL or pass --api.");
   const client: ApiClientOptions = { baseUrl, token };
 
   const ev = readEvent();
@@ -69,7 +69,7 @@ export async function reviewSyncCommand(opts: ReviewSyncOptions = {}) {
   }
 
   if (items.length === 0) {
-    console.error("Cortex: no 👍/👎 reactions on Cortex review comments — nothing to sync.");
+    console.error("Memmo: no 👍/👎 reactions on Memmo review comments — nothing to sync.");
     return;
   }
 
@@ -81,11 +81,11 @@ export async function reviewSyncCommand(opts: ReviewSyncOptions = {}) {
   const accepted = items.filter((i) => i.feedback === "accepted").length;
   const dismissed = items.length - accepted;
   console.error(
-    `Cortex: synced ${res.updated}/${items.length} finding(s) (${accepted} accepted, ${dismissed} dismissed).`,
+    `Memmo: synced ${res.updated}/${items.length} finding(s) (${accepted} accepted, ${dismissed} dismissed).`,
   );
 }
 
-/** List the PR's review (inline) comments — Cortex findings carry a dedup marker. */
+/** List the PR's review (inline) comments — Memmo findings carry a dedup marker. */
 async function listReviewComments(ctx: GhContext): Promise<GhComment[]> {
   return gh<GhComment[]>(ctx, `/repos/${ctx.repo}/pulls/${ctx.pr}/comments?per_page=100`).catch(
     () => [] as GhComment[],

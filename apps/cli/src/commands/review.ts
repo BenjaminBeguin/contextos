@@ -62,7 +62,7 @@ async function postInlineReview(
 
   const payload = buildReviewPayload(review.summary, review.findings, commentable, existingKeys);
   if (payload.newCount === 0 && existingKeys.size > 0) {
-    console.error("Cortex: no new findings since the last review — nothing to post.");
+    console.error("Memmo: no new findings since the last review — nothing to post.");
     return;
   }
   await gh(ctx, `/repos/${ctx.repo}/pulls/${ctx.pr}/reviews`, {
@@ -70,20 +70,20 @@ async function postInlineReview(
     body: JSON.stringify({ body: payload.body, event: payload.event, comments: payload.comments }),
   });
   console.error(
-    `Cortex: posted review (${payload.comments.length} inline, ${payload.newCount} new findings).`,
+    `Memmo: posted review (${payload.comments.length} inline, ${payload.newCount} new findings).`,
   );
 }
 
 export async function reviewCommand(opts: ReviewOptions = {}) {
   const config = loadProjectConfig();
   if (!config) {
-    throw new Error("Repo not initialized. Run `cortex init` and commit .cortex/config.json.");
+    throw new Error("Repo not initialized. Run `memmo init` and commit .memmo/config.json.");
   }
   const creds = loadCredentials();
-  const token = process.env.CORTEX_TOKEN ?? creds?.token;
-  if (!token) throw new Error("No API token. Set CORTEX_TOKEN (CI) or run `cortex login`.");
-  const baseUrl = opts.api ?? process.env.CORTEX_API_URL ?? config.apiBaseUrl ?? creds?.apiBaseUrl;
-  if (!baseUrl) throw new Error("No API base URL. Set CORTEX_API_URL or pass --api.");
+  const token = process.env.MEMMO_TOKEN ?? creds?.token;
+  if (!token) throw new Error("No API token. Set MEMMO_TOKEN (CI) or run `memmo login`.");
+  const baseUrl = opts.api ?? process.env.MEMMO_API_URL ?? config.apiBaseUrl ?? creds?.apiBaseUrl;
+  if (!baseUrl) throw new Error("No API base URL. Set MEMMO_API_URL or pass --api.");
   const client: ApiClientOptions = { baseUrl, token };
 
   const base = opts.base ?? process.env.GITHUB_BASE_REF ?? "main";
@@ -103,7 +103,7 @@ export async function reviewCommand(opts: ReviewOptions = {}) {
   });
 
   if (res.skipped) {
-    console.error("Cortex reviewer is disabled for this repo — skipping (enable it in the dashboard).");
+    console.error("Memmo reviewer is disabled for this repo — skipping (enable it in the dashboard).");
     return;
   }
   const comment = res.comment ?? "";
@@ -120,7 +120,7 @@ export async function reviewCommand(opts: ReviewOptions = {}) {
         return;
       } catch (e) {
         console.error(
-          `Cortex: inline review failed (${(e as Error).message}); posting a summary comment instead.`,
+          `Memmo: inline review failed (${(e as Error).message}); posting a summary comment instead.`,
         );
         await gh(ctx, `/repos/${ctx.repo}/issues/${ctx.pr}/comments`, {
           method: "POST",

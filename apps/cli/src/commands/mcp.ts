@@ -17,29 +17,29 @@ interface RepoContextResult {
 
 export async function mcpCommand(opts: { repo?: string; api?: string } = {}) {
   const creds = loadCredentials();
-  if (!creds) throw new Error("Not logged in. Run `cortex login` first.");
+  if (!creds) throw new Error("Not logged in. Run `memmo login` first.");
 
   // Repo + API can come from flags or env (for Claude Desktop, which has no
-  // per-repo working directory), falling back to .cortex/config.json (Claude Code).
+  // per-repo working directory), falling back to .memmo/config.json (Claude Code).
   const fileConfig = loadProjectConfig();
-  const repoId = opts.repo ?? process.env.CORTEX_REPO_ID ?? fileConfig?.repoId;
+  const repoId = opts.repo ?? process.env.MEMMO_REPO_ID ?? fileConfig?.repoId;
   const baseUrl =
-    opts.api ?? process.env.CORTEX_API_URL ?? fileConfig?.apiBaseUrl ?? creds.apiBaseUrl;
+    opts.api ?? process.env.MEMMO_API_URL ?? fileConfig?.apiBaseUrl ?? creds.apiBaseUrl;
   if (!repoId) {
     throw new Error(
-      "No repo configured. Run `cortex init` in your repo, or pass --repo <repoId> (or set CORTEX_REPO_ID) — e.g. for the Claude Desktop config.",
+      "No repo configured. Run `memmo init` in your repo, or pass --repo <repoId> (or set MEMMO_REPO_ID) — e.g. for the Claude Desktop config.",
     );
   }
 
   const config = { repoId, apiBaseUrl: baseUrl };
   const client = { baseUrl, token: creds.token };
 
-  const server = new McpServer({ name: "cortex", version: VERSION });
+  const server = new McpServer({ name: "memmo", version: VERSION });
 
   server.registerTool(
     "search_memory",
     {
-      title: "Search Cortex memory",
+      title: "Search Memmo memory",
       description:
         "Search approved operational memories for the connected repo (conventions, risks, commands, decisions).",
       inputSchema: { query: z.string().describe("What to search for"), limit: z.number().optional() },
@@ -62,7 +62,7 @@ export async function mcpCommand(opts: { repo?: string; api?: string } = {}) {
   server.registerTool(
     "get_repo_context",
     {
-      title: "Get Cortex repo context",
+      title: "Get Memmo repo context",
       description:
         "Retrieve the stack, package manager, known risks/warnings, and recommended commands for the connected repo.",
       inputSchema: {},
@@ -79,7 +79,7 @@ export async function mcpCommand(opts: { repo?: string; api?: string } = {}) {
   server.registerTool(
     "get_relevant_warnings",
     {
-      title: "Get Cortex risk warnings for files",
+      title: "Get Memmo risk warnings for files",
       description:
         "Before editing files, get risk/failure warnings that apply to them (past outages, gotchas). Call with the file paths you're about to modify.",
       inputSchema: {
@@ -106,9 +106,9 @@ export async function mcpCommand(opts: { repo?: string; api?: string } = {}) {
   server.registerTool(
     "record_session_summary",
     {
-      title: "Record a Cortex session summary",
+      title: "Record a Memmo session summary",
       description:
-        "Submit a summary of the work you just did so Cortex can propose new memories for review. Call this at the end of a meaningful task.",
+        "Submit a summary of the work you just did so Memmo can propose new memories for review. Call this at the end of a meaningful task.",
       inputSchema: {
         task: z.string().optional().describe("What the task was"),
         summary: z.string().optional().describe("What happened: decisions, findings, outcomes"),
@@ -126,7 +126,7 @@ export async function mcpCommand(opts: { repo?: string; api?: string } = {}) {
         content: [
           {
             type: "text",
-            text: `Session recorded. ${result.proposedCount} memory proposal(s) created for review in Cortex.`,
+            text: `Session recorded. ${result.proposedCount} memory proposal(s) created for review in Memmo.`,
           },
         ],
       };
@@ -136,7 +136,7 @@ export async function mcpCommand(opts: { repo?: string; api?: string } = {}) {
   server.registerTool(
     "propose_memories",
     {
-      title: "Propose Cortex memories",
+      title: "Propose Memmo memories",
       description:
         "Record durable, reusable knowledge you discovered (conventions, architecture, commands, risks, gotchas) as PROPOSED memories for human review. Use this to bootstrap a repo — read its key files (README, configs, manifests, schema, entry points) and propose memories — or any time you learn something a future agent should know. Keep each memory ATOMIC (one fact/rule/command/entity per memory — split multi-topic content) and CONCISE (1–3 sentences, ideally under ~280 characters); prefer many small memories over a few long ones. Add file globs in `paths` for risk/area-specific memories.",
       inputSchema: {
@@ -174,7 +174,7 @@ export async function mcpCommand(opts: { repo?: string; api?: string } = {}) {
         content: [
           {
             type: "text",
-            text: `Proposed ${result.proposedCount} memory(ies) for review in Cortex.`,
+            text: `Proposed ${result.proposedCount} memory(ies) for review in Memmo.`,
           },
         ],
       };

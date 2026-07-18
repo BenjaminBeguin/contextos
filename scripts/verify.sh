@@ -1,15 +1,15 @@
 #!/usr/bin/env bash
-# End-to-end verification of the Cortex foundation slice.
+# End-to-end verification of the Memmo foundation slice.
 set -euo pipefail
 cd "$(dirname "$0")/.."
 
 API_URL="http://localhost:3008"
-TOKEN="ctxos_dev_fixed_token_for_local_testing"
+TOKEN="memmo_dev_fixed_token_for_local_testing"
 
 echo "==> 1. Docker services"
 docker compose up -d
 echo "Waiting for Postgres…"
-until docker exec contextos-postgres pg_isready -U contextos >/dev/null 2>&1; do sleep 1; done
+until docker exec memmo-postgres pg_isready -U memmo >/dev/null 2>&1; do sleep 1; done
 echo "Postgres ready."
 
 echo "==> 2. Install + generate + migrate + seed"
@@ -24,11 +24,11 @@ echo "Acme repo:   $ACME_REPO"
 echo "Globex repo: $GLOBEX_REPO"
 
 echo "==> 3. Build CLI"
-pnpm --filter @cortex/shared build || true
-pnpm --filter @cortex/cli build
+pnpm --filter @memmo/shared build || true
+pnpm --filter @memmo/cli build
 
 echo "==> 4. Start API"
-( pnpm --filter @cortex/api dev >/tmp/cortex-api.log 2>&1 & echo $! > /tmp/cortex-api.pid )
+( pnpm --filter @memmo/api dev >/tmp/memmo-api.log 2>&1 & echo $! > /tmp/memmo-api.pid )
 echo "Waiting for API…"
 until curl -sf "$API_URL/health" >/dev/null 2>&1; do sleep 1; done
 echo "API healthy."
@@ -47,14 +47,14 @@ echo "HTTP $CODE"; cat /tmp/globex.json; echo
 if [ "$CODE" != "403" ]; then echo "FAIL: expected 403 for cross-org access"; exit 1; fi
 echo "PASS: cross-org access denied."
 
-echo "==> 7. MCP stdio smoke (writes local .cortex config first)"
-mkdir -p "$HOME/.cortex"
-echo "{\"apiBaseUrl\":\"$API_URL\",\"token\":\"$TOKEN\"}" > "$HOME/.cortex/credentials.json"
-mkdir -p .cortex
-echo "{\"apiBaseUrl\":\"$API_URL\",\"repoId\":\"$ACME_REPO\",\"repoFullName\":\"acme/billing-api\"}" > .cortex/config.json
+echo "==> 7. MCP stdio smoke (writes local .memmo config first)"
+mkdir -p "$HOME/.memmo"
+echo "{\"apiBaseUrl\":\"$API_URL\",\"token\":\"$TOKEN\"}" > "$HOME/.memmo/credentials.json"
+mkdir -p .memmo
+echo "{\"apiBaseUrl\":\"$API_URL\",\"repoId\":\"$ACME_REPO\",\"repoFullName\":\"acme/billing-api\"}" > .memmo/config.json
 node scripts/mcp-smoke.mjs
 
 echo "==> Stopping API"
-kill "$(cat /tmp/cortex-api.pid)" 2>/dev/null || true
+kill "$(cat /tmp/memmo-api.pid)" 2>/dev/null || true
 
 echo "ALL CHECKS PASSED"

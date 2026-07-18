@@ -1,4 +1,4 @@
-import { DOC_TITLES, DOC_TYPES, type DocType } from "@cortex/shared";
+import { DOC_TITLES, DOC_TYPES, type DocType } from "@memmo/shared";
 import { prisma } from "../db.js";
 import { complete } from "./llm.js";
 import { memoryStoreForRepo } from "./memoryStore.js";

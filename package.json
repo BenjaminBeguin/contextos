@@ -1,5 +1,5 @@
 {
-  "name": "cortex-monorepo",
+  "name": "memmo-monorepo",
   "version": "0.1.0",
   "private": true,
   "description": "Operational memory for AI coding agents",
@@ -12,7 +12,7 @@
     "db:deploy": "prisma migrate deploy",
     "db:seed": "tsx prisma/seed.ts",
     "start:api": "prisma migrate deploy && prisma generate && tsx apps/api/src/server.ts",
-    "cli": "pnpm --filter @mxbenjaminbeguin/cortex exec cortex",
+    "cli": "pnpm --filter memmo exec memmo",
     "test": "vitest run",
     "test:watch": "vitest",
     "docs:api": "node scripts/gen-api-docs.mjs"

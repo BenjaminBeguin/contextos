@@ -5,7 +5,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "cortex hook session-start"
+            "command": "memmo hook session-start"
           }
         ]
       }
@@ -16,7 +16,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "cortex hook pre-edit"
+            "command": "memmo hook pre-edit"
           }
         ]
       }
@@ -26,7 +26,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "cortex hook session-end"
+            "command": "memmo hook session-end"
           }
         ]
       }

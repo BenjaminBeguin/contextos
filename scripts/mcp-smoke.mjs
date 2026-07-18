@@ -1,4 +1,4 @@
-// Spawns the built Cortex MCP server over stdio and calls search_memory.
+// Spawns the built Memmo MCP server over stdio and calls search_memory.
 // Usage: node scripts/mcp-smoke.mjs
 import { Client } from "@modelcontextprotocol/sdk/client/index.js";
 import { StdioClientTransport } from "@modelcontextprotocol/sdk/client/stdio.js";

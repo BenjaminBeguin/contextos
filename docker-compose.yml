@@ -1,25 +1,25 @@
 services:
   postgres:
     image: postgres:16-alpine
-    container_name: contextos-postgres
+    container_name: memmo-postgres
     restart: unless-stopped
     environment:
-      POSTGRES_USER: contextos
-      POSTGRES_PASSWORD: contextos
-      POSTGRES_DB: contextos
+      POSTGRES_USER: memmo
+      POSTGRES_PASSWORD: memmo
+      POSTGRES_DB: memmo
     ports:
       - "5455:5432"
     volumes:
-      - contextos_pg:/var/lib/postgresql/data
+      - memmo_pg:/var/lib/postgresql/data
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U contextos"]
+      test: ["CMD-SHELL", "pg_isready -U memmo"]
       interval: 5s
       timeout: 5s
       retries: 10
 
   redis:
     image: redis:7-alpine
-    container_name: contextos-redis
+    container_name: memmo-redis
     restart: unless-stopped
     ports:
       - "6380:6379"
@@ -30,4 +30,4 @@ services:
       retries: 10
 
 volumes:
-  contextos_pg:
+  memmo_pg:

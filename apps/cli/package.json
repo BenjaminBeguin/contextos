@@ -1,11 +1,11 @@
 {
-  "name": "@mxbenjaminbeguin/cortex",
+  "name": "memmo",
   "version": "0.6.0",
   "description": "Operational memory for AI coding agents — CLI + MCP server for Claude Code.",
   "license": "MIT",
   "type": "module",
   "bin": {
-    "cortex": "dist/index.js"
+    "memmo": "dist/index.js"
   },
   "files": [
     "dist",
@@ -40,7 +40,7 @@
     "zod": "^3.24.1"
   },
   "devDependencies": {
-    "@cortex/shared": "workspace:*",
+    "@memmo/shared": "workspace:*",
     "@types/node": "^22.10.5",
     "esbuild": "^0.21.5",
     "tsx": "^4.19.2",

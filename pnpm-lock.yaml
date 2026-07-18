@@ -33,15 +33,15 @@ importers:
       '@anthropic-ai/sdk':
         specifier: ^0.39.0
         version: 0.39.0
-      '@cortex/shared':
-        specifier: workspace:*
-        version: link:../../packages/shared
       '@fastify/cookie':
         specifier: ^11.0.2
         version: 11.0.2
       '@fastify/cors':
         specifier: ^10.0.2
         version: 10.1.0
+      '@memmo/shared':
+        specifier: workspace:*
+        version: link:../../packages/shared
       '@prisma/client':
         specifier: ^6.2.1
         version: 6.19.3(prisma@6.19.3(typescript@5.9.3))(typescript@5.9.3)
@@ -86,7 +86,7 @@ importers:
         specifier: ^3.24.1
         version: 3.25.76
     devDependencies:
-      '@cortex/shared':
+      '@memmo/shared':
         specifier: workspace:*
         version: link:../../packages/shared
       '@types/node':
@@ -144,7 +144,7 @@ importers:
 
   apps/web:
     dependencies:
-      '@cortex/shared':
+      '@memmo/shared':
         specifier: workspace:*
         version: link:../../packages/shared
       '@tanstack/react-query':

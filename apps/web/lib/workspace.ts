@@ -4,7 +4,7 @@ import { useSyncExternalStore } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { api, type Me, type Workspace } from "./api";
 
-const KEY = "cortex.activeWorkspace";
+const KEY = "memmo.activeWorkspace";
 const listeners = new Set<() => void>();
 
 function subscribe(cb: () => void): () => void {

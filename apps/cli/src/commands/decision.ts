@@ -8,12 +8,12 @@ import { apiFetch, type ApiClientOptions } from "../api.js";
 export async function decisionCommand(text: string[], opts: { why?: string } = {}) {
   const creds = loadCredentials();
   const config = loadProjectConfig();
-  if (!creds) throw new Error("Not logged in. Run `cortex login` first.");
-  if (!config) throw new Error("Repo not initialized. Run `cortex init` first.");
+  if (!creds) throw new Error("Not logged in. Run `memmo login` first.");
+  if (!config) throw new Error("Repo not initialized. Run `memmo init` first.");
 
   const title = text.join(" ").trim();
   if (!title) {
-    throw new Error('Usage: cortex decision "what changed" [--why "the reason"]');
+    throw new Error('Usage: memmo decision "what changed" [--why "the reason"]');
   }
 
   const client: ApiClientOptions = {

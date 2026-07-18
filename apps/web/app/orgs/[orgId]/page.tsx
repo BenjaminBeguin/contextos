@@ -3,7 +3,7 @@
 import { use, useState } from "react";
 import Link from "next/link";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { PLANS, PLAN_LABELS, PLAN_TAGLINES, PLAN_LIMITS, ORG_ROLE_LABELS, type Plan, type OrgRole } from "@cortex/shared";
+import { PLANS, PLAN_LABELS, PLAN_TAGLINES, PLAN_LIMITS, ORG_ROLE_LABELS, type Plan, type OrgRole } from "@memmo/shared";
 import {
   getOrg,
   getOrgUsage,
@@ -367,7 +367,7 @@ function Subscription({ org, canManage }: { org: OrgDetail; canManage: boolean }
               {canManage && !isCurrent ? (
                 p === "enterprise" ? (
                   <a
-                    href="mailto:sales@cortex.dev?subject=Cortex%20Enterprise"
+                    href="mailto:sales@memmo.dev?subject=Memmo%20Enterprise"
                     className="mt-3 inline-flex w-full items-center justify-center rounded-lg border border-[var(--border)] px-3 py-1.5 text-xs hover:bg-white/5"
                   >
                     Contact us

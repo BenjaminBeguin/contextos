@@ -2,8 +2,8 @@ import type { Metadata } from "next";
 import { APP_URL, APP_LIVE } from "../../lib/api";
 
 export const metadata: Metadata = {
-  title: "Cortex — Setup & Docs",
-  description: "Install Cortex and connect Claude Code to your team's operational memory.",
+  title: "Memmo — Setup & Docs",
+  description: "Install Memmo and connect Claude Code to your team's operational memory.",
 };
 
 function Code({ children }: { children: React.ReactNode }) {
@@ -36,7 +36,7 @@ export default function DocsPage() {
         <div className="mx-auto flex max-w-3xl items-center justify-between px-6 py-4">
           <a href="/" className="flex items-center gap-2 font-semibold tracking-tight">
             <span className="inline-block h-4 w-4 rotate-45 rounded-sm bg-gradient-to-br from-violet-400 to-cyan-400" />
-            Cortex
+            Memmo
           </a>
           {APP_LIVE ? (
             <a href={`${APP_URL}/login`} className="text-sm text-[var(--muted)] hover:text-white">
@@ -52,9 +52,9 @@ export default function DocsPage() {
 
       <main className="relative mx-auto max-w-3xl px-6 py-16">
         <p className="text-xs uppercase tracking-[0.3em] text-cyan-300/70">Documentation</p>
-        <h1 className="gradient-text mt-3 text-4xl font-semibold">Set up Cortex</h1>
+        <h1 className="gradient-text mt-3 text-4xl font-semibold">Set up Memmo</h1>
         <p className="mt-4 text-[var(--muted)]">
-          Cortex gives Claude Code your team&apos;s operational memory through the Model Context
+          Memmo gives Claude Code your team&apos;s operational memory through the Model Context
           Protocol. Connect a repo once, then every Claude Code session can retrieve approved
           memories, repo context, and risk warnings before it acts.
         </p>
@@ -63,35 +63,35 @@ export default function DocsPage() {
           <ul className="list-disc space-y-1 pl-5">
             <li>Node.js 20+ and a terminal</li>
             <li>Claude Code installed in your repo</li>
-            <li>A Cortex account (create one when you sign in)</li>
+            <li>A Memmo account (create one when you sign in)</li>
           </ul>
         </Step>
 
         <Step n={2} title="Install the CLI">
-          <Code>{`npm install -g @mxbenjaminbeguin/cortex`}</Code>
+          <Code>{`npm install -g memmo`}</Code>
         </Step>
 
         <Step n={3} title="Authenticate">
-          <p>Log in to store an API token locally (in ~/.cortex/credentials.json):</p>
-          <Code>{`cortex login`}</Code>
+          <p>Log in to store an API token locally (in ~/.memmo/credentials.json):</p>
+          <Code>{`memmo login`}</Code>
         </Step>
 
         <Step n={4} title="Connect your repo">
           <p>
-            From the root of your repository, link it to a Cortex workspace. This writes a local
+            From the root of your repository, link it to a Memmo workspace. This writes a local
             config and generates the Claude Code assets.
           </p>
-          <Code>{`cortex init`}</Code>
+          <Code>{`memmo init`}</Code>
           <p>This creates:</p>
-          <Code>{`.cortex/config.json          # repo link
+          <Code>{`.memmo/config.json          # repo link
 CLAUDE.md                       # guidance for the agent
-.mcp.json                       # registers the Cortex MCP server
+.mcp.json                       # registers the Memmo MCP server
 .claude/settings.json           # SessionStart / PreToolUse / SessionEnd hooks`}</Code>
         </Step>
 
         <Step n={5} title="Use it in Claude Code">
           <p>
-            Open Claude Code in the repo. It discovers the <code>cortex</code> MCP server and can
+            Open Claude Code in the repo. It discovers the <code>memmo</code> MCP server and can
             call these tools:
           </p>
           <Code>{`search_memory(query)      → approved memories for this repo
@@ -104,14 +104,14 @@ get_repo_context()        → stack, commands, risks, warnings`}</Code>
 
         <Step n={6} title="Use it in Claude Desktop (optional)">
           <p>
-            Claude Desktop runs MCP servers globally, so tell Cortex which repo to serve with{" "}
+            Claude Desktop runs MCP servers globally, so tell Memmo which repo to serve with{" "}
             <code>--repo</code> (the repo ID is on its dashboard page). Add it to your Claude Desktop
             config:
           </p>
           <Code>{`// macOS: ~/Library/Application Support/Claude/claude_desktop_config.json
 {
   "mcpServers": {
-    "cortex": { "command": "cortex", "args": ["mcp", "--repo", "<repoId>"] }
+    "memmo": { "command": "memmo", "args": ["mcp", "--repo", "<repoId>"] }
   }
 }`}</Code>
           <p>
@@ -142,7 +142,7 @@ get_repo_context()        → stack, commands, risks, warnings`}</Code>
       </main>
 
       <footer className="border-t border-white/5 py-8 text-center text-sm text-[var(--muted)]">
-        Cortex — Operational memory for AI coding agents.
+        Memmo — Operational memory for AI coding agents.
       </footer>
     </div>
   );

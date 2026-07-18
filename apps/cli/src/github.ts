@@ -1,5 +1,5 @@
 /**
- * Shared GitHub Actions helpers used by `cortex review` and `cortex review-sync`:
+ * Shared GitHub Actions helpers used by `memmo review` and `memmo review-sync`:
  * reading the PR event, resolving the Actions context, and a thin authenticated
  * GitHub REST client.
  */
@@ -47,7 +47,7 @@ export async function gh<T>(ctx: GhContext, path: string, init: RequestInit = {}
     headers: {
       authorization: `Bearer ${ctx.token}`,
       accept: "application/vnd.github+json",
-      "user-agent": "cortex",
+      "user-agent": "memmo",
       ...(init.body ? { "content-type": "application/json" } : {}),
     },
   });

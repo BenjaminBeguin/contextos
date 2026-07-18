@@ -155,8 +155,8 @@ export function WorkspaceRail() {
       {/* Logo */}
       <Link
         href="/dashboard"
-        title="Cortex — all projects"
-        aria-label="Cortex home"
+        title="Memmo — all projects"
+        aria-label="Memmo home"
         className="mb-1 flex h-10 w-10 items-center justify-center"
       >
         <span className="inline-block h-5 w-5 rotate-45 rounded-sm bg-gradient-to-br from-[var(--accent)] via-[#b5179e] to-[var(--signal)] shadow-[0_0_14px_rgba(255,180,84,0.45)]" />

@@ -1,4 +1,4 @@
-import { extractedMemoriesSchema, type ExtractedMemory } from "@cortex/shared";
+import { extractedMemoriesSchema, type ExtractedMemory } from "@memmo/shared";
 import { complete } from "./llm.js";
 
 export interface SplitInput {

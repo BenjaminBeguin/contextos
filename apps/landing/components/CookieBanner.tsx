@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 
-const KEY = "cortex.cookie-consent";
+const KEY = "memmo.cookie-consent";
 
 export type Consent = "accepted" | "declined";
 
@@ -20,7 +20,7 @@ export function hasAnalyticsConsent(): boolean {
 
 /** Re-open the banner so a visitor can change their choice (GDPR: withdrawable). */
 export function openCookieSettings() {
-  window.dispatchEvent(new Event("cortex:open-consent"));
+  window.dispatchEvent(new Event("memmo:open-consent"));
 }
 
 export function CookieBanner() {
@@ -30,8 +30,8 @@ export function CookieBanner() {
     // Only show until a choice is made; nothing non-essential runs before then.
     if (!getConsent()) setShow(true);
     const reopen = () => setShow(true);
-    window.addEventListener("cortex:open-consent", reopen);
-    return () => window.removeEventListener("cortex:open-consent", reopen);
+    window.addEventListener("memmo:open-consent", reopen);
+    return () => window.removeEventListener("memmo:open-consent", reopen);
   }, []);
 
   function choose(choice: Consent) {
@@ -42,7 +42,7 @@ export function CookieBanner() {
     }
     setShow(false);
     // Let analytics loaders react to a fresh "accepted" without a reload.
-    window.dispatchEvent(new CustomEvent("cortex:consent", { detail: choice }));
+    window.dispatchEvent(new CustomEvent("memmo:consent", { detail: choice }));
   }
 
   if (!show) return null;
@@ -57,7 +57,7 @@ export function CookieBanner() {
       <div className="glass mx-auto flex max-w-2xl flex-col gap-2.5 rounded-xl border border-white/10 px-4 py-3 shadow-xl backdrop-blur-xl sm:flex-row sm:items-center sm:justify-between">
         <p className="text-xs text-[var(--muted)]">
           Essential cookies keep this site working; with your consent we also use analytics to
-          improve Cortex — never ads.{" "}
+          improve Memmo — never ads.{" "}
           <a href="/privacy" className="text-[var(--muted)] underline underline-offset-2 hover:text-white">
             Privacy &amp; Cookies
           </a>

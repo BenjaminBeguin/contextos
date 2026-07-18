@@ -32,7 +32,7 @@ export function IslandNav() {
       >
         <a href="/" className="flex items-center gap-2 rounded-full px-2 py-1 font-semibold">
           <span className="inline-block h-4 w-4 rotate-45 rounded-sm bg-gradient-to-br from-violet-400 to-[var(--signal)]" />
-          <span className={scrolled ? "hidden lg:inline" : ""}>Cortex</span>
+          <span className={scrolled ? "hidden lg:inline" : ""}>Memmo</span>
         </a>
 
         <span className="mx-1 hidden h-5 w-px bg-white/10 md:block" />

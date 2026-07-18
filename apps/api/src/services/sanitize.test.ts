@@ -3,19 +3,19 @@ import { redactSecrets } from "./sanitize.js";
 
 describe("redactSecrets", () => {
   it("redacts the password in a connection string but keeps the shape", () => {
-    const out = redactSecrets("Connect with postgres://contextos:s3cr3t@localhost:5455/contextos");
-    expect(out).toContain("postgres://contextos:[redacted]@localhost:5455");
+    const out = redactSecrets("Connect with postgres://memmo:s3cr3t@localhost:5455/memmo");
+    expect(out).toContain("postgres://memmo:[redacted]@localhost:5455");
     expect(out).not.toContain("s3cr3t");
   });
 
   it("redacts secret-named assignments (quoted or not)", () => {
-    expect(redactSecrets("POSTGRES_PASSWORD=contextos")).toBe("POSTGRES_PASSWORD=[redacted]");
+    expect(redactSecrets("POSTGRES_PASSWORD=memmo")).toBe("POSTGRES_PASSWORD=[redacted]");
     expect(redactSecrets('export API_KEY: "abc123def"')).toContain("API_KEY: [redacted]");
     expect(redactSecrets("CLIENT_SECRET = zzz")).toContain("CLIENT_SECRET = [redacted]");
   });
 
   it("redacts bearer tokens and known token shapes", () => {
-    expect(redactSecrets("Authorization: Bearer ctxos_abcdef123456")).not.toContain("ctxos_abcdef");
+    expect(redactSecrets("Authorization: Bearer memmo_abcdef123456")).not.toContain("memmo_abcdef");
     expect(redactSecrets("token ghp_0123456789abcdefghij")).toContain("[redacted]");
     expect(redactSecrets("AKIAIOSFODNN7EXAMPLE is the key")).toContain("[redacted]");
   });

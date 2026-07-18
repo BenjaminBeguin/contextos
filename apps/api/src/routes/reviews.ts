@@ -1,5 +1,5 @@
 import type { FastifyInstance } from "fastify";
-import { reviewFeedbackSchema, reviewFeedbackBulkSchema } from "@cortex/shared";
+import { reviewFeedbackSchema, reviewFeedbackBulkSchema } from "@memmo/shared";
 import { prisma } from "../db.js";
 import { resolveUser, assertRepoAccess, assertWorkspaceAccess, HttpError } from "../auth.js";
 import { applyFindingFeedback, applyBulkFeedbackByKey, toReviewDTO } from "../services/feedback.js";
@@ -101,7 +101,7 @@ export async function reviewRoutes(app: FastifyInstance) {
     return applyFindingFeedback(findingId, body.feedback, user.id);
   });
 
-  // Bulk feedback keyed by finding dedup key (used by `cortex review-sync`).
+  // Bulk feedback keyed by finding dedup key (used by `memmo review-sync`).
   app.post("/repos/:repoId/review-feedback", async (req, reply) => {
     const user = await resolveUser(req);
     if (!user) return reply.code(401).send({ error: "Unauthorized" });

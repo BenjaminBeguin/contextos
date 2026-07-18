@@ -8,7 +8,7 @@ architecture note, command, risk, or past failure. Each has a `type`, `title`,
 score, and a `status`.
 
 Memories flow **proposed → approved → (archived/rejected)**. Proposed memories
-come from recorded agent sessions or `cortex scan`; a human approves them in the
+come from recorded agent sessions or `memmo scan`; a human approves them in the
 inbox. Only **approved** memories are served to agents.
 
 - **Auto-triage** (Settings): confidence thresholds can auto-approve/auto-reject
@@ -52,10 +52,10 @@ in the [admin dashboard](./enterprise-plan.md) and can comp. See
 
 ## MCP surface
 
-The Cortex MCP server (via `cortex init`) exposes to Claude Code:
+The Memmo MCP server (via `memmo init`) exposes to Claude Code:
 
 - `search_memory(query)` — approved memories for the repo (counts as usage).
 - `get_repo_context()` — stack, commands, risk warnings.
 - `get_relevant_warnings(files)` — just-in-time warnings for files about to change.
-- `record_session_summary(...)` — submit what the agent did; Cortex extracts
+- `record_session_summary(...)` — submit what the agent did; Memmo extracts
   proposed memories for review.

@@ -1,6 +1,6 @@
-# Cortex — Enterprise Readiness Plan
+# Memmo — Enterprise Readiness Plan
 
-Planning document (not yet implemented) for turning Cortex from a working product
+Planning document (not yet implemented) for turning Memmo from a working product
 into something a company can buy, roll out to a team, and trust with its code
 knowledge. Scope: **user & identity management, workspace/org management,
 subscriptions & billing, security/compliance, and documentation.**
@@ -48,7 +48,7 @@ Promote the unused `Membership.role` into an enforced enum:
 
 ### 1.2 Enterprise sign-in
 - **SSO (SAML 2.0 + OIDC)** for Business/Enterprise plans — via WorkOS or Auth0 to
-  avoid building SAML ourselves. Map IdP groups → Cortex roles.
+  avoid building SAML ourselves. Map IdP groups → Memmo roles.
 - **SCIM 2.0** provisioning/deprovisioning so IT can auto-add/remove seats from
   Okta/Entra. Deprovision = revoke tokens + memberships immediately.
 - **Domain capture:** verified email domain auto-joins the right org (replaces the
@@ -88,7 +88,7 @@ Organization (billing entity, SSO domain, plan)
 
 | Plan       | Audience            | Key limits / features |
 | ---------- | ------------------- | --------------------- |
-| **Free**   | solo / trial        | 1 workspace, N repos, X memories, community support, Cortex-hosted model (metered) or BYOK |
+| **Free**   | solo / trial        | 1 workspace, N repos, X memories, community support, Memmo-hosted model (metered) or BYOK |
 | **Team**   | small teams         | seats, unlimited repos, reviewer on all repos, usage analytics, email support |
 | **Business** | scaling orgs      | SSO, more seats, audit export, priority support, higher rate limits |
 | **Enterprise** | large / regulated | SCIM, SAML enforcement, self-host option, SLA, DPA, dedicated support |
@@ -141,8 +141,8 @@ BYOK (already supported) should discount or remove the AI-usage component.
 
 Today: README + DEPLOY. Target: a versioned docs site + reference. Structure:
 
-1. **Product docs** (`docs.cortex.dev` — Mintlify/Docusaurus/Nextra):
-   - *Getting started*: install CLI, `cortex login/init`, connect Claude Code.
+1. **Product docs** (`docs.memmo.dev` — Mintlify/Docusaurus/Nextra):
+   - *Getting started*: install CLI, `memmo login/init`, connect Claude Code.
    - *Core concepts*: memory, proposals → approval, scoping/isolation, the reviewer,
      the **feedback loop** (link `docs/reviewer-feedback.md`), living docs.
    - *Guides*: reviewer setup in CI, reviewer skills, auto-approve thresholds, teams
@@ -151,7 +151,7 @@ Today: README + DEPLOY. Target: a versioned docs site + reference. Structure:
 2. **API reference:** generate from the Fastify routes (add OpenAPI via
    `@fastify/swagger`) → published, always-in-sync reference. Document the MCP tools
    as a first-class surface.
-3. **CLI reference:** auto-generated command docs (mirror `cortex --help`).
+3. **CLI reference:** auto-generated command docs (mirror `memmo --help`).
 4. **Self-host guide:** expand DEPLOY.md into a full runbook (env vars, migrations,
    scaling Postgres/Redis, backups, upgrade path).
 5. **Trust center:** security overview, sub-processors, status page, changelog.

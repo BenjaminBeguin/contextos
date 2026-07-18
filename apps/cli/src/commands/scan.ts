@@ -40,7 +40,7 @@ Explore the codebase thoroughly first. Read the README, package manifests, confi
 
 Also review the COMMIT HISTORY and its descriptions: run \`git log --pretty=format:'%h %s%n%b' -n 500\` (and \`git log --oneline -n 500\` for a quick overview). Commit subjects and bodies are evidence of decisions, recurring failures, and conventions enforced over time.
 
-Then call the propose_memories MCP tool (mcp__cortex__propose_memories) to record a THOROUGH set of memories a new engineer/agent must know:
+Then call the propose_memories MCP tool (mcp__memmo__propose_memories) to record a THOROUGH set of memories a new engineer/agent must know:
 - Overall architecture and how the major modules/areas fit together (one memory per significant area).
 - The data model / key entities (from schema/models).
 - The API/interface surface and important flows.
@@ -83,7 +83,7 @@ async function agentScan(
 ): Promise<void> {
   const mcpConfig = join(cwd, ".mcp.json");
   if (!existsSync(mcpConfig)) {
-    throw new Error("No .mcp.json found — run `cortex init` (or `cortex claude install`) first.");
+    throw new Error("No .mcp.json found — run `memmo init` (or `memmo claude install`) first.");
   }
 
   const before = await countProposed(client, config.repoId);
@@ -104,9 +104,9 @@ async function agentScan(
     "Grep",
     "LS",
     "Bash(git log:*)",
-    "mcp__cortex__get_repo_context",
-    "mcp__cortex__search_memory",
-    "mcp__cortex__propose_memories",
+    "mcp__memmo__get_repo_context",
+    "mcp__memmo__search_memory",
+    "mcp__memmo__propose_memories",
   ];
 
   // Run on the user's Claude Code subscription, not an API key. A stale/invalid
@@ -125,14 +125,14 @@ async function agentScan(
     throw new Error(
       `Claude Code exited with code ${code}.\n` +
         "If you saw a 401/auth error, make sure Claude Code is logged in: run `claude` once and sign in (or `claude login`).\n" +
-        "Alternatively, use `cortex scan --server` to scan with the workspace API key.",
+        "Alternatively, use `memmo scan --server` to scan with the workspace API key.",
     );
   }
 
   const after = await countProposed(client, config.repoId);
   const added = Math.max(0, after - before);
   console.log(
-    `\nDeep scan complete. ${added} new memory proposal(s) created. Review them in the Cortex inbox.`,
+    `\nDeep scan complete. ${added} new memory proposal(s) created. Review them in the Memmo inbox.`,
   );
 }
 
@@ -148,15 +148,15 @@ async function serverScan(client: ApiClientOptions, config: ProjectConfig): Prom
   ].filter(Boolean);
   const from = bits.length ? ` (read ${bits.join(", ")})` : "";
   console.log(
-    `Proposed ${result.proposedCount} memory(ies)${from}. Review them in the Cortex inbox.`,
+    `Proposed ${result.proposedCount} memory(ies)${from}. Review them in the Memmo inbox.`,
   );
 }
 
 export async function scanCommand(opts: ScanOptions = {}) {
   const creds: Credentials | null = loadCredentials();
   const config = loadProjectConfig();
-  if (!creds) throw new Error("Not logged in. Run `cortex login` first.");
-  if (!config) throw new Error("Repo not initialized. Run `cortex init` first.");
+  if (!creds) throw new Error("Not logged in. Run `memmo login` first.");
+  if (!config) throw new Error("Repo not initialized. Run `memmo init` first.");
 
   const client: ApiClientOptions = {
     baseUrl: config.apiBaseUrl ?? creds.apiBaseUrl,
@@ -172,7 +172,7 @@ export async function scanCommand(opts: ScanOptions = {}) {
   if (opts.agent) {
     if (!claudeBin) {
       throw new Error(
-        "Claude Code (`claude`) was not found on your PATH. Install it from https://claude.com/claude-code, or run `cortex scan --server`.",
+        "Claude Code (`claude`) was not found on your PATH. Install it from https://claude.com/claude-code, or run `memmo scan --server`.",
       );
     }
     return agentScan(claudeBin, client, config, cwd);

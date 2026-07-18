@@ -33,5 +33,5 @@ export async function loginCommand(opts: { email?: string; api?: string }) {
   const { token } = (await tokenRes.json()) as { token: string };
 
   saveCredentials({ apiBaseUrl: baseUrl, token });
-  console.log(`Logged in as ${email}. Credentials saved to ~/.cortex/credentials.json`);
+  console.log(`Logged in as ${email}. Credentials saved to ~/.memmo/credentials.json`);
 }

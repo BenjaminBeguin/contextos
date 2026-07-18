@@ -1,6 +1,6 @@
 import type { FastifyInstance } from "fastify";
 import type { Prisma } from "@prisma/client";
-import { recordSessionSchema } from "@cortex/shared";
+import { recordSessionSchema } from "@memmo/shared";
 import { prisma } from "../db.js";
 import { resolveUser, assertRepoAccess, HttpError } from "../auth.js";
 import { extractMemories } from "../services/extract.js";

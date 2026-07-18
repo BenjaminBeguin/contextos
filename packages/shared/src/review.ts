@@ -31,7 +31,7 @@ export function slug(s: string): string {
 
 /**
  * Stable dedup key for a finding (path + line + normalized title). This is the
- * identity used both for the GitHub `<!-- cortex-review:KEY -->` marker and for
+ * identity used both for the GitHub `<!-- memmo-review:KEY -->` marker and for
  * matching human feedback back to a persisted finding.
  */
 export function findingKey(f: Pick<Finding, "path" | "line" | "title">): string {

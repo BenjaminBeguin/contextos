@@ -3,7 +3,7 @@
 import { useState } from "react";
 import Link from "next/link";
 import { useQuery } from "@tanstack/react-query";
-import { PLAN_LABELS } from "@cortex/shared";
+import { PLAN_LABELS } from "@memmo/shared";
 import {
   api,
   getOrg,

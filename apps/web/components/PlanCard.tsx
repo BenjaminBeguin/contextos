@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { useMutation } from "@tanstack/react-query";
-import { PLANS, PLAN_LABELS, PLAN_LIMITS, type Plan } from "@cortex/shared";
+import { PLANS, PLAN_LABELS, PLAN_LIMITS, type Plan } from "@memmo/shared";
 import { startCheckout, requestUpgrade, type WorkspaceDetail } from "../lib/api";
 import { Button, Card } from "./ui";
 
@@ -153,7 +153,7 @@ export function PlanCard({
                     <div className="mt-3 text-xs text-[var(--faint)]">Your plan</div>
                   ) : p === "enterprise" ? (
                     <a
-                      href="mailto:sales@cortex.dev?subject=Cortex%20Enterprise"
+                      href="mailto:sales@memmo.dev?subject=Memmo%20Enterprise"
                       className="mt-3 inline-flex w-full items-center justify-center rounded-lg border border-[var(--border)] px-3 py-1.5 text-xs transition hover:bg-white/5"
                     >
                       Contact us

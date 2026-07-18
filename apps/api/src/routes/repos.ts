@@ -7,7 +7,7 @@ import {
   setRepoSkillsSchema,
   planLimits,
   withinLimit,
-} from "@cortex/shared";
+} from "@memmo/shared";
 import { prisma } from "../db.js";
 import { resolveUser, assertWorkspaceAccess, assertRepoAccess, HttpError } from "../auth.js";
 import { decryptToken } from "../crypto.js";
@@ -233,7 +233,7 @@ export async function repoRoutes(app: FastifyInstance) {
     const headers = {
       authorization: `Bearer ${token}`,
       accept: "application/vnd.github+json",
-      "user-agent": "cortex",
+      "user-agent": "memmo",
     };
     const base = `https://api.github.com/repos/${repo.fullName}`;
 
@@ -353,7 +353,7 @@ export async function repoRoutes(app: FastifyInstance) {
     const headers = {
       authorization: `Bearer ${token}`,
       accept: "application/vnd.github+json",
-      "user-agent": "cortex",
+      "user-agent": "memmo",
     };
     const base = `https://api.github.com/repos/${repo.fullName}`;
     const [infoRes, langRes, contentsRes] = await Promise.all([
@@ -419,7 +419,7 @@ export async function repoRoutes(app: FastifyInstance) {
     const headers = {
       authorization: `Bearer ${token}`,
       accept: "application/vnd.github+json",
-      "user-agent": "cortex",
+      "user-agent": "memmo",
     };
     const r = await fetch(
       `https://api.github.com/repos/${repo.fullName}/pulls?state=open&per_page=30&sort=updated&direction=desc`,
@@ -502,7 +502,7 @@ export async function repoRoutes(app: FastifyInstance) {
     const headers = {
       authorization: `Bearer ${token}`,
       accept: "application/vnd.github+json",
-      "user-agent": "cortex",
+      "user-agent": "memmo",
     };
     const base = `https://api.github.com/repos/${repo.fullName}`;
 

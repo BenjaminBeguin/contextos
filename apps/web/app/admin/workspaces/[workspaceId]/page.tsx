@@ -247,7 +247,7 @@ function MembersCard({ ws }: { ws: AdminWorkspaceDetail }) {
           <p className="mt-2 text-sm text-[var(--alert)]">{(add.error as Error).message}</p>
         ) : null}
         <p className="mt-2 text-xs text-[var(--faint)]">
-          The person must already have a Cortex account.
+          The person must already have a Memmo account.
         </p>
       </div>
     </Card>

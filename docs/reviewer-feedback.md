@@ -61,9 +61,9 @@ Only findings with a resolved `memoryId` move confidence. Each change writes an
   → `{ finding: PrReviewFindingDTO, memory?: { id, confidence, previousConfidence } }`.
 - `POST /repos/:repoId/review-feedback` body `{ items: [{ key, feedback }] }`
   → applies feedback by dedup `key` against the repo's most-recent matching findings
-  (used by `cortex review-sync` to push GitHub 👍/👎 back). Returns `{ updated }`.
+  (used by `memmo review-sync` to push GitHub 👍/👎 back). Returns `{ updated }`.
 
-### DTO shapes (shared TS types in @cortex/shared)
+### DTO shapes (shared TS types in @memmo/shared)
 
 ```ts
 PrReviewFindingDTO = {
@@ -76,12 +76,12 @@ PrReviewDTO = {
 }
 ```
 
-## CLI — `cortex review-sync`
+## CLI — `memmo review-sync`
 
-Reads the PR's cortex-authored review comments (they carry
-`<!-- cortex-review:KEY -->` markers), maps GitHub reactions on each comment
+Reads the PR's memmo-authored review comments (they carry
+`<!-- memmo-review:KEY -->` markers), maps GitHub reactions on each comment
 (👍 → accepted, 👎 → dismissed), and POSTs `/repos/:repoId/review-feedback` with
-`[{ key, feedback }]`. Runs in the same GitHub Actions context as `cortex review`.
+`[{ key, feedback }]`. Runs in the same GitHub Actions context as `memmo review`.
 
 ## Web UI
 

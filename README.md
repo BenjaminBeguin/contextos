@@ -1,8 +1,8 @@
-# Cortex
+# Memmo
 
 **Operational memory for AI coding agents.**
 
-Cortex connects to Claude Code and builds a living memory layer for your team:
+Memmo connects to Claude Code and builds a living memory layer for your team:
 it captures what agents learn while working, turns it into structured, approved
 memory, and injects the right context back into future Claude Code sessions
 through the Model Context Protocol (MCP).
@@ -12,14 +12,14 @@ through the Model Context Protocol (MCP).
 ## Monorepo layout
 
 ```
-cortex/
+memmo/
 ├─ apps/
-│  ├─ landing/   @cortex/landing   Marketing site, waitlist, 3D core   → :3007
-│  ├─ web/       @cortex/web        Product app (dashboard, memory)      → :3009
-│  ├─ api/       @cortex/api        Fastify + Prisma REST/MCP API        → :3008
-│  └─ cli/       @cortex/cli        CLI + MCP stdio server (`cortex`)
+│  ├─ landing/   @memmo/landing   Marketing site, waitlist, 3D core   → :3007
+│  ├─ web/       @memmo/web        Product app (dashboard, memory)      → :3009
+│  ├─ api/       @memmo/api        Fastify + Prisma REST/MCP API        → :3008
+│  └─ cli/       @memmo/cli        CLI + MCP stdio server (`memmo`)
 ├─ packages/
-│  └─ shared/    @cortex/shared     Shared types + zod schemas
+│  └─ shared/    @memmo/shared     Shared types + zod schemas
 ├─ prisma/                             schema.prisma · seed.ts
 ├─ scripts/                            verify.sh · mcp-smoke.mjs
 └─ docker-compose.yml                  postgres :5455 · redis :6380
@@ -61,7 +61,7 @@ pnpm dev
 | API     | http://localhost:3008   |
 | Web app | http://localhost:3009   |
 
-Seed credentials: log in to the web app with **dev@cortex.dev** (email-only
+Seed credentials: log in to the web app with **dev@memmo.dev** (email-only
 dev auth). The seed also prints a fixed API token and the Acme/Globex workspace
 and repo IDs for local testing.
 
@@ -75,29 +75,29 @@ and repo IDs for local testing.
 From any repo you want to give memory to:
 
 ```bash
-npm install -g @mxbenjaminbeguin/cortex   # (local dev: pnpm --filter @mxbenjaminbeguin/cortex build)
-cortex login              # stores an API token in ~/.cortex
-cortex init               # links the repo, writes CLAUDE.md / .mcp.json / hooks
+npm install -g memmo   # (local dev: pnpm --filter memmo build)
+memmo login              # stores an API token in ~/.memmo
+memmo init               # links the repo, writes CLAUDE.md / .mcp.json / hooks
 ```
 
-> The npm package is published as `@mxbenjaminbeguin/cortex`; the installed
-> command is `cortex`.
+> The npm package is published as `memmo`; the installed
+> command is `memmo`.
 
 `init` generates:
 
 ```
-.cortex/config.json       # repo link
+.memmo/config.json       # repo link
 CLAUDE.md                    # agent guidance
-.mcp.json                    # registers the cortex MCP server (stdio)
+.mcp.json                    # registers the memmo MCP server (stdio)
 .claude/hooks/*              # session + before-edit hooks (stubs)
 ```
 
-Open Claude Code in the repo; it discovers the `cortex` MCP server, which
+Open Claude Code in the repo; it discovers the `memmo` MCP server, which
 exposes:
 
 - `search_memory(query)` → approved memories for the repo
 - `get_repo_context()` → stack, recommended commands, risk warnings
-- `record_session_summary(...)` → submit what the agent did; Cortex extracts
+- `record_session_summary(...)` → submit what the agent did; Memmo extracts
   **proposed** memories from it for review
 
 Memory is always scoped to a repo and never leaks across workspaces. Proposed
@@ -106,7 +106,7 @@ memories are suggestions until approved in the web app.
 ### AI memory extraction
 
 When a session is recorded (`POST /repos/:id/sessions` or the MCP tool),
-Cortex extracts durable memories from the task/summary/commands/errors:
+Memmo extracts durable memories from the task/summary/commands/errors:
 
 - With `ANTHROPIC_API_KEY` set, it calls Claude (`ANTHROPIC_MODEL`, default
   `claude-sonnet-4-6`) with a cached system prompt and parses structured JSON.

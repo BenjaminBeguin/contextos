@@ -10,14 +10,14 @@ interface Memory {
   paths?: string[];
 }
 
-const START = "<!-- cortex:memory:start -->";
-const END = "<!-- cortex:memory:end -->";
+const START = "<!-- memmo:memory:start -->";
+const END = "<!-- memmo:memory:end -->";
 
 /** Render approved memories into a markdown block, grouped by type. */
 function renderBlock(memories: Memory[]): string {
-  const lines = [START, "", "## Cortex memory (auto-synced — do not edit by hand)", ""];
+  const lines = [START, "", "## Memmo memory (auto-synced — do not edit by hand)", ""];
   if (memories.length === 0) {
-    lines.push("_No approved memories yet. Approve some in the Cortex inbox._");
+    lines.push("_No approved memories yet. Approve some in the Memmo inbox._");
   } else {
     const byType = new Map<string, Memory[]>();
     for (const m of memories) {
@@ -52,8 +52,8 @@ function upsertBlock(existing: string, block: string): string {
 export async function syncCommand() {
   const creds = loadCredentials();
   const config = loadProjectConfig();
-  if (!creds) throw new Error("Not logged in. Run `cortex login` first.");
-  if (!config) throw new Error("Repo not initialized. Run `cortex init` first.");
+  if (!creds) throw new Error("Not logged in. Run `memmo login` first.");
+  if (!config) throw new Error("Repo not initialized. Run `memmo init` first.");
 
   const client: ApiClientOptions = {
     baseUrl: config.apiBaseUrl ?? creds.apiBaseUrl,

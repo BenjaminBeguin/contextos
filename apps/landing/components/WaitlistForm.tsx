@@ -10,8 +10,8 @@ const BASE_SIGNUPS = 1843;
 // capture emails — the landing has no backend of its own.
 const ENDPOINT = process.env.NEXT_PUBLIC_WAITLIST_ENDPOINT;
 
-const STORE_COUNT = "cortex.waitlist.count";
-const STORE_JOINED = "cortex.waitlist.joined";
+const STORE_COUNT = "memmo.waitlist.count";
+const STORE_JOINED = "memmo.waitlist.joined";
 
 export function WaitlistForm({ source = "landing" }: { source?: string }) {
   const [email, setEmail] = useState("");
@@ -45,7 +45,7 @@ export function WaitlistForm({ source = "landing" }: { source?: string }) {
           body: JSON.stringify({
             email,
             source,
-            _subject: "New Cortex waitlist signup",
+            _subject: "New Memmo waitlist signup",
             _template: "table",
             _captcha: "false",
           }),

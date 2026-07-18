@@ -19,14 +19,14 @@ function readJson<T>(path: string): T | null {
   }
 }
 
-function hasCortexHooks(cwd: string): { present: boolean; events: string[] } {
+function hasMemmoHooks(cwd: string): { present: boolean; events: string[] } {
   const json = readJson<{ hooks?: Record<string, { hooks?: { command?: string }[] }[]> }>(
     join(cwd, ".claude", "settings.json"),
   );
   if (!json?.hooks) return { present: false, events: [] };
   const events = Object.entries(json.hooks)
     .filter(([, list]) =>
-      list?.some((e) => e.hooks?.some((h) => h.command?.includes("cortex hook"))),
+      list?.some((e) => e.hooks?.some((h) => h.command?.includes("memmo hook"))),
     )
     .map(([event]) => event);
   return { present: events.length > 0, events };
@@ -34,34 +34,34 @@ function hasCortexHooks(cwd: string): { present: boolean; events: string[] } {
 
 export async function statusCommand() {
   const cwd = process.cwd();
-  console.log("Cortex setup status\n");
+  console.log("Memmo setup status\n");
 
   // 1. Auth
   const creds = loadCredentials();
-  line(creds ? OK : NO, "Logged in", creds ? creds.apiBaseUrl : "run `cortex login`");
+  line(creds ? OK : NO, "Logged in", creds ? creds.apiBaseUrl : "run `memmo login`");
 
   // 2. Repo connection
   const config = loadProjectConfig(cwd);
   line(
     config ? OK : NO,
     "Repo connected",
-    config ? `${config.repoFullName ?? config.repoId}` : "run `cortex init`",
+    config ? `${config.repoFullName ?? config.repoId}` : "run `memmo init`",
   );
 
   // 3. Claude Code assets
   const mcp = readJson<{ mcpServers?: Record<string, unknown> }>(join(cwd, ".mcp.json"));
-  line(mcp?.mcpServers?.cortex ? OK : NO, ".mcp.json (cortex MCP server)");
+  line(mcp?.mcpServers?.memmo ? OK : NO, ".mcp.json (memmo MCP server)");
 
   const claudeMd = existsSync(join(cwd, "CLAUDE.md"))
     ? readFileSync(join(cwd, "CLAUDE.md"), "utf8")
     : "";
-  line(claudeMd.includes("Cortex") ? OK : WARN, "CLAUDE.md guidance");
+  line(claudeMd.includes("Memmo") ? OK : WARN, "CLAUDE.md guidance");
 
-  const hooks = hasCortexHooks(cwd);
+  const hooks = hasMemmoHooks(cwd);
   line(
     hooks.present ? OK : WARN,
     "Claude Code hooks",
-    hooks.present ? hooks.events.join(", ") : "run `cortex claude install`",
+    hooks.present ? hooks.events.join(", ") : "run `memmo claude install`",
   );
 
   // 4. Live API + repo access
@@ -80,10 +80,10 @@ export async function statusCommand() {
     }
   }
 
-  const ready = creds && config && mcp?.mcpServers?.cortex && hooks.present;
+  const ready = creds && config && mcp?.mcpServers?.memmo && hooks.present;
   console.log(
     ready
-      ? "\n\x1b[32mCortex is fully set up for this repo.\x1b[0m"
-      : "\nSome steps are incomplete. Run `cortex init` to finish setup.",
+      ? "\n\x1b[32mMemmo is fully set up for this repo.\x1b[0m"
+      : "\nSome steps are incomplete. Run `memmo init` to finish setup.",
   );
 }

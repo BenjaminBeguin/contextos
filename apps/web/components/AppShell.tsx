@@ -5,7 +5,7 @@ import { useQuery } from "@tanstack/react-query";
 import { api, type Me } from "../lib/api";
 import { WorkspaceRail } from "./WorkspaceRail";
 
-/** The Cortex diamond mark, matching the workspace rail + login. */
+/** The Memmo diamond mark, matching the workspace rail + login. */
 function BrandMark({ size = 28 }: { size?: number }) {
   return (
     <span
@@ -64,7 +64,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
           <div className="mb-6 flex justify-center">
             <BrandMark size={34} />
           </div>
-          <h1 className="font-display text-2xl font-semibold tracking-tight">Welcome to Cortex</h1>
+          <h1 className="font-display text-2xl font-semibold tracking-tight">Welcome to Memmo</h1>
           <p className="mx-auto mt-2 max-w-xs text-sm text-[var(--muted)]">
             Operational memory for your AI coding agents. Sign in to manage your team&apos;s memory
             and reviews.
@@ -87,7 +87,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
           <p className="mt-4 text-xs text-[var(--faint)]">
             New here?{" "}
             <a href="/" className="text-[var(--muted)] underline-offset-2 hover:underline">
-              Learn what Cortex does
+              Learn what Memmo does
             </a>
           </p>
         </div>

@@ -5,7 +5,7 @@ import { useQuery } from "@tanstack/react-query";
 import { getOrgs } from "./api";
 import { useActiveWorkspace } from "./workspace";
 
-const KEY = "cortex.activeOrg";
+const KEY = "memmo.activeOrg";
 const listeners = new Set<() => void>();
 
 function subscribe(cb: () => void): () => void {

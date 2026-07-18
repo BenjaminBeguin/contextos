@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { MEMORY_TYPES } from "@cortex/shared";
+import { MEMORY_TYPES } from "@memmo/shared";
 import { api, isStaleMemory, STALE_DAYS, timeAgo, type Memory } from "../lib/api";
 import { Badge, StatusBadge, Button, Card } from "./ui";
 

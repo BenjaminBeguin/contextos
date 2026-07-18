@@ -44,7 +44,7 @@ const reviewSchema = z.object({
 export type ReviewFinding = z.infer<typeof findingSchema>;
 export type PrReview = z.infer<typeof reviewSchema>;
 
-const SYSTEM = `You are Cortex Reviewer, an automated senior code reviewer for a specific repository.
+const SYSTEM = `You are Memmo Reviewer, an automated senior code reviewer for a specific repository.
 You are given (1) the team's durable project MEMORIES — approved rules, architecture notes,
 known risks, past failures, conventions, commands — and (2) a pull request diff.
 
@@ -128,7 +128,7 @@ const SEVERITY_LABEL: Record<ReviewFinding["severity"], string> = {
 
 /** Render a review as a Markdown PR comment. */
 export function formatReviewComment(review: PrReview): string {
-  const lines = ["### 🧠 Cortex Reviewer", "", review.summary || "_No summary._"];
+  const lines = ["### 🧠 Memmo Reviewer", "", review.summary || "_No summary._"];
   if (review.findings.length > 0) {
     lines.push("");
     for (const f of review.findings) {
@@ -138,6 +138,6 @@ export function formatReviewComment(review: PrReview): string {
       if (f.detail) lines.push(`  ${f.detail}`);
     }
   }
-  lines.push("", "_Grounded in this repo's approved Cortex memories._");
+  lines.push("", "_Grounded in this repo's approved Memmo memories._");
   return lines.join("\n");
 }

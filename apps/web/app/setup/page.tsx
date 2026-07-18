@@ -8,9 +8,9 @@ import { AppShell } from "../../components/AppShell";
 import { CopyButton } from "../../components/CopyButton";
 import { Button, Card, Code } from "../../components/ui";
 
-const PKG = "@mxbenjaminbeguin/cortex";
+const PKG = "memmo";
 const MCP_JSON = JSON.stringify(
-  { mcpServers: { cortex: { type: "stdio", command: "cortex", args: ["mcp"] } } },
+  { mcpServers: { memmo: { type: "stdio", command: "memmo", args: ["mcp"] } } },
   null,
   2,
 );
@@ -27,28 +27,28 @@ function Setup() {
   const { data: repos } = useQuery({ queryKey: ["repos"], queryFn: () => api<RepoSummary[]>("/repos") });
   const [repoId, setRepoId] = useState<string>("");
   const selected = repoId || repos?.[0]?.id || "";
-  const initCmd = selected ? `cortex init --repo ${selected}` : "cortex init";
+  const initCmd = selected ? `memmo init --repo ${selected}` : "memmo init";
 
   return (
     <div className="max-w-3xl">
       <h1 className="text-2xl font-semibold">Setup</h1>
       <p className="mt-1 text-sm text-[var(--muted)]">
-        Install the Cortex CLI and connect Claude Code so it retrieves your team&apos;s approved
+        Install the Memmo CLI and connect Claude Code so it retrieves your team&apos;s approved
         memory automatically — before it acts.
       </p>
 
       <Step n={1} title="Install the CLI">
         <CommandBlock command={`npm install -g ${PKG}`} />
         <p className="mt-2 text-xs text-[var(--muted)]">
-          Published as <code>{PKG}</code>; the installed command is <code>cortex</code>. Requires
+          Published as <code>{PKG}</code>; the installed command is <code>memmo</code>. Requires
           Node 20+.
         </p>
       </Step>
 
       <Step n={2} title="Authenticate">
-        <CommandBlock command="cortex login" />
+        <CommandBlock command="memmo login" />
         <p className="mt-2 text-sm text-[var(--muted)]">
-          Stores an API token in <code>~/.cortex/credentials.json</code>. Or generate one to set
+          Stores an API token in <code>~/.memmo/credentials.json</code>. Or generate one to set
           manually:
         </p>
         <TokenGenerator />
@@ -71,7 +71,7 @@ function Setup() {
             </select>
             <CommandBlock command={initCmd} />
             <p className="mt-3 text-sm text-[var(--muted)]">
-              Run from the repo root. Generates <code>.cortex/config.json</code>,{" "}
+              Run from the repo root. Generates <code>.memmo/config.json</code>,{" "}
               <code>CLAUDE.md</code>, <code>.mcp.json</code>, and <code>.claude/hooks/*</code>.
             </p>
           </>
@@ -88,7 +88,7 @@ function Setup() {
 
       <Step n={4} title="Use it in Claude Code">
         <p className="text-sm text-[var(--muted)]">
-          Open Claude Code in the repo. It discovers the <code>cortex</code> MCP server and can
+          Open Claude Code in the repo. It discovers the <code>memmo</code> MCP server and can
           call:
         </p>
         <div className="mt-3 space-y-2">
@@ -111,8 +111,8 @@ function Setup() {
           <CopyButton value={MCP_JSON} />
         </div>
         <p className="mt-1 text-xs text-[var(--muted)]">
-          Written by <code>cortex init</code>. If Claude Code can&apos;t launch the server, make
-          sure <code>cortex</code> is on your PATH.
+          Written by <code>memmo init</code>. If Claude Code can&apos;t launch the server, make
+          sure <code>memmo</code> is on your PATH.
         </p>
         <div className="mt-3">
           <Code>{MCP_JSON}</Code>

@@ -1,6 +1,6 @@
 /**
  * Persistence + confidence feedback for PR reviews. The pure confidence math lives in
- * `@cortex/shared` (unit-tested); this module wires it to Prisma, audit logs, and usage
+ * `@memmo/shared` (unit-tested); this module wires it to Prisma, audit logs, and usage
  * telemetry. Persisting a review is best-effort — callers wrap it so a failure never
  * breaks returning the review to the client.
  */
@@ -14,7 +14,7 @@ import {
   findingKey,
   confidenceDelta,
   applyFeedback,
-} from "@cortex/shared";
+} from "@memmo/shared";
 import { prisma } from "../db.js";
 import { HttpError } from "../auth.js";
 import { writeAuditLog } from "./memory.js";
@@ -142,7 +142,7 @@ export async function applyFindingFeedback(
 }
 
 /**
- * Apply feedback keyed by finding dedup `key` (used by `cortex review-sync` to push GitHub
+ * Apply feedback keyed by finding dedup `key` (used by `memmo review-sync` to push GitHub
  * 👍/👎 back). For each item, the most-recent matching finding in this repo wins.
  */
 export async function applyBulkFeedbackByKey(

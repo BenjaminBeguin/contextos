@@ -4,7 +4,7 @@ import {
   updateMemorySchema,
   memoryListQuerySchema,
   proposeMemoriesSchema,
-} from "@cortex/shared";
+} from "@memmo/shared";
 import { resolveUser, assertRepoAccess, requireRepoRole, HttpError, type AuthedUser } from "../auth.js";
 import { searchMemories, writeAuditLog, getAutoThresholds, statusFor } from "../services/memory.js";
 import { recordUsage } from "../services/analytics.js";

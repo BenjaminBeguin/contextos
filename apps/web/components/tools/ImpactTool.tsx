@@ -5,7 +5,7 @@ import { useQuery } from "@tanstack/react-query";
 import { api, type WorkspaceMetrics } from "../../lib/api";
 import { Card, Skeleton } from "../ui";
 
-/** Impact dashboard — what Cortex is doing for a project. */
+/** Impact dashboard — what Memmo is doing for a project. */
 export function ImpactTool({ workspaceId }: { workspaceId: string }) {
   const { data: metrics, isLoading } = useQuery({
     queryKey: ["metrics", workspaceId],
@@ -100,7 +100,7 @@ function WithWithout({ metrics }: { metrics: WorkspaceMetrics }) {
     <div className="mt-6 grid gap-4 lg:grid-cols-2">
       <Card className="border-red-500/15 bg-red-500/[0.03] p-6">
         <p className="text-xs font-medium uppercase tracking-widest text-red-300/80">
-          Without Cortex
+          Without Memmo
         </p>
         <p className="mt-3 text-sm text-[var(--muted)]">
           Every session starts cold — no architecture, commands, or past failures. Agents rediscover
@@ -108,7 +108,7 @@ function WithWithout({ metrics }: { metrics: WorkspaceMetrics }) {
         </p>
       </Card>
       <Card className="border-cyan-400/30 p-6">
-        <p className="text-xs font-medium uppercase tracking-widest text-cyan-300">With Cortex</p>
+        <p className="text-xs font-medium uppercase tracking-widest text-cyan-300">With Memmo</p>
         <ul className="mt-3 space-y-1.5 text-sm text-[var(--muted)]">
           <li>
             <span className="text-white">{metrics.contextInjections30.toLocaleString()}</span> sessions
@@ -144,7 +144,7 @@ function MeasuredComparison({ metrics }: { metrics: WorkspaceMetrics }) {
         <span className="text-xs text-[var(--faint)]">{total} sessions</span>
       </div>
       <p className="mt-1 text-sm text-[var(--muted)]">
-        Comparing sessions where Cortex memory was retrieved against those where it wasn&apos;t.
+        Comparing sessions where Memmo memory was retrieved against those where it wasn&apos;t.
       </p>
       <div className="mt-4 grid gap-4 sm:grid-cols-2">
         <div className="rounded-xl border border-[var(--border)] bg-[var(--surface-2)] p-4">

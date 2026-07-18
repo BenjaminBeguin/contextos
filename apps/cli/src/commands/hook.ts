@@ -6,9 +6,9 @@ import { loadCredentials, loadProjectConfig, type ProjectConfig } from "../confi
 import { apiFetch, type ApiClientOptions } from "../api.js";
 
 /**
- * Claude Code hook runner. Invoked as `cortex hook <event>` from .claude/settings.json.
+ * Claude Code hook runner. Invoked as `memmo hook <event>` from .claude/settings.json.
  * Reads the hook payload as JSON on stdin. MUST be resilient: any failure exits 0 so a
- * misconfigured or offline Cortex never blocks the user's Claude Code session.
+ * misconfigured or offline Memmo never blocks the user's Claude Code session.
  */
 
 interface HookInput {
@@ -83,7 +83,7 @@ async function sessionStart(
   if (ctx.warnings?.length) lines.push(`Known risks:\n- ${ctx.warnings.join("\n- ")}`);
 
   if (lines.length === 0) return;
-  const text = `Cortex operational memory for this repo:\n${lines.join("\n")}`;
+  const text = `Memmo operational memory for this repo:\n${lines.join("\n")}`;
   process.stdout.write(
     JSON.stringify({
       hookSpecificOutput: { hookEventName: "SessionStart", additionalContext: text },
@@ -110,7 +110,7 @@ async function userPrompt(input: HookInput, env: { client: ApiClientOptions; con
   if (!memories.length) return;
 
   const body = memories.map((m) => `- [${m.type}] ${m.title}: ${m.content}`).join("\n");
-  const text = `Cortex memories relevant to this task:\n${body}`;
+  const text = `Memmo memories relevant to this task:\n${body}`;
   process.stdout.write(
     JSON.stringify({
       hookSpecificOutput: { hookEventName: "UserPromptSubmit", additionalContext: text },
@@ -140,7 +140,7 @@ async function preEdit(input: HookInput, env: { client: ApiClientOptions; config
     .update(`${input.session_id ?? "x"}:${file}`)
     .digest("hex")
     .slice(0, 16);
-  const marker = join(tmpdir(), `cortex-warned-${key}`);
+  const marker = join(tmpdir(), `memmo-warned-${key}`);
   if (existsSync(marker)) return;
   try {
     writeFileSync(marker, "1");
@@ -149,7 +149,7 @@ async function preEdit(input: HookInput, env: { client: ApiClientOptions; config
   }
 
   const body = warnings.map((w) => `⚠ [${w.type}] ${w.title}\n  ${w.content}`).join("\n");
-  process.stderr.write(`Cortex risk warnings for ${file}:\n${body}\n`);
+  process.stderr.write(`Memmo risk warnings for ${file}:\n${body}\n`);
   process.exit(2); // exit 2 → Claude sees stderr and accounts for it before retrying.
 }
 
@@ -252,7 +252,7 @@ export async function hookCommand(event: string) {
     else if (event === "pre-edit") await preEdit(input, env);
     else if (event === "session-end") await sessionEnd(input, env);
   } catch {
-    // Never break the user's Claude Code session over a Cortex hiccup.
+    // Never break the user's Claude Code session over a Memmo hiccup.
   }
   process.exit(0);
 }

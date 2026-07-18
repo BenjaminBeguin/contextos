@@ -1,5 +1,5 @@
 {
-  "name": "@cortex/api",
+  "name": "@memmo/api",
   "version": "0.1.0",
   "private": true,
   "type": "module",
@@ -10,7 +10,7 @@
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.39.0",
-    "@cortex/shared": "workspace:*",
+    "@memmo/shared": "workspace:*",
     "@fastify/cookie": "^11.0.2",
     "@fastify/cors": "^10.0.2",
     "@prisma/client": "^6.2.1",

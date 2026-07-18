@@ -7,7 +7,7 @@ import {
   DISMISS_DELTA,
   MIN_CONFIDENCE,
   MAX_CONFIDENCE,
-} from "@cortex/shared";
+} from "@memmo/shared";
 
 describe("feedbackEffect", () => {
   it("maps each feedback state to its confidence effect", () => {

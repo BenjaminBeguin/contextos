@@ -65,7 +65,7 @@ export function RepoSettings({ repoId, onDeleted }: { repoId: string; onDeleted?
           Run from your local checkout — writes CLAUDE.md, .mcp.json, and hooks.
         </p>
         <div className="mt-3">
-          <Code label={repo.fullName}>{`cortex init --repo ${repo.id}`}</Code>
+          <Code label={repo.fullName}>{`memmo init --repo ${repo.id}`}</Code>
         </div>
       </Card>
 
@@ -190,11 +190,11 @@ function ReviewerCard({ repo, repoId }: { repo: RepoDetail; repoId: string }) {
       <details className="mt-3 text-xs text-[var(--muted)]">
         <summary className="cursor-pointer hover:text-white">Set up CI (GitHub Actions)</summary>
         <div className="mt-2 space-y-2">
-          <p>In your repo, generate the workflow and add your Cortex token as a secret:</p>
-          <Code label="shell">{`cortex ci                        # writes .github/workflows/cortex-review.yml
-gh secret set CORTEX_TOKEN       # your token from \`cortex login\`
+          <p>In your repo, generate the workflow and add your Memmo token as a secret:</p>
+          <Code label="shell">{`memmo ci                        # writes .github/workflows/memmo-review.yml
+gh secret set MEMMO_TOKEN       # your token from \`memmo login\`
 # self-hosting the API? also:
-gh variable set CORTEX_API_URL --body https://your-cortex-api`}</Code>
+gh variable set MEMMO_API_URL --body https://your-memmo-api`}</Code>
         </div>
       </details>
 

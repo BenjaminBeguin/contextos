@@ -3,7 +3,7 @@
 import { useState } from "react";
 import Link from "next/link";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { PLAN_LIMITS, PLAN_LABELS, type Plan } from "@cortex/shared";
+import { PLAN_LIMITS, PLAN_LABELS, type Plan } from "@memmo/shared";
 import {
   api,
   connectDataStore,
@@ -402,7 +402,7 @@ function DataResidencyCard({
           </h2>
           <p className="mt-1 text-sm text-[var(--muted)]">
             Bring your own database. Connect your own Postgres and this project&apos;s memory is
-            stored in <span className="text-[var(--text)]">your</span> infrastructure — Cortex keeps
+            stored in <span className="text-[var(--text)]">your</span> infrastructure — Memmo keeps
             only routing metadata. Your knowledge never leaves your database.
           </p>
         </div>
@@ -426,7 +426,7 @@ function DataResidencyCard({
           <p className="mt-1 text-[var(--muted)]">
             Store your team&apos;s memory in your own Postgres for data residency and sovereignty —
             SOC 2 friendly, your keys, your infrastructure.{" "}
-            <a href="mailto:sales@cortex.dev?subject=Cortex%20Enterprise%20—%20data%20residency" className="text-[var(--accent)] hover:underline">
+            <a href="mailto:sales@memmo.dev?subject=Memmo%20Enterprise%20—%20data%20residency" className="text-[var(--accent)] hover:underline">
               Talk to us →
             </a>
           </p>
@@ -524,7 +524,7 @@ function DataResidencyCard({
                 className="w-full font-mono text-xs"
               />
               <p className="mt-1.5 text-xs text-[var(--faint)]">
-                We connect, create a <code>CortexMemory</code> table, and route this project&apos;s
+                We connect, create a <code>MemmoMemory</code> table, and route this project&apos;s
                 memory there. Stored encrypted; never shown again.
               </p>
               <div className="mt-3">
@@ -556,7 +556,7 @@ function DataResidencyCard({
 
 function friendlyDbError(msg: string): string {
   if (msg === "connection_failed") return "Couldn't reach that database — check the host, port, and credentials.";
-  if (msg === "provision_failed") return "Connected, but couldn't create the CortexMemory table — check permissions.";
+  if (msg === "provision_failed") return "Connected, but couldn't create the MemmoMemory table — check permissions.";
   if (msg === "plan_limit_byodb") return "Data residency is an Enterprise feature.";
   return msg;
 }

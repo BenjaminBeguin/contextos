@@ -73,7 +73,7 @@ type TokenScope = "cli" | "mcp" | "both";
 
 const SCOPE_OPTIONS: { value: TokenScope; label: string; hint: string }[] = [
   { value: "both", label: "Both", hint: "CLI + MCP server" },
-  { value: "cli", label: "CLI", hint: "cortex commands" },
+  { value: "cli", label: "CLI", hint: "memmo commands" },
   { value: "mcp", label: "MCP", hint: "Claude Code MCP server" },
 ];
 

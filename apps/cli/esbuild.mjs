@@ -1,7 +1,7 @@
 // Bundle the CLI into a single self-contained ESM file so the published npm
-// package does not depend on the private @cortex/shared workspace package.
+// package does not depend on the private @memmo/shared workspace package.
 // Real runtime deps stay external (resolved from the CLI's own node_modules);
-// @cortex/shared is inlined so findingKey/severities stay a single source of truth.
+// @memmo/shared is inlined so findingKey/severities stay a single source of truth.
 import { build } from "esbuild";
 import { readFileSync } from "node:fs";
 
