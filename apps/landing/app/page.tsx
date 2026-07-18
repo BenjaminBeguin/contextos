@@ -199,7 +199,7 @@ export default function LandingPage() {
         <div className="relative mx-auto max-w-6xl px-6 pt-24 pb-20 text-center">
           <p className="mx-auto mb-6 inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/5 px-3 py-1 text-xs text-[var(--muted)] backdrop-blur">
             <span className="inline-block h-1.5 w-1.5 animate-pulse rounded-full bg-[var(--signal)]" />
-            Operational memory for AI coding agents
+            Never explain your codebase to AI twice
           </p>
           <h1 className="gradient-text font-display mx-auto max-w-4xl text-6xl font-semibold leading-[1.05] tracking-tight sm:text-7xl">
             Give Claude Code your team&apos;s memory.
@@ -583,7 +583,7 @@ your knowledge never leaves your infra ✓`}
       </section>
 
       <footer className="border-t border-white/5 py-8 text-center text-sm text-[var(--muted)]">
-        <p>Memmo — Operational memory for AI coding agents.</p>
+        <p>Memmo — Never explain your codebase to AI twice.</p>
         <div className="mt-2 flex items-center justify-center gap-4">
           <a href="/privacy" className="hover:text-white">
             Privacy &amp; Cookies
