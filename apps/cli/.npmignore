@@ -1,0 +1,8 @@
+# Publishing is driven by the package.json "files" allowlist (dist + README).
+# This file exists so npm does NOT fall back to the repo .gitignore (which
+# ignores dist/) and therefore ships the built bundle.
+src
+tsconfig.json
+esbuild.mjs
+*.test.ts
+*.test.js

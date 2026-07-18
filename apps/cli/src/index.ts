@@ -20,7 +20,7 @@ const program = new Command();
 
 program
   .name("memmo")
-  .description("Operational memory for AI coding agents")
+  .description("Long-term memory for AI coding agents")
   .version(VERSION);
 
 program
