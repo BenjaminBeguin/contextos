@@ -819,6 +819,9 @@ function AiKeyCard({
   const meta = LLM_PROVIDERS.find((p) => p.value === provider) ?? LLM_PROVIDERS[0];
   const isCustom = provider === "custom";
   const canSave = !!key && (!isCustom || (!!baseUrl.trim() && !!model.trim()));
+  // Test the new config if a key is entered, else the saved one.
+  const canTest = key ? canSave : hasKey;
+  const [testResult, setTestResult] = useState<{ ok: boolean; msg: string } | null>(null);
 
   const save = useMutation({
     mutationFn: () =>
@@ -842,8 +845,31 @@ function AiKeyCard({
       setProvider("anthropic");
       setModel("");
       setBaseUrl("");
+      setTestResult(null);
       invalidate();
     },
+  });
+  const test = useMutation({
+    mutationFn: () =>
+      api<{ ok: boolean; model?: string | null; error?: string }>(
+        `/workspaces/${workspaceId}/llm/test`,
+        {
+          method: "POST",
+          body: JSON.stringify({
+            provider,
+            key: key || undefined,
+            model: model.trim() || undefined,
+            baseUrl: isCustom ? baseUrl.trim() : undefined,
+          }),
+        },
+      ),
+    onSuccess: (r) =>
+      setTestResult(
+        r.ok
+          ? { ok: true, msg: `Connection OK${r.model ? ` · ${r.model}` : ""}` }
+          : { ok: false, msg: r.error ?? "Connection failed" },
+      ),
+    onError: (e) => setTestResult({ ok: false, msg: (e as Error).message }),
   });
 
   return (
@@ -917,12 +943,28 @@ function AiKeyCard({
               <Button onClick={() => save.mutate()} disabled={!canSave || save.isPending}>
                 {save.isPending ? "Saving…" : hasKey ? "Replace" : "Save"}
               </Button>
+              <Button
+                variant="ghost"
+                onClick={() => {
+                  setTestResult(null);
+                  test.mutate();
+                }}
+                disabled={!canTest || test.isPending}
+              >
+                {test.isPending ? "Testing…" : "Test"}
+              </Button>
               {hasKey ? (
                 <Button variant="danger" onClick={() => remove.mutate()} disabled={remove.isPending}>
                   Remove
                 </Button>
               ) : null}
             </div>
+            {testResult ? (
+              <p className={`mt-2 text-sm ${testResult.ok ? "text-emerald-300" : "text-red-400"}`}>
+                {testResult.ok ? "✓ " : "✗ "}
+                {testResult.msg}
+              </p>
+            ) : null}
           </div>
 
           {save.isError ? (

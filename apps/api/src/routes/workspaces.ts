@@ -13,6 +13,7 @@ import {
   dataStoreReuseSchema,
   moveWorkspaceSchema,
   setLlmSchema,
+  testLlmSchema,
   planLimits,
   withinLimit,
 } from "@memmo/shared";
@@ -21,6 +22,7 @@ import { resolveUser, assertWorkspaceAccess, requireRole, HttpError } from "../a
 import { encryptToken, decryptToken } from "../crypto.js";
 import { env } from "../env.js";
 import { getAutoThresholds } from "../services/memory.js";
+import { complete, getWorkspaceLlm, type LlmConfig, type LlmProvider } from "../services/llm.js";
 import { memoryStore } from "../services/memoryStore.js";
 import { testConnection, provisionExternalStore, dropExternalClient } from "../services/dataStore.js";
 import { createCheckoutSession } from "../services/stripe.js";
@@ -815,6 +817,52 @@ export async function workspaceRoutes(app: FastifyInstance) {
       data: { llmKey: null, llmModel: null, llmBaseUrl: null, llmProvider: "anthropic" },
     });
     return { ok: true, hasLlmKey: false, llmProvider: "anthropic" };
+  });
+
+  // Validate a provider/key/model with a tiny live call — without persisting.
+  // If a key is supplied, tests that config; otherwise tests the saved one.
+  // Always returns HTTP 200; success/failure is in the `ok` field so the UI can
+  // show a friendly result rather than treating a bad key as a request error.
+  app.post("/workspaces/:workspaceId/llm/test", async (req, reply) => {
+    const user = await resolveUser(req);
+    if (!user) return reply.code(401).send({ error: "Unauthorized" });
+    const { workspaceId } = req.params as { workspaceId: string };
+    try {
+      const membership = await assertWorkspaceAccess(user.id, workspaceId);
+      if (membership.role !== "owner") throw new HttpError(403, "Only owners can test the API key");
+    } catch (e) {
+      if (e instanceof HttpError) return reply.code(e.statusCode).send({ error: e.message });
+      throw e;
+    }
+    const parsed = testLlmSchema.safeParse(req.body ?? {});
+    if (!parsed.success) {
+      return reply.send({ ok: false, error: parsed.error.issues[0]?.message ?? "Invalid config" });
+    }
+    const body = parsed.data;
+
+    let cfg: LlmConfig | null;
+    if (body.key) {
+      const provider = (body.provider ?? "anthropic") as LlmProvider;
+      if (provider === "custom" && (!body.baseUrl || !body.model)) {
+        return reply.send({ ok: false, error: "A custom provider needs both a base URL and a model." });
+      }
+      cfg = {
+        provider,
+        apiKey: body.key.trim(),
+        model: body.model?.trim() || null,
+        baseUrl: provider === "custom" ? body.baseUrl!.trim() : null,
+      };
+    } else {
+      cfg = await getWorkspaceLlm(workspaceId);
+    }
+    if (!cfg) return reply.send({ ok: false, error: "No provider configured yet." });
+
+    try {
+      const out = await complete(cfg, "You are a connection test.", "Reply with the single word OK.", 5);
+      return { ok: true, provider: cfg.provider, model: cfg.model || null, sample: out.trim().slice(0, 40) };
+    } catch (e) {
+      return { ok: false, error: (e as Error).message?.slice(0, 300) ?? "Request failed" };
+    }
   });
 
   // Rotate the join code (owners only) — invalidates the old one.

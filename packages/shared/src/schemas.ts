@@ -354,3 +354,14 @@ export const setLlmSchema = z
   });
 
 export type SetLlmInput = z.infer<typeof setLlmSchema>;
+
+// Test an LLM config without persisting it. All fields optional: when `key` is
+// given, test that config; otherwise the saved workspace config is tested.
+export const testLlmSchema = z.object({
+  provider: z.enum(["anthropic", "openai", "google", "custom"]).optional(),
+  key: z.string().min(1).optional(),
+  model: z.string().trim().min(1).optional(),
+  baseUrl: z.string().url("Base URL must be a valid URL").optional(),
+});
+
+export type TestLlmInput = z.infer<typeof testLlmSchema>;
