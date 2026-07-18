@@ -17,9 +17,9 @@ const inter = Inter({
 });
 
 export const metadata: Metadata = {
-  title: "Memmo — Operational memory for AI coding agents",
+  title: "Memmo — Long-term memory for AI coding agents",
   description:
-    "Memmo turns your repo, agent sessions, docs, and past mistakes into living operational context for AI coding agents.",
+    "Memmo gives Claude Code long-term memory — your team's decisions, current state, and hard-won lessons, reused by every agent so no session starts from zero.",
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
